@@ -993,11 +993,12 @@ if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 	while grep -q "Could not resolve host" "$this_script_path/curl.proc"
 	do
 		try=$[$try+1]
-		[[ $try -eq 3 ]] && { echo -e "\n${red}>${m_tab}Too many bad try. Cannot connect WooCommerce REST API.${reset}\n" ; exit 1; }
+		[[ $try -eq 3 ]] && { echo -e "\n${red}>${m_tab}Too many bad try. Cannot connect WooCommerce REST API.${reset}\n"; echo "$(timestamp): Too many bad try. Cannot connect WooCommerce REST API." >> "${error_log}"; exit 1; }
 		echo ""
 		echo -e "\n${red}*${reset} ${red}Could not resolve host${reset}"
 		echo "${cyan}${m_tab}#####################################################${reset}"
 		echo  "${m_tab}${red}Is your Wordpress domain correct?${reset}"
+		echo "$(timestamp): Could not resolve host! Check your DNS/Web server." >> "${error_log}"
 		while true
 		do
 			echo -e "\n${m_tab}${cyan}##################################################################${reset}"
@@ -1028,6 +1029,7 @@ if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 		echo "${cyan}${m_tab}#####################################################${reset}"
 		echo "${m_tab}${red}Is${reset} ${green}$api_endpoint${reset} ${red}is correct?${reset} ${red}Then enable WooCommerce,"
 		echo "${m_tab}${red}Enable REST API and restart setup.${reset}"
+		echo "$(timestamp): WooCommerce REST API Connection Error. Check WooCommerce plugin installed and REST API enabled." >> "${error_log}"
 		exit 1
 	fi
 elif grep -q  "404\|400" "$this_script_path/curl.proc"; then
@@ -1048,6 +1050,7 @@ if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 		echo "${m_tab}${red}Cannot connect destination from $my_ip.${reset}"
 		echo "${m_tab}${red}Check your firewall settings and webserver restrictions.${reset}"
 		echo "${m_tab}${red}Please give allow to $my_ip on your end and restart setup.${reset}"
+		echo "$(timestamp): WooCommerce REST API Authorization error. Cannot connect destination from $my_ip." >> "${error_log}"
 		exit 1
 	fi
 elif grep -q "403" "$this_script_path/curl.proc"; then
@@ -1066,11 +1069,12 @@ if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 	while grep -q "woocommerce_rest_authentication_error\|woocommerce_rest_cannot_view\|401" "$this_script_path/curl.proc"
 	do
 		try=$[$try+1]
-		[[ $try -eq 3 ]] && { echo -e "\n${red}>${m_tab}Too many bad try. Cannot connect REST API. Check your setup..${reset}\n" ; exit 1; }
+		[[ $try -eq 3 ]] && { echo -e "\n${red}>${m_tab}Too many bad try. Cannot connect REST API. Check your credentials.${reset}\n"; echo "$(timestamp): Too many bad try. Cannot connect REST API. Check your credentials." >> "${error_log}"; exit 1; }
 		echo -e "\n${red}*${reset} ${red}WooCommerce REST API Authentication error${reset}"
 		echo "${cyan}${m_tab}#####################################################${reset}"
 		echo "${m_tab}${red}Is your WooCommerce REST API credentials correct?${reset}"
 		echo -e "${m_tab}${red}Did you encrypted correct WooCommerce REST API credentials?${reset}\n"
+		echo "$(timestamp): WooCommerce REST API Authentication Error. Check your WooCommerce REST API credentials." >> "${error_log}"
 		while true
 		do
 			echo "${m_tab}${cyan}###########################################################################${reset}"
@@ -1168,11 +1172,12 @@ if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 	while grep -q "error_4625264224" "$this_script_path/aras.json"
 	do
 		try=$[$try+1]
-		[[ $try -eq 3 ]] && { echo -e "\n${red}Too many bad try. Cannot connect ARAS SOAP API.${reset}\n" ; exit 1; }
+		[[ $try -eq 3 ]] && { echo -e "\n${red}Too many bad try. Cannot connect ARAS SOAP API.${reset}\n"; echo "$(timestamp): Too many bad try. Cannot connect ARAS SOAP API. Check your ARAS endpoint URL." >> "${error_log}";  exit 1; }
 		echo ""
 		echo -e "\n${red}*${reset} ${red}ARAS SOAP Endpoint error${reset}"
 		echo "${cyan}${m_tab}#####################################################${reset}"
 		echo -e "${m_tab}${red}Is your ARAS endpoint URL correct?${reset}\n"
+		echo "$(timestamp): ARAS SOAP Endpoint Error! Check your ARAS endpoint URL." >> "${error_log}"
 		while true
 		do
 			echo "${m_tab}${cyan}###########################################################################${reset}"
@@ -1204,11 +1209,12 @@ if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 	while grep -q "error_75546475052" "$this_script_path/aras.json"
 	do
 		try=$[$try+1]
-		[[ $try -eq 3 ]] && { echo -e "\n${red}Too many bad try. Cannot connect ARAS SOAP API.${reset}\n" ; exit 1; }
+		[[ $try -eq 3 ]] && { echo -e "\n${red}Too many bad try. Cannot connect ARAS SOAP API.${reset}\n"; echo "$(timestamp): Too many bad try. Cannot connect ARAS SOAP API. Check your login credentials." >> "${error_log}";  exit 1; }
 		echo ""
                 echo -e "\n${red}*${reset} ${red}ARAS SOAP Authentication error${reset}"
                 echo "${cyan}${m_tab}#####################################################${reset}"
                 echo -e "${m_tab}${red}Is your ARAS SOAP API credentials correct?${reset}\n"
+		echo "$(timestamp): ARAS SOAP Authentication Error! Check your login credentials." >> "${error_log}"
 		while true
 		do
 			echo "${m_tab}${cyan}###########################################################################${reset}"
