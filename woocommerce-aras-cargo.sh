@@ -1194,7 +1194,7 @@ if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 			esac
 		done
 	done
-elif grep -q "error_4625264224" "$this_script_path/curl.proc"; then
+elif grep -q "error_4625264224" "$this_script_path/aras.json"; then
 	if [ $send_mail_err -eq 1 ]; then
 		echo "ARAS SOAP Endpoint Error! Check your ARAS endpoint URL. Please re-start setup manually." |
 		mail -s "$mail_subject_err" -a "$mail_from" "$mail_to"
@@ -1235,7 +1235,7 @@ if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 			esac
 		done
 	done
-elif grep -q "error_75546475052" "$this_script_path/curl.proc"; then
+elif grep -q "error_75546475052" "$this_script_path/aras.json"; then
 	if [ $send_mail_err -eq 1 ]; then
 		echo "ARAS SOAP Authentication Error! Check your login credentials. Please re-start setup manually." |
 		mail -s "$mail_subject_err" -a "$mail_from" "$mail_to"
