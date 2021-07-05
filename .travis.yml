@@ -4,3 +4,4 @@ sudo: required
 
 script:
     - sudo chmod +x woocommerce-aras-cargo.sh
+    - bash woocommerce-aras-cargo.sh
