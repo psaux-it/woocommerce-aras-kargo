@@ -51,7 +51,7 @@ No! Interactive setup will ask you to validate some parsed data. If you don't va
 - gnu sed
 - gnu awk
 - stat
-- woocommerce AST plugin
+- woocommerce AST plugin free (https://wordpress.org/plugins/woo-advanced-shipment-tracking/)
 
 ## Pre-Requisites
 - WooCommerce API Key (v3)
@@ -64,4 +64,12 @@ No! Interactive setup will ask you to validate some parsed data. If you don't va
 - ARAS SOAP Query Type (12 or 13)
 
 ## Usage
+- Get necessary credentials from ARAS commercial user control panel (https://esasweb.araskargo.com.tr/) (choose JSON fromat)
+- Enable and setup WooCommerce REST API (use v3, not legacy)
+- Clear wordpress cache for some security checks (e.g. json request caching)
+- Be sure you have some order data both on woocommerce and ARAS for data parse validations (if not create test order)
+- ```git clone https://github.com/hsntgm/woocommerce-aras-kargo.git``` (Never manually copy/paste script)
+- Copy woocommerce-aras-cargo.sh anywhere you want and start setup
+- Execute script with --setup argument --> ```./woocommerce-aras-cargo.sh --setup```
+
 ![help](https://user-images.githubusercontent.com/25556606/124503366-175e7580-ddce-11eb-8e3c-fcd01bde6028.png)
