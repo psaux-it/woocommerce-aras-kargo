@@ -3,4 +3,4 @@ language: bash
 sudo: required
 
 script:
-    - chmod u+x bash woocommerce-aras-cargo.sh
+    - sudo chmod +x woocommerce-aras-cargo.sh
