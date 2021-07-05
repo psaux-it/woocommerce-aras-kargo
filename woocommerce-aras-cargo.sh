@@ -767,8 +767,10 @@ add_logrotate () {
 # WooCommerce REST & ARAS SOAP encryption/decryption operations
 #=====================================================================
 
-# Check uncompleted setup first
-[[ "$(ls -1q ${this_script_path}/.*lck 2>/dev/null | wc -l)" -lt 8 ]] && on_fly_enable
+# Check uncompleted/broken setup first and hard-reset regardless of any given --setup argument
+if [[ "${1}" != "-s" || "${1}" != "--setup" ]]; then
+	[[ "$(ls -1q ${this_script_path}/.*lck 2>/dev/null | wc -l)" -lt 8 ]] && on_fly_enable
+fi
 
 encrypt_wc_auth () {
 	if [[ ! -s "$this_script_path/.key.wc.lck" ]]; then
