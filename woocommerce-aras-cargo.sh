@@ -194,7 +194,7 @@ fi
 
 # Listen exit signals to destroy temporary files
 my_tmp=$(mktemp)
-trap "rm -rf ${this_script_path}/${my_tmp} ${this_script_path}/*.en ${this_script_path}/*.proc ${this_script_path}/*.json* ${this_script_path}/aras_request.php" 0 1 2 3 15
+trap "rm -rf ${this_script_path}/${my_tmp} ${this_script_path}/*.en ${this_script_path}/*.proc ${this_script_path}/*.json* ${this_script_path}/aras_request.php" "${this_script_path}/.lvn*" 0 1 2 3 15
 
 # Global variables
 user="$(whoami)"
@@ -246,6 +246,42 @@ if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 	m_tab_2='              '
 	m_tab_3=' '
 fi
+
+# Approx text - distance
+levenshtein () {
+    if (( $# != 2 )); then
+        echo "Usage: $0 word1 word2" >&2
+    elif (( ${#1} < ${#2} )); then
+        levenshtein "$2" "$1"
+    else
+        local str1len=${#1}
+        local str2len=${#2}
+        local d
+
+        for (( i = 0; i <= (str1len+1)*(str2len+1); i++ )); do
+            d[i]=0
+        done
+
+        for (( i = 0; i <= str1len; i++ )); do
+            d[i+0*str1len]=$i
+        done
+
+        for (( j = 0; j <= str2len; j++ )); do
+            d[0+j*(str1len+1)]=$j
+        done
+
+        for (( j = 1; j <= str2len; j++ )); do
+            for (( i = 1; i <= str1len; i++ )); do
+                [ "${1:i-1:1}" = "${2:j-1:1}" ] && local cost=0 || local cost=1
+                del=$(( d[(i-1)+str1len*j]+1 ))
+                ins=$(( d[i+str1len*(j-1)]+1 ))
+                alt=$(( d[(i-1)+str1len*(j-1)]+cost ))
+                d[i+str1len*j]=$( echo -e "$del\n$ins\n$alt" | sort -n | head -1 )
+            done
+        done
+        echo "${d[str1len+str1len*(str2len)]}"
+    fi
+}
 
 # Uninstall bundles like cron, systemd, logrotate, logs
 uninstall () {
@@ -1265,6 +1301,56 @@ iconv -f utf8 -t ascii//TRANSLIT < "${this_script_path}/wc.proc" | tr '[:upper:]
 
 # match & merge woocommerce order ID and ARAS tracking number according to matched name,surname
 $m_awk 'FNR==NR{a[$2]=$1;next} ($2 in a) {print $2,a[$2],$1}' "${this_script_path}/wc.proc.en" "${this_script_path}/aras.proc.en" | $m_awk '{print $2,$3}' > "${my_tmp}"
+
+# Call levenshtein distance function to approximate matching up to 3 characters
+declare -A aras_array
+declare -A wc_array
+declare -a my_array
+
+while read -r track customer
+do
+	aras_array[$track]="${customer}"
+done < "${this_script_path}/aras.proc.en"
+
+while read -r id customer
+do
+	wc_array[$id]="${customer}"
+done < "${this_script_path}/wc.proc.en"
+
+for i in "${!wc_array[@]}"; do
+	for j in "${!aras_array[@]}"; do
+		echo "${wc_array[$i]}" "${aras_array[$j]}" >> "${this_script_path}/.lvn.all.cus"
+done
+	done
+
+while read -r wc aras
+do
+	levenshtein "$wc" "$aras" >> "${this_script_path}/.lvn.stn"
+done < "${this_script_path}/.lvn.all.cus"
+
+# Ignore exact matchs 0<distance<=3
+paste "${this_script_path}/.lvn.all.cus" "${this_script_path}/.lvn.stn" | $m_awk '($3!=0) && ($3<=3)' | $m_awk '{print $1, $2}' > "${this_script_path}/.lvn.stn.en"
+
+if [ -s "${this_script_path}/.lvn.stn.en" ]; then
+	while read -r wc ac
+	do
+		for i in "${!wc_array[@]}"; do
+			if [ "$wc" == "${wc_array[$i]}" ]; then
+				my_array+=("${i}")
+			fi
+		done
+
+		for i in "${!aras_array[@]}"; do
+			if [ "$ac" == "${aras_array[$i]}" ]; then
+				my_array+=("${i}")
+			fi
+		done
+	done < "${this_script_path}/.lvn.stn.en"
+fi
+
+if [[ -n "${my_array[@]}" ]]; then
+	echo "${my_array[@]}" | tr ' ' ',' | sed -e 's/,/\n/2' -e 'P;D' | tr ',' ' ' >> "${my_tmp}"
+fi
 
 # User must validate the data that parsed by script.
 # If you haven't any orders or shipped cargo yet we cannot generate any data.
