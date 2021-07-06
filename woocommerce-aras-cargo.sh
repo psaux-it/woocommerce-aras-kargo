@@ -169,6 +169,7 @@ m_php="$(command -v php 2>/dev/null)"
 m_awk="$(command -v awk 2>/dev/null)"
 m_curl="$(command -v curl 2>/dev/null)"
 m_sed="$(command -v sed 2>/dev/null)"
+m_paste="$(command -v paste 2>/dev/null)"
 
 # Discover
 this_script_full_path="${BASH_SOURCE[0]}"
@@ -247,7 +248,7 @@ if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 	m_tab_3=' '
 fi
 
-# Approx text - distance
+# Approx. matching strings - distance
 levenshtein () {
 	if (( $# != 2 )); then
 		echo "Usage: $0 word1 word2" >&2
@@ -1302,7 +1303,7 @@ iconv -f utf8 -t ascii//TRANSLIT < "${this_script_path}/wc.proc" | tr '[:upper:]
 # match & merge woocommerce order ID and ARAS tracking number according to matched name,surname
 $m_awk 'FNR==NR{a[$2]=$1;next} ($2 in a) {print $2,a[$2],$1}' "${this_script_path}/wc.proc.en" "${this_script_path}/aras.proc.en" | $m_awk '{print $2,$3}' > "${my_tmp}"
 
-# Call levenshtein distance function to approximate matching up to 3 characters
+# Call levenshtein distance function to approximate string matching up to 3 characters
 declare -A aras_array
 declare -A wc_array
 declare -a my_array
@@ -1317,19 +1318,23 @@ do
 	wc_array[$id]="${customer}"
 done < "${this_script_path}/wc.proc.en"
 
-for i in "${!wc_array[@]}"; do
-	for j in "${!aras_array[@]}"; do
-		echo "${wc_array[$i]}" "${aras_array[$j]}" >> "${this_script_path}/.lvn.all.cus"
-done
+if [[ "${#aras_array[@]}" -gt 0 && "${#wc_array[@]}" -gt 0 ]]; then
+	for i in "${!wc_array[@]}"; do
+		for j in "${!aras_array[@]}"; do
+			echo "${wc_array[$i]}" "${aras_array[$j]}" >> "${this_script_path}/.lvn.all.cus"
+		done
 	done
+fi
 
-while read -r wc aras
-do
-	levenshtein "$wc" "$aras" >> "${this_script_path}/.lvn.stn"
-done < "${this_script_path}/.lvn.all.cus"
+if [ -s "${this_script_path}/.lvn.all.cus" ]; then
+	while read -r wc aras
+	do
+		levenshtein "$wc" "$aras" >> "${this_script_path}/.lvn.stn"
+	done < "${this_script_path}/.lvn.all.cus"
 
-# Ignore exact matchs 0<distance<=3
-paste "${this_script_path}/.lvn.all.cus" "${this_script_path}/.lvn.stn" | $m_awk '($3!=0) && ($3<=3)' | $m_awk '{print $1, $2}' > "${this_script_path}/.lvn.stn.en"
+	# Ignore exact matchs 0<distance<=3
+	$m_paste "${this_script_path}/.lvn.all.cus" "${this_script_path}/.lvn.stn" | $m_awk '($3!=0) && ($3<=3)' | $m_awk '{print $1, $2}' > "${this_script_path}/.lvn.stn.en"
+fi
 
 if [ -s "${this_script_path}/.lvn.stn.en" ]; then
 	while read -r wc ac
@@ -1348,7 +1353,7 @@ if [ -s "${this_script_path}/.lvn.stn.en" ]; then
 	done < "${this_script_path}/.lvn.stn.en"
 fi
 
-if [[ -n "${my_array[@]}" ]]; then
+if [[ "${#my_array[@]}" -gt 0 ]]; then
 	echo "${my_array[@]}" | tr ' ' ',' | sed -e 's/,/\n/2' -e 'P;D' | tr ',' ' ' >> "${my_tmp}"
 fi
 
