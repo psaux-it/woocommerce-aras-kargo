@@ -249,38 +249,38 @@ fi
 
 # Approx text - distance
 levenshtein () {
-    if (( $# != 2 )); then
-        echo "Usage: $0 word1 word2" >&2
-    elif (( ${#1} < ${#2} )); then
-        levenshtein "$2" "$1"
-    else
-        local str1len=${#1}
-        local str2len=${#2}
-        local d
+	if (( $# != 2 )); then
+		echo "Usage: $0 word1 word2" >&2
+	elif (( ${#1} < ${#2} )); then
+		levenshtein "$2" "$1"
+	else
+	local str1len=${#1}
+	local str2len=${#2}
+	local d
 
-        for (( i = 0; i <= (str1len+1)*(str2len+1); i++ )); do
-            d[i]=0
-        done
+	for (( i = 0; i <= (str1len+1)*(str2len+1); i++ )); do
+		d[i]=0
+	done
 
-        for (( i = 0; i <= str1len; i++ )); do
-            d[i+0*str1len]=$i
-        done
+	for (( i = 0; i <= str1len; i++ )); do
+		d[i+0*str1len]=$i
+	done
 
-        for (( j = 0; j <= str2len; j++ )); do
-            d[0+j*(str1len+1)]=$j
-        done
+	for (( j = 0; j <= str2len; j++ )); do
+		d[0+j*(str1len+1)]=$j
+	done
 
-        for (( j = 1; j <= str2len; j++ )); do
-            for (( i = 1; i <= str1len; i++ )); do
-                [ "${1:i-1:1}" = "${2:j-1:1}" ] && local cost=0 || local cost=1
-                del=$(( d[(i-1)+str1len*j]+1 ))
-                ins=$(( d[i+str1len*(j-1)]+1 ))
-                alt=$(( d[(i-1)+str1len*(j-1)]+cost ))
-                d[i+str1len*j]=$( echo -e "$del\n$ins\n$alt" | sort -n | head -1 )
-            done
-        done
-        echo "${d[str1len+str1len*(str2len)]}"
-    fi
+	for (( j = 1; j <= str2len; j++ )); do
+		for (( i = 1; i <= str1len; i++ )); do
+			[ "${1:i-1:1}" = "${2:j-1:1}" ] && local cost=0 || local cost=1
+			del=$(( d[(i-1)+str1len*j]+1 ))
+			ins=$(( d[i+str1len*(j-1)]+1 ))
+			alt=$(( d[(i-1)+str1len*(j-1)]+cost ))
+			d[i+str1len*j]=$( echo -e "$del\n$ins\n$alt" | sort -n | head -1 )
+		done
+	done
+		echo "${d[str1len+str1len*(str2len)]}"
+	fi
 }
 
 # Uninstall bundles like cron, systemd, logrotate, logs
