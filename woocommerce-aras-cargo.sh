@@ -195,7 +195,7 @@ fi
 
 # Listen exit signals to destroy temporary files
 my_tmp=$(mktemp)
-trap "rm -rf ${this_script_path}/${my_tmp} ${this_script_path}/*.en ${this_script_path}/*.proc ${this_script_path}/*.json* ${this_script_path}/aras_request.php" "${this_script_path}/.lvn*" 0 1 2 3 15
+trap "rm -rf ${my_tmp} ${this_script_path}/*.en ${this_script_path}/*.proc ${this_script_path}/*.json* ${this_script_path}/aras_request.php ${this_script_path}/.lvn*" 0 1 2 3 15
 
 # Global variables
 user="$(whoami)"
