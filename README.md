@@ -15,13 +15,13 @@ The aim of this bash script solution is effortlessly integrate WooCommerce and A
 > via WooCommerce orders dashboard. The aim of script is automating the process fully.
 
 ## Is this approach works %100? What is the drawback?
-Not yet! As mentioned this is not a deep integration solution. And deep integration costs you money! For now useful for low volume e-commerce platforms. The actual drawback is we haven't any linked uniq string on both sides other than name,surname,telephone number. If we have multiple orders which on processing status from same customer we cannot match order with exact tracking number and you have to take manual actions.
+Not yet! As mentioned this is not a deep integration solution. For now useful for low volume e-commerce platforms. The actual drawback is we haven't any linked uniq string on both sides other than name,surname,telephone number. If we have multiple orders which on processing status from same customer we cannot match order with exact tracking number and you have to take manual actions.
 
 ## How to get rid of drawback?
 Is Aras cargo able to insert/link your woocommerce order id while receiving to cargo? We need to link order on both side with uniq string. Also ARAS end must return this uniq string to match. If this is possible please contribute or simply keep in touch with me for implementation.
 
 ## What is the current workflow?
-In default if cargo on the way (tracking number generated on ARAS end) we update order status processing to completed. So we assume order is completed. Currently script doesn't support custom shipment status like 'shipped'. If you use this kind of workflow wait for further versions. I will implement three-way (processing-shipped-completed) workflow in next releases.   
+In default if the cargo on the way (tracking number generated on ARAS end) we update order status processing to completed. So we assume order is completed. Currently script doesn't support custom shipment status like 'shipped'. If you use this kind of workflow wait for further versions. I will implement three-way (processing-shipped-completed) workflow in next releases.   
 
 ## Will mess up anything?
 No! Interactive setup will ask you to validate some parsed data. If you don't validate the data installation part will be skipped. This solution never ever touch any core files of wordpress or woocommerce. You can uninstall any time you want.
@@ -29,7 +29,7 @@ No! Interactive setup will ask you to validate some parsed data. If you don't va
 ![setup5](https://user-images.githubusercontent.com/25556606/124501159-baf95700-ddc9-11eb-81ce-84c5b9117639.png)
 
 ## Where is Turkish translation?
-You are welcome to add support/contribute on Turkish translation. Currently only mail notifications support Turkish. The setup and logs not support Turkish yet.
+You are welcome to add support/contribute on Turkish translation. Currently script only supports mail notifications in Turkish. The setup and logs not supported yet.
 
 ## Features
 - Interactive easy setup
@@ -37,9 +37,10 @@ You are welcome to add support/contribute on Turkish translation. Currently only
 - Powerful error handling for various checks like SOAP and REST API connections
 - Auto installation methods via cron, systemd
 - Adds logrotate if you have
-- Pluginless pure server side bash solution, no need any deep integration effort that cost you money
+- Pluginless pure server side bash solution, set and forget
 - HTML notify mails for updated orders, errors
 - Easily auto upgrade to latest version
+- Prevent mismatchs caused by typo via levenshtein distance function. Approximate string matching up to 3 characters.
 
 ![setup](https://user-images.githubusercontent.com/25556606/124499928-7e2c6080-ddc7-11eb-9df2-672a0f5ab2d1.png) ![setup4](https://user-images.githubusercontent.com/25556606/124500396-61445d00-ddc8-11eb-92eb-de3af3ff3d63.png)
 
@@ -55,11 +56,12 @@ You are welcome to add support/contribute on Turkish translation. Currently only
 - gnu sed
 - gnu awk
 - stat
+- paste
 - woocommerce AST plugin free (https://wordpress.org/plugins/woo-advanced-shipment-tracking/)
 
 ## User Defined Settings
 Please set below settings manually in the script. While auto update triggers we always keep these settings.
-So it is enough to set one time. For mail notification you need working mail server like postfix with 'mail' command which comes with mailutils package.
+So it is enough to set one time. For mail notification you need working mail server like postfix with 'mail' command which comes with mailutils linux package.
 
 - error_log
 - access_log
@@ -84,10 +86,10 @@ So it is enough to set one time. For mail notification you need working mail ser
 - Get necessary credentials from ARAS commercial user control panel (https://esasweb.araskargo.com.tr/) (choose JSON fromat)
 - Enable and setup WooCommerce REST API (use v3, not legacy)
 - Adjust user defined settings as mentioned before
-- Clear wordpress cache for some security checks (e.g. json request caching)
-- Be sure you have some order data both on woocommerce and ARAS for data parse validations (if not create test order)
-- ```git clone https://github.com/hsntgm/woocommerce-aras-kargo.git``` (Never manually copy/paste script)
-- Copy woocommerce-aras-cargo.sh anywhere you want and start setup
-- Execute script with --setup argument --> ```./woocommerce-aras-cargo.sh --setup```
+- Clear wordpress cache for some security checks
+- Be sure you have some data both on woocommerce and ARAS for validations (if not create test orders)
+- Clone repo ```git clone https://github.com/hsntgm/woocommerce-aras-kargo.git``` (Never manually copy/paste script)
+- Copy woocommerce-aras-cargo.sh anywhere you want and execute script as 'root' or with sudo 
+- ```sudo ./woocommerce-aras-cargo.sh --setup```
 
 ![help](https://user-images.githubusercontent.com/25556606/124503366-175e7580-ddce-11eb-8e3c-fcd01bde6028.png)
