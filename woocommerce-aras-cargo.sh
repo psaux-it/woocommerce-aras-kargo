@@ -1481,14 +1481,14 @@ if [ -e "${this_script_path}/.woo.aras.enb" ]; then
 			while IFS=' ' read -r id track
 			do
 				# Update order with AST Plugin REST API
-				$m_curl -s -X POST \
+				$m_curl -s -o /dev/null -X POST \
 					-u "$api_key":"$api_secret" \
 					-H "Content-Type: application/json" \
 					-d '{"tracking_provider": "Aras Kargo","tracking_number": "'"${track}"'","date_shipped": "'"${t_date}"'","status_shipped": 1}' \
 					"https://$api_endpoint/wp-json/wc-ast/v3/orders/$id/shipment-trackings"
 				# HTML mail about order updates
 				sleep 5
-				c_name=$(curl -X GET "https://$api_endpoint/wp-json/wc/v3/orders/$id" -u "$api_key":"$api_secret" -H "Content-Type: application/json" | jq -r '[.billing.first_name,.billing.last_name]|join(" ")')
+				c_name=$(curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/orders/$id" -u "$api_key":"$api_secret" -H "Content-Type: application/json" | jq -r '[.billing.first_name,.billing.last_name]|join(" ")')
 				# If you use custom order number plugins
 				order_number=$(curl -X GET "https://$api_endpoint/wp-json/wc/v3/orders/$id" -u "$api_key":"$api_secret" -H "Content-Type: application/json" | jq -r '[.meta_data]' | awk '/_order_number/{getline; print}' | awk -F: '{print $2}' | tr -d '"' | sed -r 's/\s+//g' | tr " " "*" | tr "\t" "&")
 				mail -s "$mail_subject_suc" -a "$mail_from" -a "MIME-Version: 1.0" -a "Content-Type: text/html; charset=UTF-8" "$mail_to" <<- EOF
