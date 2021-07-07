@@ -1,9 +1,20 @@
+1.0.2 - 07/08/2021
+===============================================
+- Add support levenshtein distance function
+  to catch typos.
+  Approximate string matching up to 3 characters.
+- Suppress curl output stdout.
+- Better error handling. 
+  Add control on curl exit code.
+- Better detection of uncompleted/broken setup.
+- More logging to terminal.
+
 1.0.1 - 07/05/2021
 ===============================================
-- More error logging
-- Fix - (error handling) searching in wrong file
+- More error logging.
+- Fix - (error handling) searching in wrong file.
 
 
 1.0.0 - 07/04/2021
 ================================================
-- first release
+- first release.
