@@ -1310,7 +1310,7 @@ iconv -f utf8 -t ascii//TRANSLIT < "${this_script_path}/aras.proc" | tr '[:upper
 iconv -f utf8 -t ascii//TRANSLIT < "${this_script_path}/wc.proc" | tr '[:upper:]' '[:lower:]' | $m_awk '{s=$1;gsub($1 FS,x);$1=$1;print s FS $0}' OFS= > "${this_script_path}/wc.proc.en"
 
 # match & merge woocommerce order ID and ARAS tracking number according to matched name,surname
-$m_awk 'FNR==NR{a[$2]=$1;next} ($2 in a) {print $2,a[$2],$1}' "${this_script_path}/wc.proc.en" "${this_script_path}/aras.proc.en" | $m_awk '{print $2,$3}' > "${my_tmp}"
+$m_awk 'FNR==NR{a[$2]=$1;next} ($2 in a) {print $2,a[$2],$1}' "${this_script_path}/aras.proc.en" "${this_script_path}/wc.proc.en" | $m_awk '{print $2,$3}' | $m_awk '{print $2,$1}' > "${my_tmp}"
 
 # Call levenshtein distance function to approximate string matching up to 3 characters
 declare -A aras_array
