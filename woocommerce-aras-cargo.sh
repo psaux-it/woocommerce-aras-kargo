@@ -34,23 +34,6 @@
 # Follow detailed installation instructions on github.
 # =====================================================================
 
-# Prevent upgrade errors cause by uncompleted downloads
-# Detect to make sure the entire script is avilable, fail if the script is missing contents
-if [ "$(tail -n 1 "${0}" | head -n 1 | cut -c 1-7)" != "exit \$?" ]; then
-	red=`tput setaf 1`
-	reset=`tput sgr0`
-	cyan=`tput setaf 6`
-	m_tab='  '
-	timestamp () {
-		date +"%Y-%m-%d %T"
-	}
-
-	echo -e "\n${red}*${reset} ${red}FATAL ERROR: Script is incomplete, please redownload${reset}"
-	echo "${cyan}${m_tab}#####################################################${reset}"
-	echo "$(timestamp): FATAL ERROR: Script is incomplete, please redownload" >> "${error_log}"
-	exit 1
-fi
-
 # Need for upgrade - DON'T EDIT MANUALLY
 # =====================================================================
 script_version="1.0.2"
@@ -233,7 +216,7 @@ fi
 FROM_SYSTEMD="0"
 RUNNING_FROM_SYSTEMD="${RUNNING_FROM_SYSTEMD:=$FROM_SYSTEMD}"
 
-# My colors --> tput not works without TERM
+# My colors
 if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 	green=`tput setaf 2`
 	red=`tput setaf 1`
@@ -246,6 +229,32 @@ if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 	m_tab='  '
 	m_tab_2='              '
 	m_tab_3=' '
+fi
+
+
+# Prevent upgrade errors cause by uncompleted downloads
+# Detect to make sure the entire script is avilable, fail if the script is missing contents
+if [ "$(tail -n 1 "${0}" | head -n 1 | cut -c 1-7)" != "exit \$?" ]; then
+        echo -e "\n${red}*${reset} ${red}Script is incomplete, please redownload${reset}"
+        echo "${cyan}${m_tab}#####################################################${reset}"
+        echo "$(timestamp): Script is incomplete, please re-download" >> "${error_log}"
+        exit 1
+fi
+
+# Test connection
+grep -q "200" < <($m_curl -sL -w "%{http_code}\\n" "http://www.google.com/" -o /dev/null) || w_in=1
+if [[ -n $w_in ]]; then
+	if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
+		echo "${red}*${reset} ${red}There is no internet connection.${reset}"
+		echo "$(timestamp): There is no internet connection." >> "${error_log}"
+	else
+		echo "$(timestamp): There is no internet connection." >> "${error_log}"
+	fi
+
+	if [ $send_mail_err -eq 1 ]; then
+		echo "There is no internet connection." | mail -s "$mail_subject_err" -a "$mail_from" "$mail_to"
+	fi
+	exit 1
 fi
 
 # Approx. matching strings - distance
