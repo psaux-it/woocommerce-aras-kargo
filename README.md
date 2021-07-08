@@ -46,6 +46,8 @@ You are welcome to add support/contribute on Turkish translation. Currently scri
 
 ## Hard Dependencies
 - bash
+- perl
+- perl Text::Fuzzy
 - curl
 - openssl
 - mail (mailutils)
@@ -53,8 +55,8 @@ You are welcome to add support/contribute on Turkish translation. Currently scri
 - php
 - iconv
 - pstree
-- gnu sed
-- gnu awk
+- sed
+- awk
 - stat
 - paste
 - woocommerce AST plugin free (https://wordpress.org/plugins/woo-advanced-shipment-tracking/)
