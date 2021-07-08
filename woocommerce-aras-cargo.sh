@@ -114,6 +114,20 @@ if ! command -v php > /dev/null 2>&1; then
 	exit 1
 fi
 
+if ! command -v perl > /dev/null 2>&1; then
+	echo "perl not found."
+	echo "If binary installed locally set installation path as system environment."
+	echo "$(timestamp): perl not found." >> "${error_log}"
+	exit 1
+fi
+
+if ! perl -e 'use Text::Fuzzy;' >/dev/null 2>&1; then
+	echo "perl Text::Fuzzy module not found."
+	echo "Use distro repo or CPAN (https://metacpan.org/pod/Text::Fuzzy) to install"
+	echo "$(timestamp): Use distro repo or CPAN (https://metacpan.org/pod/Text::Fuzzy) to install" >> "${error_log}"
+	exit 1
+fi
+
 if ! command -v pstree > /dev/null 2>&1; then
 	echo "pstree not found. This is not fatal error but may breaks functionality."
 	echo "If binary installed locally set installation path as system environment."
@@ -153,6 +167,7 @@ m_awk="$(command -v awk 2>/dev/null)"
 m_curl="$(command -v curl 2>/dev/null)"
 m_sed="$(command -v sed 2>/dev/null)"
 m_paste="$(command -v paste 2>/dev/null)"
+m_perl="$(command -v perl 2>/dev/null)"
 
 # Discover
 this_script_full_path="${BASH_SOURCE[0]}"
@@ -178,7 +193,7 @@ fi
 
 # Listen exit signals to destroy temporary files
 my_tmp=$(mktemp)
-trap "rm -rf ${my_tmp} ${this_script_path}/*.en ${this_script_path}/*.proc ${this_script_path}/*.json* ${this_script_path}/aras_request.php ${this_script_path}/.lvn*" 0 1 2 3 15
+trap "rm -rf ${my_tmp} ${this_script_path}/*.en ${this_script_path}/*.proc ${this_script_path}/*.json* ${this_script_path}/aras_request.php ${this_script_path}/.lvn* ${this_script_path}/${levenshtein}" 0 1 2 3 15
 
 # Global variables
 user="$(whoami)"
@@ -200,6 +215,7 @@ logrotate_filename="woocommerce_aras"
 sh_github="https://raw.githubusercontent.com/hsntgm/woocommerce-aras-kargo/master/woocommerce-aras-cargo.sh"
 sh_output="${this_script_path}/woocommerce-aras-cargo.sh.tmp"
 update_script="woocommerce-aras-update-script.sh"
+levenshtein="levenshtein.pl"
 
 # Determine script run by cron
 TEST_CRON="$($m_pstree -s $$ | grep -c cron 2>/dev/null)"
@@ -256,42 +272,6 @@ if [[ -n $w_in ]]; then
 	fi
 	exit 1
 fi
-
-# Approx. matching strings - distance
-levenshtein () {
-	if (( $# != 2 )); then
-		echo "Usage: $0 word1 word2" >&2
-	elif (( ${#1} < ${#2} )); then
-		levenshtein "$2" "$1"
-	else
-	local str1len=${#1}
-	local str2len=${#2}
-	local d
-
-	for (( i = 0; i <= (str1len+1)*(str2len+1); i++ )); do
-		d[i]=0
-	done
-
-	for (( i = 0; i <= str1len; i++ )); do
-		d[i+0*str1len]=$i
-	done
-
-	for (( j = 0; j <= str2len; j++ )); do
-		d[0+j*(str1len+1)]=$j
-	done
-
-	for (( j = 1; j <= str2len; j++ )); do
-		for (( i = 1; i <= str1len; i++ )); do
-			[ "${1:i-1:1}" = "${2:j-1:1}" ] && local cost=0 || local cost=1
-			del=$(( d[(i-1)+str1len*j]+1 ))
-			ins=$(( d[i+str1len*(j-1)]+1 ))
-			alt=$(( d[(i-1)+str1len*(j-1)]+cost ))
-			d[i+str1len*j]=$( echo -e "$del\n$ins\n$alt" | sort -n | head -1 )
-		done
-	done
-		echo "${d[str1len+str1len*(str2len)]}"
-	fi
-}
 
 # Uninstall bundles like cron, systemd, logrotate, logs
 uninstall () {
@@ -1298,72 +1278,51 @@ fi
 # Parse ARAS JSON data with jq to get necessary data --> status, recipient{name,surname}, tracking number
 < "${this_script_path}/aras.json.mod" $m_jq -r '.[]|[.DURUM_KODU,.KARGO_TAKIP_NO,.ALICI]|join(" ")' | $m_sed '/^6/d' | cut -f2- -d ' ' > "${this_script_path}/aras.proc"
 
-# As mentioned this is not a deep integration solution. Useful for low volume e-commerce platforms.
-# We haven't uniq string other than -name,surname- on both side -our application(woocommerce) and ARAS endpoint-
-#==========================================================================
-# Is Aras cargo able to insert/link your woocommerce order id while receiving to cargo?
-# We need to link order on both side with uniq string. Also their end  must return this uniq string.
-#==========================================================================
 # For perfect matching with order id and tracking number we are normalizing the data.
 # Translate customer info to 'en' & transform text to lowercase & remove whitespaces
 iconv -f utf8 -t ascii//TRANSLIT < "${this_script_path}/aras.proc" | tr '[:upper:]' '[:lower:]' | $m_awk '{s=$1;gsub($1 FS,x);$1=$1;print s FS $0}' OFS= > "${this_script_path}/aras.proc.en"
 iconv -f utf8 -t ascii//TRANSLIT < "${this_script_path}/wc.proc" | tr '[:upper:]' '[:lower:]' | $m_awk '{s=$1;gsub($1 FS,x);$1=$1;print s FS $0}' OFS= > "${this_script_path}/wc.proc.en"
 
 # match & merge woocommerce order ID and ARAS tracking number according to matched name,surname
-$m_awk 'FNR==NR{a[$2]=$1;next} ($2 in a) {print $2,a[$2],$1}' "${this_script_path}/aras.proc.en" "${this_script_path}/wc.proc.en" | $m_awk '{print $2,$3}' | $m_awk '{print $2,$1}' > "${my_tmp}"
-
 # Call levenshtein distance function to approximate string matching up to 3 characters
 declare -A aras_array
 declare -A wc_array
-declare -a my_array
 
-while read -r track customer
+while read -r track a_customer
 do
-	aras_array[$track]="${customer}"
+	aras_array[$track]="${a_customer}"
 done < "${this_script_path}/aras.proc.en"
 
-while read -r id customer
+while read -r id w_customer
 do
-	wc_array[$id]="${customer}"
+	wc_array[$id]="${w_customer}"
 done < "${this_script_path}/wc.proc.en"
 
 if [[ "${#aras_array[@]}" -gt 0 && "${#wc_array[@]}" -gt 0 ]]; then
 	for i in "${!wc_array[@]}"; do
 		for j in "${!aras_array[@]}"; do
-			echo "${wc_array[$i]}" "${aras_array[$j]}" >> "${this_script_path}/.lvn.all.cus"
+			echo "${i}" "${wc_array[$i]}" "${j}" "${aras_array[$j]}" >> "${this_script_path}/.lvn.all.cus"
 		done
 	done
 fi
 
+cat > "${this_script_path}/${levenshtein}" << EOF
+#!$m_perl
+use warnings;
+use strict;
+use Text::Fuzzy;
+my \$tf = Text::Fuzzy->new ("\$ARGV[0]");
+\$tf->set_max_distance (3);
+print \$tf->distance ("\$ARGV[1]"), "\\n";
+EOF
+
 if [ -s "${this_script_path}/.lvn.all.cus" ]; then
-	while read -r wc aras
+	cat "${this_script_path}/.lvn.all.cus" | $m_awk '{print $2,$4}' | while read -r wc aras
 	do
-		levenshtein "$wc" "$aras" >> "${this_script_path}/.lvn.stn"
-	done < "${this_script_path}/.lvn.all.cus"
+		$m_perl "${this_script_path}/${levenshtein}" "$wc" "$aras" >> "${this_script_path}/.lvn.stn"
+	done
 
-	# Ignore exact matchs 0<distance<=3
-	$m_paste "${this_script_path}/.lvn.all.cus" "${this_script_path}/.lvn.stn" | $m_awk '($3!=0) && ($3<=3)' | $m_awk '{print $1, $2}' > "${this_script_path}/.lvn.stn.en"
-fi
-
-if [ -s "${this_script_path}/.lvn.stn.en" ]; then
-	while read -r wc ac
-	do
-		for i in "${!wc_array[@]}"; do
-			if [ "$wc" == "${wc_array[$i]}" ]; then
-				my_array+=("${i}")
-			fi
-		done
-
-		for i in "${!aras_array[@]}"; do
-			if [ "$ac" == "${aras_array[$i]}" ]; then
-				my_array+=("${i}")
-			fi
-		done
-	done < "${this_script_path}/.lvn.stn.en"
-fi
-
-if [[ "${#my_array[@]}" -gt 0 ]]; then
-	echo "${my_array[@]}" | tr ' ' ',' | sed -e 's/,/\n/2' -e 'P;D' | tr ',' ' ' >> "${my_tmp}"
+	$m_paste "${this_script_path}/.lvn.all.cus" "${this_script_path}/.lvn.stn" | $m_awk '($5 < 4 )' | $m_awk '{print $1,$3}' > "${my_tmp}"
 fi
 
 # User must validate the data that parsed by script.
@@ -1468,23 +1427,6 @@ if [ -e "${this_script_path}/.woo.aras.enb" ]; then
 	# Check multiple orders(processing) & tracking numbers for same customer.
 	# As mentioned this is not deep integration solution. This is the biggest drawback.
 	# If we have multiple orders from same customer we cannot match order with exact tracking number.
-	for i in ${this_script_path}/*.en
-	do
-		d_customer="$(grep -wo '[[:alnum:]]\+' "$i" | sort | uniq -d)"
-		if [[ -n "$d_customer" ]]; then
-			if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
-				echo "Multiple orders || tracking info found for $d_customer. Stopped.."
-				echo "$(timestamp): Multiple orders || tracking info found for $d_customer. Stopped.." >> "${error_log}"
-			else
-				echo "$(timestamp): Multiple orders || tracking info found for $d_customer. Stopped.." >> "${error_log}"
-			fi
-
-			if [ $send_mail_err -eq 1 ]; then
-				echo "Multiple orders & tracking info found for $d_customer" | mail -s "$mail_subject_err" -a "$mail_from" "$mail_to"
-			fi
-			exit 1
-		fi
-	done
 
 	if [ -s "$my_tmp" ]; then
 			while IFS=' ' read -r id track
