@@ -200,7 +200,8 @@ user="$(whoami)"
 cron_dir="/etc/cron.d"
 shopt -s extglob; cron_dir="${cron_dir%%+(/)}"
 cron_filename="woocommerce_aras"
-cron_minute="$(( ( RANDOM % 59 ) + 1 ))"
+# At every 30th minute past every hour from 9 through 20
+cron_minute="*/30 9-20"
 cron_user="${user}"
 cron_script_full_path="$this_script_path/$this_script_name"
 systemd_dir="/etc/systemd/system"
@@ -653,9 +654,12 @@ add_cron () {
 		exit 1
 	else
 		cat <<- EOF > "${cron_dir}/${cron_filename}"
+		# At every 30th minute past every hour from 9AM through 20PM
+		# Via WooCommerce - ARAS Cargo Integration Script
+		# Copyright 2021 Hasan ÇALIŞIR
 		#MAILTO=$mail_to
 		SHELL=/bin/bash
-		$cron_minute * * * * ${cron_user} [ -x ${cron_script_full_path} ] && ${my_bash} ${cron_script_full_path}
+		$cron_minute * * * ${cron_user} [ -x ${cron_script_full_path} ] && ${my_bash} ${cron_script_full_path}
 		EOF
 
 		result=$?
@@ -717,10 +721,10 @@ add_systemd () {
 
 		cat <<- EOF > "${systemd_dir}/${timer_filename}"
 		[Unit]
-		Description=woocommerce-aras 1 hour timer
+		Description=woocommerce-aras timer - At every 30th minute past every hour from 9AM through 20PM expect Sunday
 
 		[Timer]
-		OnCalendar=00/1:11
+		OnCalendar=Mon..Sat 9..20:00/30:00
 		Persistent=true
 		Unit="${service_filename}"
 
