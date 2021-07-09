@@ -1283,8 +1283,7 @@ fi
 iconv -f utf8 -t ascii//TRANSLIT < "${this_script_path}/aras.proc" | tr '[:upper:]' '[:lower:]' | $m_awk '{s=$1;gsub($1 FS,x);$1=$1;print s FS $0}' OFS= > "${this_script_path}/aras.proc.en"
 iconv -f utf8 -t ascii//TRANSLIT < "${this_script_path}/wc.proc" | tr '[:upper:]' '[:lower:]' | $m_awk '{s=$1;gsub($1 FS,x);$1=$1;print s FS $0}' OFS= > "${this_script_path}/wc.proc.en"
 
-# match & merge woocommerce order ID and ARAS tracking number according to matched name,surname
-# Call levenshtein distance function to approximate string matching up to 3 characters
+# Create associative array and prepeare necessary data for matching operation
 declare -A aras_array
 declare -A wc_array
 
@@ -1306,6 +1305,9 @@ if [[ "${#aras_array[@]}" -gt 0 && "${#wc_array[@]}" -gt 0 ]]; then
 	done
 fi
 
+# Create perl script for string matching via levenshtein distance function
+# Perl Text::Fuzzy module is very fast in my tests.
+# You can try Text::Levenshtein - Text::Levenshtein::XS if you interested in speed test (need some coding)
 cat > "${this_script_path}/${levenshtein}" << EOF
 #!$m_perl
 use warnings;
@@ -1316,14 +1318,43 @@ my \$tf = Text::Fuzzy->new ("\$ARGV[0]");
 print \$tf->distance ("\$ARGV[1]"), "\\n";
 EOF
 
+# Set executable
+chmod +x "${this_script_path}/${levenshtein}"
+
+# MAIN STRING MATCHING LOGIC
+# Approximate string matching up to 3 characters.
+# =============================================================================================
 if [ -s "${this_script_path}/.lvn.all.cus" ]; then
 	cat "${this_script_path}/.lvn.all.cus" | $m_awk '{print $2,$4}' | while read -r wc aras
 	do
 		$m_perl "${this_script_path}/${levenshtein}" "$wc" "$aras" >> "${this_script_path}/.lvn.stn"
 	done
-
 	$m_paste "${this_script_path}/.lvn.all.cus" "${this_script_path}/.lvn.stn" | $m_awk '($5 < 4 )' | $m_awk '{print $1,$3}' > "${my_tmp}"
+
+	# Better handle multiple orders(processing) for same customer
+	# Better handle multiple tracking numbers for same customer
+	declare -A magic
+	while read id track; do
+		magic[${id}]="${magic[$id]}${magic[$id]:+ }${track}"
+	done < "${my_tmp}"
+
+	for id in "${!magic[@]}"; do
+		echo "$id ${magic[$id]}" >> "${this_script_path}/.lvn.mytmp2"
+	done
+
+	if [ "$($m_awk '{print NF}' ${this_script_path}/.lvn.mytmp2 | sort -nu | tail -n 1)" -gt 2 ]; then
+		$m_awk 'NF==3' "${this_script_path}/.lvn.mytmp2" > "${this_script_path}/.lvn.mytmp3"
+		if [[ -n "$($m_awk 'x[$2]++ == 1 { print $2 }' ${this_script_path}/.lvn.mytmp3)" ]]; then
+			for i in $($m_awk 'x[$2]++ == 1 { print $2 }' "${this_script_path}/.lvn.mytmp3"); do
+				$m_sed -i "0,/$i/{s/$i//}" "${this_script_path}/.lvn.mytmp3"
+			done
+			cat <(cat "${this_script_path}/.lvn.mytmp3" | $m_awk '{$1=$1}1' | $m_awk '{print $1,$2}') <(cat "${this_script_path}/.lvn.mytmp2" | $m_awk 'NF<=2') > "${my_tmp}"
+		else
+			cat <(cat "${this_script_path}/.lvn.mytmp3" | $m_awk '{print $1,$2}') <(cat "${this_script_path}/.lvn.mytmp2" | $m_awk 'NF<=2') > "${my_tmp}"
+		fi
+	fi
 fi
+# ============================================================================================
 
 # User must validate the data that parsed by script.
 # If you haven't any orders or shipped cargo yet we cannot generate any data.
