@@ -1193,7 +1193,7 @@ EOF
 # Get WC order's ID (processing status) & WC customer info
 # As of 2021 max 100 orders fetchable with one query
 $m_curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/orders?status=processing&per_page=100" -u "$api_key":"$api_secret" -H "Content-Type: application/json" |
-	$m_jq -r '.[]|[.id,.billing.first_name,.billing.last_name]|join(" ")' > "$this_script_path/wc.proc"
+	$m_jq -r '.[]|[.id,.shipping.first_name,.shipping.last_name]|join(" ")' > "$this_script_path/wc.proc"
 
 # Make SOAP request to ARAS web service to get shipment DATA in JSON format
 # We will request last 10 day data as setted before
