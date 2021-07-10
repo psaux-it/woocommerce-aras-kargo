@@ -590,32 +590,40 @@ download () {
 upgrade () {
 	latest_version=$($m_curl -s --compressed -k "$sh_github" 2>&1 | grep "^script_version=" | head -n1 | cut -d '"' -f 2)
 	current_version=$(grep "^script_version=" ${cron_script_full_path} | head -n1 | cut -d '"' -f 2)
-	changelog_p=$($m_curl -s --compressed -k "$changelog_github" 2>&1 | $m_sed -n "/$latest_version/,/$current_version/p" | head -n -2)
+	changelog_p=$($m_curl -s --compressed -k "$changelog_github" 2>&1 | $m_sed -n "/$latest_version/,/$current_version/p" 2>/dev/null | head -n -2)
 
-	if [ "${latest_version//./}" -gt "${current_version//./}" ]; then
-		if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
-			echo -e "\n${green}*${reset} ${green}NEW UPDATE FOUND!${reset}"
-			echo "${cyan}${m_tab}#####################################################${reset}"
-			echo -e "${magenta}$changelog_p${reset}\n" | sed 's/^/  /'
-			while true; do
-				read -n 1 -p "${m_tab}${BC}Do you want to update version $latest_version? --> (Y)es | (N)o${EC} " yn < /dev/tty
-				echo ""
-				case "${yn}" in
-					[Yy]* ) download; break;;
-					[Nn]* ) exit 1;;
-					* ) echo -e "\n${m_tab}${magenta}Please answer yes or no.${reset}"; echo "${cyan}${m_tab}#####################################################${reset}";;
-				esac
-			done
+	if [[ -n $latest_version && -n $current_version ]]; then
+		if [ "${latest_version//./}" -gt "${current_version//./}" ]; then
+			if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
+				echo -e "\n${green}*${reset} ${green}NEW UPDATE FOUND!${reset}"
+				echo "${cyan}${m_tab}#####################################################${reset}"
+				echo -e "${magenta}$changelog_p${reset}\n" | sed 's/^/  /'
+				while true; do
+					read -n 1 -p "${m_tab}${BC}Do you want to update version $latest_version? --> (Y)es | (N)o${EC} " yn < /dev/tty
+					echo ""
+					case "${yn}" in
+						[Yy]* ) download; break;;
+						[Nn]* ) exit 1;;
+						* ) echo -e "\n${m_tab}${magenta}Please answer yes or no.${reset}"; echo "${cyan}${m_tab}#####################################################${reset}";;
+					esac
+				done
+			else
+				download
+			fi
+		elif [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
+			echo -e "\n${yellow}*${reset} ${yellow}There is no update!${reset}"
+			echo -e "${cyan}${m_tab}#####################################################${reset}\n"
+			echo "$(timestamp): Update process started: There is no new update." >> "${access_log}"
 		else
-			download
+			echo "$(timestamp): Update process started: There is no new update." >> "${access_log}"
+
 		fi
 	elif [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
-		echo -e "\n${yellow}*${reset} ${yellow}There is no update!${reset}"
+		echo -e "\n${red}*${reset} ${red}Upgrade failed! Could not find upgrade content${reset}"
 		echo -e "${cyan}${m_tab}#####################################################${reset}\n"
-		echo "$(timestamp): Update process started: There is no new update." >> "${access_log}"
+		echo "$(timestamp): Upgrade failed. Could not find upgrade content" >> "${access_log}"
 	else
-		echo "$(timestamp): Update process started: There is no new update." >> "${access_log}"
-
+		echo "$(timestamp): Upgrade failed. Could not find upgrade content" >> "${access_log}"
 	fi
 }
 
