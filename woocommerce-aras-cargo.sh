@@ -495,11 +495,14 @@ download () {
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			echo "${m_tab}${red}Could not download: $sh_github${reset}"
 			echo "$(timestamp): Upgrade failed, could not download: $sh_github" >> "${error_log}"
-			exit 1
 		else
 			echo "$(timestamp): Upgrade failed, could not download: $sh_github" >> "${error_log}"
-			exit 1
 		fi
+
+		if [ $send_mail_err -eq 1 ]; then
+			echo "Upgrade failed:  could not download: $sh_github" | mail -s "$mail_subject_err" -a "$mail_from" "$mail_to"
+		fi
+		exit 1
 	fi
 
 	# Test the downloaded content
@@ -509,11 +512,14 @@ download () {
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			echo "${m_tab}${red}Downloaded $sh_output is incomplete, please re-run${reset}"
 			echo "$(timestamp): Upgrade failed, cannot verify downloaded script, please re-run." >> "${error_log}"
-			exit 1
 		else
 			echo "$(timestamp): Upgrade failed, cannot verify downloaded script, please re-run." >> "${error_log}"
-			exit 1
 		fi
+
+		if [ $send_mail_err -eq 1 ]; then
+			echo "Upgrade failed: Upgrade failed, cannot verify downloaded script, please re-run." | mail -s "$mail_subject_err" -a "$mail_from" "$mail_to"
+		fi
+		exit 1
 	fi
 
 	# Keep user defined settings before upgrading
@@ -557,33 +563,62 @@ download () {
 
 	# Overwrite old file with new
 	if ! mv -f "${sh_output}" "${cron_script_full_path}"; then
-		echo -e "\\n\$(tput setaf 1)*\$(tput sgr0) \$(tput setaf 1)Upgrade failed:\$(tput sgr0)"
-		echo "\$(tput setaf 6)${m_tab}#####################################################\$(tput sgr0)"
-		echo -e "${m_tab}\$(tput setaf 1)Failed moving ${sh_output} to ${cron_script_full_path}\$(tput sgr0)\\n"
-		echo "$(timestamp): Upgrade failed: failed moving ${sh_output} to ${cron_script_full_path}" >> "${error_log}"
+		if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
+			echo -e "\\n\$(tput setaf 1)*\$(tput sgr0) \$(tput setaf 1)Upgrade failed:\$(tput sgr0)"
+			echo "\$(tput setaf 6)${m_tab}#####################################################\$(tput sgr0)"
+			echo -e "${m_tab}\$(tput setaf 1)Failed moving ${sh_output} to ${cron_script_full_path}\$(tput sgr0)\\n"
+			echo "$(timestamp): Upgrade failed: failed moving ${sh_output} to ${cron_script_full_path}" >> "${error_log}"
+		else
+			echo "$(timestamp): Upgrade failed: failed moving ${sh_output} to ${cron_script_full_path}" >> "${error_log}"
+		fi
+
+		if [ $send_mail_err -eq 1 ]; then
+			echo "Upgrade failed: failed moving ${sh_output} to ${cron_script_full_path}" | mail -s "$mail_subject_err" -a "$mail_from" "$mail_to"
+		fi
+
+		#remove the tmp script before exit
 		rm -f \$0
 		exit 1
 	fi
 
 	# Replace permission
 	if ! chmod "$OCTAL_MODE" "${cron_script_full_path}"; then
-		echo -e "\\n\$(tput setaf 1)*\$(tput sgr0) \$(tput setaf 1)Upgrade failed:\$(tput sgr0)"
-		echo "\$(tput setaf 6)${m_tab}#####################################################\$(tput sgr0)"
-		echo -e "${m_tab}\$(tput setaf 1)Unable to set permissions on ${cron_script_full_path}\$(tput sgr0)\\n"
-		echo "$(timestamp): Upgrade failed: Unable to set permissions on ${cron_script_full_path}" >> "${error_log}"
+		if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
+			echo -e "\\n\$(tput setaf 1)*\$(tput sgr0) \$(tput setaf 1)Upgrade failed:\$(tput sgr0)"
+			echo "\$(tput setaf 6)${m_tab}#####################################################\$(tput sgr0)"
+			echo -e "${m_tab}\$(tput setaf 1)Unable to set permissions on ${cron_script_full_path}\$(tput sgr0)\\n"
+			echo "$(timestamp): Upgrade failed: Unable to set permissions on ${cron_script_full_path}" >> "${error_log}"
+		else
+			echo "$(timestamp): Upgrade failed: Unable to set permissions on ${cron_script_full_path}" >> "${error_log}"
+		fi
+
+		if [ $send_mail_err -eq 1 ]; then
+			 echo "Upgrade failed: Unable to set permissions on ${cron_script_full_path}" | mail -s "$mail_subject_err" -a "$mail_from" "$mail_to"
+		fi
+
+		#remove the tmp script before exit
 		rm -f \$0
 		exit 1
 	fi
 
-	echo -e "\\n\$(tput setaf 2)*\$(tput sgr0) \$(tput setaf 2)Upgrade completed.\$(tput sgr0)"
-	echo "\$(tput setaf 6)${m_tab}#####################################################\$(tput sgr0)"
-	echo -e "${m_tab}\$(tput setaf 2)Script updated to version ${latest_version}\$(tput sgr0)\\n"
-	echo "$(timestamp): Upgrade completed. Script updated to version ${latest_version}" >> "${access_log}"
+	if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
+		echo -e "\\n\$(tput setaf 2)*\$(tput sgr0) \$(tput setaf 2)Upgrade completed.\$(tput sgr0)"
+		echo "\$(tput setaf 6)${m_tab}#####################################################\$(tput sgr0)"
+		echo -e "${m_tab}\$(tput setaf 2)Script updated to version ${latest_version}\$(tput sgr0)\\n"
+		echo "$(timestamp): Upgrade completed. Script updated to version ${latest_version}" >> "${access_log}"
+	else
+		echo "$(timestamp): Upgrade completed. Script updated to version ${latest_version}" >> "${access_log}"
+	fi
+
+	if [ $send_mail_err -eq 1 ]; then
+		echo "Upgrade completed. WooCommerce-aras integration script updated to version ${latest_version}" | mail -s "$mail_subject_suc" -a "$mail_from" "$mail_to"
+	fi
+
 	#remove the tmp script before exit
 	rm -f \$0
 	EOF
 
-	# Replaced with $0, so code will update and then call itself with the same parameters it had
+	# Replaced with $0, so code will update
 	exec "$my_bash" "${this_script_path}/${update_script}"
 }
 
@@ -621,9 +656,12 @@ upgrade () {
 	elif [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 		echo -e "\n${red}*${reset} ${red}Upgrade failed! Could not find upgrade content${reset}"
 		echo -e "${cyan}${m_tab}#####################################################${reset}\n"
-		echo "$(timestamp): Upgrade failed. Could not find upgrade content" >> "${access_log}"
+		echo "$(timestamp): Upgrade failed. Could not find upgrade content" >> "${error_log}"
+	elif [ $send_mail_err -eq 1 ]; then
+		echo "Upgrade failed. Could not find upgrade content" | mail -s "$mail_subject_err" -a "$mail_from" "$mail_to"
+		echo "$(timestamp): Upgrade failed. Could not find upgrade content" >> "${error_log}"
 	else
-		echo "$(timestamp): Upgrade failed. Could not find upgrade content" >> "${access_log}"
+		echo "$(timestamp): Upgrade failed. Could not find upgrade content" >> "${error_log}"
 	fi
 }
 
