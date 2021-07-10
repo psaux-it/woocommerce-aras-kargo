@@ -1,12 +1,19 @@
+1.0.5 - 07/11/2021
+=========================================================
+- IMPORTANT FIX - Use shipping data instead of billing
+- IMPORTANT FIX - trap signal catch: prevent erase data
+  because of missing variable.
+- Better detection of uncompleted setup.
+
 1.0.4 - 07/10/2021
-===================================================
+========================================================
 - Improve string matching logic.
 - Adjust cron & systemd timer.
   At every 30th minute past every hour from
   9AM through 20PM expect Sunday.
 
 1.0.3 - 07/09/2021
-===================================================
+========================================================
 - Use perl instead of bash for levenshtein distance
   function. %80 speed up.
 - Add perl & Text::Fuzzy module to hard dependencies
@@ -14,7 +21,7 @@
   operations.
 
 1.0.2 - 07/08/2021
-===================================================
+========================================================
 - Add support levenshtein distance function
   to catch typos.
   Approximate string matching up to 3 characters.
@@ -25,10 +32,10 @@
 - More logging to terminal.
 
 1.0.1 - 07/05/2021
-==================================================
+========================================================
 - More error logging.
 - Fix - (error handling) searching in wrong file.
 
 1.0.0 - 07/04/2021
-==================================================
+========================================================
 - first release.
