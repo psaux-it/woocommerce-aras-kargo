@@ -797,9 +797,15 @@ add_logrotate () {
 # WooCommerce REST & ARAS SOAP encryption/decryption operations
 #=====================================================================
 
-# Check uncompleted/broken setup first and hard-reset regardless of any given --setup argument
-if [[ "${1}" != "-s" || "${1}" != "--setup" ]]; then
-	[[ "$(ls -1q ${this_script_path}/.*lck 2>/dev/null | wc -l)" -lt 8 ]] && on_fly_enable
+# Check uncompleted setup
+if [[ "$1" != "-s" && "$1" != "--setup" ]]; then
+	if [[ "$(ls -1q ${this_script_path}/.*lck 2>/dev/null | wc -l)" -lt 8 ]]; then
+		echo -e "\n${yellow}*${reset} ${yellow}The previous installation was not completed.${reset}"
+		echo "${cyan}${m_tab}#####################################################${reset}"
+		echo "${m_tab}${yellow}We continue the installation from where we left off.${reset}"
+		echo "${m_tab}${yellow}If you wish re-start setup with hard reset:${reset}"
+		echo "${m_tab}${green}--> ./$this_script_name -s${reset}"
+	fi
 fi
 
 encrypt_wc_auth () {
