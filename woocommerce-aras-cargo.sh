@@ -213,7 +213,8 @@ systemd_script_full_path="$this_script_path/$this_script_name"
 logrotate_dir="/etc/logrotate.d"
 logrotate_conf="/etc/logrotate.conf"
 logrotate_filename="woocommerce_aras"
-sh_github="https://raw.githubusercontent.com/hsntgm/woocommerce-aras-kargo/master/woocommerce-aras-cargo.sh"
+sh_github="https://raw.githubusercontent.com/hsntgm/woocommerce-aras-kargo/main/woocommerce-aras-cargo.sh"
+changelog_github="https://raw.githubusercontent.com/hsntgm/woocommerce-aras-kargo/main/CHANGELOG"
 sh_output="${this_script_path}/woocommerce-aras-cargo.sh.tmp"
 update_script="woocommerce-aras-update-script.sh"
 levenshtein="levenshtein.pl"
@@ -589,10 +590,13 @@ download () {
 upgrade () {
 	latest_version=$($m_curl -s --compressed -k "$sh_github" 2>&1 | grep "^script_version=" | head -n1 | cut -d '"' -f 2)
 	current_version=$(grep "^script_version=" ${cron_script_full_path} | head -n1 | cut -d '"' -f 2)
+	changelog_p=$($m_curl -s --compressed -k "$changelog_github" 2>&1 | $m_sed -n "/$latest_version/,/$current_version/p" | head -n -2)
+
 	if [ "${latest_version//./}" -gt "${current_version//./}" ]; then
 		if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
-			echo -e "\n${green}*${reset} ${magenta}NEW UPDATE FOUND!${reset}"
+			echo -e "\n${green}*${reset} ${green}NEW UPDATE FOUND!${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
+			echo -e "${magenta}$changelog_p${reset}\n" | sed 's/^/  /'
 			while true; do
 				read -n 1 -p "${m_tab}${BC}Do you want to update version $latest_version? --> (Y)es | (N)o${EC} " yn < /dev/tty
 				echo ""
