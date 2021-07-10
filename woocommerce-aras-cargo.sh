@@ -797,14 +797,23 @@ add_logrotate () {
 # WooCommerce REST & ARAS SOAP encryption/decryption operations
 #=====================================================================
 
-# Check uncompleted setup
+# Check first run of script & uncompleted setup
 if [[ "$1" != "-s" && "$1" != "--setup" ]]; then
 	if [[ "$(ls -1q ${this_script_path}/.*lck 2>/dev/null | wc -l)" -lt 8 ]]; then
-		echo -e "\n${yellow}*${reset} ${yellow}The previous installation was not completed.${reset}"
+		echo -e "\n${yellow}*${reset} ${yellow}The previous installation was not completed or${reset}"
+		echo "${m_tab}${yellow}you are running the script first time without${reset}"
+		echo "${m_tab}${yellow}-s parameter.${reset}"
 		echo "${cyan}${m_tab}#####################################################${reset}"
-		echo "${m_tab}${yellow}We continue the installation from where we left off.${reset}"
-		echo "${m_tab}${yellow}If you wish re-start setup with hard reset:${reset}"
-		echo "${m_tab}${green}--> ./$this_script_name -s${reset}"
+		echo "${m_tab}${yellow}We can continue the installation if you wish but${reset}"
+		echo "${m_tab}${yellow}If you are running the script first time please use${reset}"
+		echo "${m_tab}${yellow}-s argument for guided installation. Check below table.${reset}"
+		help
+
+		read -n 1 -s -r -p "${green}>  Press any key to continue, q for quit${reset}" reply < /dev/tty; echo
+		if [ "$reply" == "q" ]; then
+			echo
+			exit 0
+		fi
 	fi
 fi
 
