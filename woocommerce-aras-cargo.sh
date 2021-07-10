@@ -18,7 +18,7 @@
 # WOOCOMMERCE - ARAS CARGO INTEGRATION
 # ---------------------------------------------------------------------
 # Written by : Hasan ÇALIŞIR - hasan.calisir@psauxit.com
-# Version    : 1.0.4
+# Version    : 1.0.5
 # Bash       : 5.1.8
 # Year       : 2021
 # ---------------------------------------------------------------------
@@ -36,7 +36,7 @@
 
 # Need for upgrade - DON'T EDIT MANUALLY
 # =====================================================================
-script_version="1.0.4"
+script_version="1.0.5"
 # =====================================================================
 
 # EDITABLE VARIABLES
