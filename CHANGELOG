@@ -1,3 +1,12 @@
+1.0.7 - 07/13/2021
+=========================================================
+- Use one-liner perl code instead of script
+- Fix send mail domain recipient
+- Remove usage of billing data
+- Send mail if auto update fails
+- More error handling
+- Improve  updater cron job installation
+
 1.0.6 - 07/12/2021
 =========================================================
 - Show changelog while upgrading manually
