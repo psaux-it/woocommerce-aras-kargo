@@ -1488,7 +1488,7 @@ if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 			echo -e "${m_tab}${green}Done${reset}"
 			echo -e "\n${green}${m_tab}Please validate Order_ID & Customer_Info.${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
-			column -t -s' ' <<< $(echo "$data_test" | $m_jq -r '.[]|[.id,.billing.first_name,.billing.last_name]|join(" ")' |
+			column -t -s' ' <<< $(echo "$data_test" | $m_jq -r '.[]|[.id,.shipping.first_name,.shipping.last_name]|join(" ")' |
 				iconv -f utf8 -t ascii//TRANSLIT | tr '[:upper:]' '[:lower:]' |
 				$m_awk '{s=$1;gsub($1 FS,x);$1=$1;print s FS $0}' OFS= |
 				$m_sed '1i Order_ID Customer_Name' | $m_sed '2i --------------- -------------' |
@@ -1588,7 +1588,7 @@ if [ -e "${this_script_path}/.woo.aras.enb" ]; then
 				if test "$res" == "0"; then
 					# HTML mail about order updates
 					sleep 5
-					c_name=$(curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/orders/$id" -u "$api_key":"$api_secret" -H "Content-Type: application/json" | jq -r '[.billing.first_name,.billing.last_name]|join(" ")')
+					c_name=$(curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/orders/$id" -u "$api_key":"$api_secret" -H "Content-Type: application/json" | jq -r '[.shipping.first_name,.shipping.last_name]|join(" ")')
 					# If you use custom order number plugins
 					order_number=$(curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/orders/$id" -u "$api_key":"$api_secret" -H "Content-Type: application/json" | jq -r '[.meta_data]' | awk '/_order_number/{getline; print}' | awk -F: '{print $2}' | tr -d '"' | sed -r 's/\s+//g' | tr " " "*" | tr "\t" "&")
 					mail -s "$mail_subject_suc" -a "$mail_from" -a "MIME-Version: 1.0" -a "Content-Type: text/html; charset=UTF-8" "$mail_to" <<- EOF
