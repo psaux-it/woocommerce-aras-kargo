@@ -73,86 +73,36 @@ timestamp () {
 
 # Check dependencies
 # =====================================================================
-if ! command -v curl > /dev/null 2>&1; then
-	echo "curl not found."
-	echo "If binary installed locally set installation path as system environment."
-	echo "$(timestamp): curl not found." >> "${error_log}"
-	exit 1
-fi
+declare -a dependencies=("curl" "iconv" "openssl" "jq" "php" "perl" "awk" "sed" "pstree" "stat" "mail")
+for i in "${dependencies[@]}"
+	if ! command -v "$i" > /dev/null 2>&1; then
+		echo -e "\n${red}*${reset} ${red}$i not found.${reset}"
+		echo "${cyan}${m_tab}#####################################################${reset}"
+		if [ $i == "mail" ]; then
+			echo "${yellow}${m_tab}You need running mail server with 'mail' command.${reset}"
+			echo "${yellow}${m_tab}'mail' command is part of mailutils package in linux.${reset}"
+		else
+			echo "${yellow}${m_tab}If binary not in your PATH: add PATH to ~/.bash_profile, ~/.bashrc or profile.${reset}"
+		fi
 
-if ! command -v iconv > /dev/null 2>&1; then
-	echo "iconv not found."
-	echo "$(timestamp): iconv not found." >> "${error_log}"
-	exit 1
-fi
-
-if ! command -v openssl > /dev/null 2>&1; then
-	echo "openssl not found."
-	echo "If binary installed locally set installation path as system environment."
-	echo "$(timestamp): openssl not found." >> "${error_log}"
-	exit 1
-fi
-
-if ! command -v jq > /dev/null 2>&1; then
-	echo "jq not found."
-	echo "https://github.com/stedolan/jq"
-	echo "Check first in distro repo otherwise compile manually."
-	echo "If binary installed locally set installation path as system environment."
-	echo "$(timestamp): jq not found." >> "${error_log}"
-	exit 1
-fi
+		echo "$(timestamp): $i not found." >> "${error_log}"
+		exit 1
+	fi
+done
 
 if ! command -v logrotate > /dev/null 2>&1; then
-	echo "logrotate not found, logrotation skipped."
-	echo "$(timestamp): logrotate not found, logrotation skipped." >> "${error_log}"
-fi
-
-if ! command -v php > /dev/null 2>&1; then
-	echo "php not found."
-	echo "If binary installed locally set installation path as system environment."
-	echo "$(timestamp): php not found." >> "${error_log}"
-	exit 1
-fi
-
-if ! command -v perl > /dev/null 2>&1; then
-	echo "perl not found."
-	echo "If binary installed locally set installation path as system environment."
-	echo "$(timestamp): perl not found." >> "${error_log}"
-	exit 1
+	echo "\n${yellow}*${reset} ${yellow}Logrotate not found, there will be no logrotation support.${reset}"
+	echo "${cyan}${m_tab}#####################################################${reset}"
+	echo "${yellow}${m_tab}You can install logrotate from distro repo and re-start setup.${reset}"
+	echo "$(timestamp): logrotate not found, there will be no logrotation support" >> "${error_log}"
+	logrotate_status="false"
 fi
 
 if ! perl -e 'use Text::Fuzzy;' >/dev/null 2>&1; then
-	echo "perl Text::Fuzzy module not found."
-	echo "Use distro repo or CPAN (https://metacpan.org/pod/Text::Fuzzy) to install"
-	echo "$(timestamp): Use distro repo or CPAN (https://metacpan.org/pod/Text::Fuzzy) to install" >> "${error_log}"
+	echo -e "\n${red}*${reset} Text::Fuzzy PERL module not found.${reset}"
+	echo "${yellow}${m_tab}Use distro repo or CPAN (https://metacpan.org/pod/Text::Fuzzy) to install${reset}"
+	echo "$(timestamp): Text::Fuzzy PERL module not found." >> "${error_log}"
 	exit 1
-fi
-
-if ! command -v pstree > /dev/null 2>&1; then
-	echo "pstree not found. This is not fatal error but may breaks functionality."
-	echo "If binary installed locally set installation path as system environment."
-	echo "$(timestamp): pstree not found." >> "${error_log}"
-fi
-
-if ! command -v "awk" > /dev/null 2>&1; then
-	echo "awk not found."
-	echo "If binary installed locally set installation path as system environment."
-	echo "$(timestamp): awk not found." >> "${error_log}"
-	exit 1
-fi
-
-if ! command -v "sed" > /dev/null 2>&1; then
-	echo "sed not found."
-	echo "If binary installed locally set installation path as system environment."
-	echo "$(timestamp): sed not found." >> "${error_log}"
-	exit 1
-fi
-
-if ! command -v stat > /dev/null 2>&1; then
-        echo "stat not found."
-        echo "If binary installed locally set installation path as system environment."
-        echo "$(timestamp): stat not found." >> "${error_log}"
-        exit 1
 fi
 # =====================================================================
 
@@ -193,7 +143,7 @@ fi
 
 # Listen exit signals to destroy temporary files
 my_tmp=$(mktemp)
-trap "rm -rf ${my_tmp} ${this_script_path}/*.en ${this_script_path}/*.proc ${this_script_path}/*.json* ${this_script_path}/aras_request.php ${this_script_path}/.lvn* ${this_script_path}/levenshtein.pl" 0 1 2 3 15
+trap "rm -rf ${my_tmp} ${this_script_path}/*.en ${this_script_path}/*.proc ${this_script_path}/*.json* ${this_script_path}/aras_request.php ${this_script_path}/.lvn*" 0 1 2 3 15
 
 # Global variables
 user="$(whoami)"
@@ -219,7 +169,6 @@ sh_github="https://raw.githubusercontent.com/hsntgm/woocommerce-aras-kargo/main/
 changelog_github="https://raw.githubusercontent.com/hsntgm/woocommerce-aras-kargo/main/CHANGELOG"
 sh_output="${this_script_path}/woocommerce-aras-cargo.sh.tmp"
 update_script="woocommerce-aras-update-script.sh"
-levenshtein="levenshtein.pl"
 
 # Determine script run by cron
 TEST_CRON="$($m_pstree -s $$ | grep -c cron 2>/dev/null)"
@@ -612,9 +561,8 @@ download () {
 		echo "$(timestamp): Upgrade completed. Script updated to version ${latest_version}" >> "${access_log}"
 	fi
 
-	if [ $send_mail_err -eq 1 ]; then
-		echo "Upgrade completed. WooCommerce-aras integration script updated to version ${latest_version}" | mail -s "$mail_subject_suc" -a "$mail_from" "$mail_to"
-	fi
+	# Send success mail
+	echo -e "Upgrade completed. WooCommerce-aras integration script updated to version ${latest_version}\n${changelog_p}" | mail -s "$mail_subject_suc" -a "$mail_from" "$mail_to"
 
 	#remove the tmp script before exit
 	rm -f \$0
@@ -731,7 +679,9 @@ add_cron () {
 			on_fly_disable
 
 			# Add logrotate
-			add_logrotate
+			if [[ ! -n $logrotate_status ]]; then
+				add_logrotate
+			fi
 
 			echo -e "\n${green}*${reset} ${green}Installation completed.${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
@@ -810,7 +760,9 @@ add_systemd () {
 			on_fly_disable
 
 			# Add logrotate
-			add_logrotate
+			if [[ ! -n $logrotate_status ]]; then
+				add_logrotate
+			fi
 
 			echo -e "\n${green}*${reset} ${green}Installation completed.${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
