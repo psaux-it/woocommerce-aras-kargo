@@ -50,12 +50,13 @@ company_name="E-Commerce Company"
 company_domain="mycompany.com"
 
 # Set 1 if you want to get error mails (recommended)
+# Set 0 to disable
 send_mail_err="1"
 
 # Set notify mail info
-mail_to="order_updates@${company_domain}.com"
-mail_from="From: ${company_name} <aras@${company_domain}.com>"
-mail_subject_suc="ORDER UPDATED: WooCommerce - ARAS Cargo Summary"
+mail_to="order_info@${company_domain}"
+mail_from="From: ${company_name} <aras_woocommerce@${company_domain}>"
+mail_subject_suc="SUCCESS: WooCommerce - ARAS Cargo"
 mail_subject_err="ERROR: WooCommerce - ARAS Cargo Integration Error"
 
 # Set ARAS cargo request date range --> last 10 days
