@@ -338,7 +338,7 @@ on_fly_disable () {
 
 # Pre-setup operations
 on_fly_enable () {
-		# Remove lock files to start setup and enable script
+		# Remove lock files (hard-reset) to re-start fresh setup
 		rm -rf "${this_script_path}"/.*lck >/dev/null 2>&1
 		rm -f "${this_script_path}/.woo.aras.set" >/dev/null 2>&1
 		rm -f "${this_script_path}/.woo.aras.enb" >/dev/null 2>&1
@@ -349,7 +349,8 @@ on_fly_enable () {
 			-e "${logrotate_dir}/${logrotate_filename}" ||
 			-e "${error_log}" ||
 			-e "${access_log}" ||
-			-e "${systemd_dir}/${timer_filename}" ]]; then
+			-e "${systemd_dir}/${timer_filename}" ||
+			-e "${systemd_dir}/${cron_filename_update}" ]]; then
 
 			echo -e "\n${green}*${reset} ${green}Found absolute files from old installation..${reset}"
 			echo -ne "${cyan}${m_tab}########                                             [20%]\r${reset}"
@@ -366,7 +367,7 @@ on_fly_enable () {
 			uninstall
 		fi
 
-		# ASCII
+		# WELCOME ASCII
 		echo -e  "\n${cyan}${m_tab}######################################################${reset}"
 		echo  "${m_tab_3}${green} __          ________ _      _____ ____  __  __ ______ "
 		echo  "${m_tab_3} \ \        / |  ____| |    / ____/ __ \|  \/  |  ____|"
@@ -377,12 +378,12 @@ on_fly_enable () {
 		echo ""
 		echo -e "${cyan}${m_tab}######################################################${reset}\n"
 
-		# 1
+		# STEP 1
 		echo "${cyan}${m_tab}#####################################################${reset}"
 		echo "${green}1${reset}${m_tab_3}${red}**${reset}${yellow} Clear wordpress cache before starting the setup${reset} ${red}**${reset}"
 		echo -e "${cyan}${m_tab}#####################################################${reset}\n"
 
-		# 2
+		# STEP 2
 		echo "${cyan}${m_tab}#####################################################${reset}"
 		echo "${green}2${reset}${m_tab_3}${red}**${reset}    ${yellow}Please prepeare the following information${reset}    ${red}**${reset}"
 		echo "${m_tab}${cyan}=====================================================${reset}"
@@ -397,12 +398,12 @@ on_fly_enable () {
 		echo "${m_tab}${cyan}=====================================================${reset}"
 		echo -e "${cyan}${m_tab}#####################################################${reset}\n"
 
-		# 3
+		# STEP 3
 		echo "${cyan}${m_tab}#####################################################${reset}"
 		echo "${green}3${reset}${m_tab_3}${red}**${reset}${yellow}     Be sure you have WooCommerce AST Plugin${reset}     ${red}**${reset}"
 		echo -e "${cyan}${m_tab}#####################################################${reset}\n"
 
-		# 4
+		# STEP 4
 		echo "${cyan}${m_tab}#####################################################${reset}"
 		echo "${green}4${reset}${m_tab_3}${red}**${reset}${yellow} Create some test orders, If you haven't any yet${reset} ${red}**${reset}"
 		echo -e "${cyan}${m_tab}#####################################################${reset}\n"
