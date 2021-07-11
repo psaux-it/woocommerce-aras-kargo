@@ -236,12 +236,12 @@ if [[ -n $w_in ]]; then
 	exit 1
 fi
 
-# Uninstall bundles like cron, systemd, logrotate, logs
+# Uninstall bundles like crons, systemd services, logrotate, logs
 uninstall () {
 	if [[ -s "${cron_dir}/${cron_filename}" ]]; then
 		if [[ -w "${cron_dir}/${cron_filename}" ]]; then
 			rm -f  "${cron_dir}/${cron_filename}"
-			echo -e "\n${green}*${reset} ${yellow}Cron uninstalled:${reset}"
+			echo -e "\n${green}*${reset} ${yellow}Main cron job uninstalled:${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			echo "${yellow}${m_tab}${cron_dir}/${cron_filename}${reset}"
 		else
@@ -253,6 +253,23 @@ uninstall () {
 	else
 		cron_uninstall=0
 	fi
+
+	if [[ -s "${cron_dir}/${cron_filename_update}" ]]; then
+		if [[ -w "${cron_dir}/${cron_filename_update}" ]]; then
+			rm -f  "${cron_dir}/${cron_filename_update}"
+			echo -e "\n${green}*${reset} ${yellow}Updater cron job uninstalled:${reset}"
+			echo "${cyan}${m_tab}#####################################################${reset}"
+			echo "${yellow}${m_tab}${cron_dir}/${cron_filename}${reset}"
+		else
+			echo -e "\n${red}*${reset} ${red}Updater cron job uninstallation aborted, as file not writable: ${cron_dir}/${cron_filename_update}${reset}"
+			echo "${cyan}${m_tab}#####################################################${reset}"
+			echo "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}\n"
+			echo "$(timestamp): Uninstallation error: ${cron_dir}/${cron_filename_update} is not writeable" >> "${error_log}"
+		fi
+	else
+		cron_uninstall_update=0
+	fi
+
 
 	if [[ -s "${systemd_dir}/${service_filename}" || -s "${systemd_dir}/${timer_filename}" ]]; then
 		if [[ -w "${systemd_dir}/${service_filename}" ]]; then
@@ -307,8 +324,8 @@ uninstall () {
 		log_uninstall=0
 	fi
 
-	if [[ -n $systemd_uninstall && -n $cron_uninstall && -n $log_uninstall && -n $logrotate_uninstall ]]; then
-		echo -e "\n${yellow}*${reset} ${yellow}Nothing found.${reset}"
+	if [[ -n $systemd_uninstall && -n $cron_uninstall && -n $cron_uninstall_update && -n $log_uninstall && -n $logrotate_uninstall ]]; then
+		echo -e "\n${yellow}*${reset} ${yellow}Nothing found to uninstall.${reset}"
 		echo -e "${cyan}${m_tab}#####################################################${reset}\n"
 	fi
 }
@@ -720,7 +737,7 @@ add_systemd () {
 		add_cron
 	fi
 
-	[ -d "/etc/systemd/system" ] || { echo -e "\n${m_tab}${yellow}Directory /etc/systemd/system does not exists. Forwarding crontab..${reset}"; add_cron; }
+	[ -d "/etc/systemd/system" ] || { echo -e "\n${m_tab}${yellow}Directory /etc/systemd/system does not exists. Forwarding crontab..${reset}"; echo "${cyan}${m_tab}#####################################################${reset}"; add_cron; }
 
 	touch "${systemd_dir}/${service_filename}" 2>/dev/null
 	touch "${systemd_dir}/${timer_filename}" 2>/dev/null
@@ -766,12 +783,46 @@ add_systemd () {
 		result=$?
 
 		if [ "$result" -eq 0 ]; then
-			# Set status
-			on_fly_disable
+			if [ ! -e "${cron_dir}/${cron_filename_update}" ]; then
+				mkdir -p "$cron_dir" /dev/null 2>&1
+				touch "${cron_dir}/${cron_filename_update}" /dev/null 2>&1 ||
+				{ echo "could not create cron ${cron_filename_update}";  echo "$(timestamp): SETUP: could not create cron ${cron_filename_update}" >> "${error_log}";  exit 1; }
+			fi
 
-			# Add logrotate
-			if [[ ! -n $logrotate_status ]]; then
-				add_logrotate
+			if [ ! -w "${cron_dir}/${cron_filename_update}" ]; then
+				echo -e "\n${red}*${reset} Updater cron install aborted, as file not writable: ${cron_dir}/${cron_filename_update}"
+				echo "${cyan}${m_tab}#####################################################${reset}"
+				echo "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}"
+				echo "$(timestamp): SETUP: Cron install aborted, as file not writable: ${cron_dir}/${cron_filename_update}." >> "${error_log}"
+				exit 1
+			else
+				if [ "$auto_update" -eq 1 ]; then
+					cat <<- EOF > "${cron_dir}/${cron_filename_update}"
+					# Every night at 02:28 AM
+					# Via WooCommerce - ARAS Cargo Integration Script
+					# Copyright 2021 Hasan ÇALIŞIR
+					# MAILTO=$mail_to
+					SHELL=/bin/bash
+					$cron_minute_update * * * ${cron_user} [ -x ${cron_script_full_path} ] && ${my_bash} ${cron_script_full_path} -u
+					EOF
+
+					result=$?
+					if [ "$result" -eq 0 ]; then
+						# Set status
+						on_fly_disable
+
+						# Add logrotate
+						if [[ ! -n $logrotate_status ]]; then
+							add_logrotate
+						fi
+					else
+						echo -e "\n${red}*${reset} ${green}Installation failed.${reset}"
+						echo "${cyan}${m_tab}#####################################################${reset}"
+						echo "${m_tab}${red}Could not create updater cron {cron_dir}/${cron_filename_update}.${reset}"
+						echo "$(timestamp): Installation failed, could not create cron {cron_dir}/${cron_filename_update}" >> "${error_log}"
+						exit 1
+					fi
+				fi
 			fi
 
 			echo -e "\n${green}*${reset} ${green}Installation completed.${reset}"
@@ -788,7 +839,7 @@ add_systemd () {
 		else
 			echo -e "\n${red}*${reset} ${green}Installation failed.${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
-			echo "${m_tab}${red}Cannot start ${timer_filename} systemd service.${reset}"
+			echo "${m_tab}${red}Cannot enable/start ${timer_filename} systemd service.${reset}"
 			echo "$(timestamp): Installation failed, cannot start ${timer_filename} service." >> "${error_log}"
 			exit 1
 		fi
