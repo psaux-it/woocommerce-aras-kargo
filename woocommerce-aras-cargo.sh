@@ -182,6 +182,7 @@ fi
 # Determine script run by systemd.
 # Use systemd service environment variable if set.
 # Otherwise pass default.
+# Magic of shell parameter expansion
 FROM_SYSTEMD="0"
 RUNNING_FROM_SYSTEMD="${RUNNING_FROM_SYSTEMD:=$FROM_SYSTEMD}"
 
@@ -201,13 +202,21 @@ if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 fi
 
 
-# Prevent upgrade errors cause by uncompleted downloads
+# Prevent errors cause by uncompleted downloads
 # Detect to make sure the entire script is avilable, fail if the script is missing contents
 if [ "$(tail -n 1 "${0}" | head -n 1 | cut -c 1-7)" != "exit \$?" ]; then
-        echo -e "\n${red}*${reset} ${red}Script is incomplete, please redownload${reset}"
-        echo "${cyan}${m_tab}#####################################################${reset}"
-        echo "$(timestamp): Script is incomplete, please re-download" >> "${error_log}"
-        exit 1
+	if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
+		echo -e "\n${red}*${reset} ${red}Script is incomplete, please redownload${reset}"
+		echo "${cyan}${m_tab}#####################################################${reset}"
+		echo "$(timestamp): Script is incomplete, please re-download" >> "${error_log}"
+	else
+		echo "$(timestamp): Script is incomplete, please re-download" >> "${error_log}"
+	fi
+
+	if [ $send_mail_err -eq 1 ]; then
+		echo "Script is incomplete, please force upgrade manually. This is possibly auto upgrade error." | mail -s "$mail_subject_err" -a "$mail_from" "$mail_to"
+	fi
+	exit 1
 fi
 
 # Test connection
