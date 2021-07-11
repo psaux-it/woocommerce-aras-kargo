@@ -200,8 +200,10 @@ user="$(whoami)"
 cron_dir="/etc/cron.d"
 shopt -s extglob; cron_dir="${cron_dir%%+(/)}"
 cron_filename="woocommerce_aras"
+cron_filename_update="woocommerce_aras_update"
 # At every 30th minute past every hour from 9 through 20
 cron_minute="*/30 9-20"
+cron_minute_update="28 2"
 cron_user="${user}"
 cron_script_full_path="$this_script_path/$this_script_name"
 systemd_dir="/etc/systemd/system"
@@ -703,11 +705,22 @@ add_cron () {
 		echo "$(timestamp): SETUP: Cron install aborted, as file not writable: ${cron_dir}/${cron_filename}." >> "${error_log}"
 		exit 1
 	else
+		if [ "$auto_update" -eq 1 ]; then
+			cat <<- EOF > "${cron_dir}/${cron_filename_update}"
+			# Every night at 02:28 AM
+			# Via WooCommerce - ARAS Cargo Integration Script
+			# Copyright 2021 Hasan ÇALIŞIR
+			# MAILTO=$mail_to
+			SHELL=/bin/bash
+			$cron_minute_update * * * ${cron_user} [ -x ${cron_script_full_path} ] && ${my_bash} ${cron_script_full_path} -u
+			EOF
+                fi
+
 		cat <<- EOF > "${cron_dir}/${cron_filename}"
-		# At every 30th minute past every hour from 9AM through 20PM
+		# At every 30th minute past every hour from 9 AM through 20 PM
 		# Via WooCommerce - ARAS Cargo Integration Script
 		# Copyright 2021 Hasan ÇALIŞIR
-		#MAILTO=$mail_to
+		# MAILTO=$mail_to
 		SHELL=/bin/bash
 		$cron_minute * * * ${cron_user} [ -x ${cron_script_full_path} ] && ${my_bash} ${cron_script_full_path}
 		EOF
@@ -847,7 +860,7 @@ add_logrotate () {
 # WooCommerce REST & ARAS SOAP encryption/decryption operations
 #=====================================================================
 
-# Check first run of script & uncompleted setup
+# Check -s argument
 if [[ "$1" != "-s" && "$1" != "--setup" ]]; then
 	if [[ "$(ls -1q ${this_script_path}/.*lck 2>/dev/null | wc -l)" -lt 8 ]]; then
 		echo -e "\n${yellow}*${reset} ${yellow}The previous installation was not completed or${reset}"
@@ -863,6 +876,26 @@ if [[ "$1" != "-s" && "$1" != "--setup" ]]; then
 		if [ "$reply" == "q" ]; then
 			echo
 			exit 0
+		fi
+	fi
+fi
+
+# Check uncompleted setup
+if [[ "$1" != "-s" && "$1" != "--setup" ]]; then
+	if [[ "$(ls -1q ${this_script_path}/.*lck 2>/dev/null | wc -l)" -eq 8 ]]; then
+		if [[ ! -e "${this_script_path}/.woo.aras.set" && ! -e "${this_script_path}/.woo.aras.enb" ]]; then
+			echo -e "\n${yellow}*${reset} ${yellow}The previous installation was not completed.${reset}"
+			echo "${cyan}${m_tab}#####################################################${reset}"
+			echo "${m_tab}${yellow}We will continue the installation.${reset}"
+			echo "${m_tab}${yellow}If you encounter any problem please use${reset}"
+			echo "${m_tab}${yellow}-s argument for hard reset/restart the installation.${reset}"
+			help
+
+			read -n 1 -s -r -p "${green}>  Press any key to continue, q for quit${reset}" reply < /dev/tty; echo
+			if [ "$reply" == "q" ]; then
+				echo
+				exit 0
+			fi
 		fi
 	fi
 fi
@@ -1429,7 +1462,7 @@ fi
 # If you haven't any orders or shipped cargo yet we cannot generate any data.
 # You can simply create a test order if throw in error here.
 # If data validated by user we are ready for production.
-# If data is wrong open a issue.
+# If ARAS data is empty first check 'merchant code' which not return any error from ARAS end
 if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 	if [ ! -e "${this_script_path}/.woo.aras.set" ]; then
 		echo -e "\n${green}*${reset} ${green}Parsing some random data to validate.${reset}"
@@ -1468,9 +1501,9 @@ if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 				case "${yn}" in
 					[Yy]* ) break;;
 					[Nn]* ) exit 1;;
-                                	* ) echo -e "\n${m_tab}${magenta}Please answer yes or no.${reset}"; echo "${cyan}${m_tab}#####################################################${reset}";;
-                        	esac
-                	done
+					* ) echo -e "\n${m_tab}${magenta}Please answer yes or no.${reset}";;
+				esac
+			done
 		fi
 
 		if grep "null" "$this_script_path/aras.json.mod"; then
@@ -1497,10 +1530,24 @@ if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 				case "${yn}" in
 					[Yy]* ) break;;
 					[Nn]* ) exit 1;;
-					* ) echo -e "\n${m_tab}${magenta}Please answer yes or no.${reset}"; echo "${cyan}${m_tab}#####################################################${reset}";;
+					* ) echo -e "\n${m_tab}${magenta}Please answer yes or no.${reset}";;
 				esac
 			done
 		fi
+
+		echo -e "\n${green}*${reset} ${green}Please set auto update preference${reset}"
+		echo "${cyan}${m_tab}#####################################################${reset}"
+
+		while true
+		do
+			read -n 1 -p "${m_tab}${BC}Script automatically update itself? --> (Y)es | (N)o${EC} " yn < /dev/tty
+			echo ""
+			case "${yn}" in
+				[Yy]* ) auto_update=1; break;;
+				[Nn]* ) auto_update=0; break;;
+				* ) echo -e "\n${m_tab}${magenta}Please answer yes or no.${reset}"; echo "${cyan}${m_tab}#####################################################${reset}";;
+			esac
+		done
 
 		echo -e "\n${green}*${reset} ${green}Setup completed.${reset}"
 		echo -e "${cyan}${m_tab}#####################################################${reset}\n"
@@ -1515,7 +1562,7 @@ if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 				[Cc]* ) add_cron; break;;
 				[Ss]* ) add_systemd; break;;
 				[qQ]* ) exit 1;;
-			* ) echo -e "\n${m_tab}Please answer c or s, q.";;
+			* ) echo -e "\n${m_tab}${magenta}Please answer c or s, q.${reset}"; echo "${cyan}${m_tab}#####################################################${reset}";;
 			esac
 		done
 	fi
