@@ -1,3 +1,10 @@
+1.0.6 - 07/12/2021
+=========================================================
+- Show changelog while upgrading manually
+- Improve auto update module for email notifications
+- Add auto update cron job support on setup 
+- Better detection of uncompleted setup
+
 1.0.5 - 07/11/2021
 =========================================================
 - IMPORTANT FIX - Use shipping data instead of billing
