@@ -735,7 +735,12 @@ add_cron () {
 
 			echo -e "\n${green}*${reset} ${green}Installation completed.${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
-			echo -e "${m_tab}${green}Cron (every hour) installed to ${cyan}${cron_dir}/${cron_filename}${reset}${reset}\n"
+			if [ "$auto_update" -eq 1 ]; then
+				echo "${m_tab}${green}Main cron installed to ${cyan}${cron_dir}/${cron_filename}${reset}${reset}"
+				echo -e "${m_tab}${green}Updater cron installed to ${cyan}${cron_dir}/${cron_filename_update}${reset}${reset}\n"
+			else
+				echo -e "${m_tab}${green}Main cron installed to ${cyan}${cron_dir}/${cron_filename}${reset}${reset}\n"
+			fi
 			echo "$(timestamp): Installation completed." >> "${access_log}"
 		else
 			echo -e "\n${red}*${reset} ${green}Installation failed.${reset}"
@@ -811,7 +816,12 @@ add_systemd () {
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			echo "${m_tab}${green}Systemd service installed to ${cyan}${systemd_dir}/${service_filename}${reset}"
 			echo "${m_tab}${green}Systemd service timer installed to ${cyan}${systemd_dir}/${timer_filename}${reset}"
-			echo -e "${m_tab}${green}Timer service enabled and started.${reset}\n"
+			if [ "$auto_update" -eq 1 ]; then
+				echo "${m_tab}${green}Timer service enabled and started.${reset}"
+				echo -e "${m_tab}${green}Updater cron installed to ${cyan}${cron_dir}/${cron_filename_update}${reset}${reset}\n"
+			else
+				echo -e "${m_tab}${green}Timer service enabled and started.${reset}\n"
+			fi
 			echo "$(timestamp): Installation completed." >> "${access_log}"
 		else
 			echo -e "\n${red}*${reset} ${green}Installation failed.${reset}"
