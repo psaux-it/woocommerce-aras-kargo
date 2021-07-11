@@ -1417,29 +1417,16 @@ if [[ "${#aras_array[@]}" -gt 0 && "${#wc_array[@]}" -gt 0 ]]; then
 	done
 fi
 
-# Create perl script for string matching via levenshtein distance function
-# Perl Text::Fuzzy module is very fast in my tests.
-# You can try Text::Levenshtein - Text::Levenshtein::XS if you interested in speed test (need some coding)
-cat > "${this_script_path}/${levenshtein}" << EOF
-#!$m_perl
-use warnings;
-use strict;
-use Text::Fuzzy;
-my \$tf = Text::Fuzzy->new ("\$ARGV[0]");
-\$tf->set_max_distance (3);
-print \$tf->distance ("\$ARGV[1]"), "\\n";
-EOF
-
-# Set executable
-chmod +x "${this_script_path}/${levenshtein}"
-
 # MAIN STRING MATCHING LOGIC
 # Approximate string matching up to 3 characters.
+# Use perl for string matching via levenshtein distance function
+# Perl Text::Fuzzy module is very fast in my tests.
+# You can try Text::Levenshtein - Text::Levenshtein::XS if you interested in speed test (need some coding)
 # =============================================================================================
 if [ -s "${this_script_path}/.lvn.all.cus" ]; then
 	cat "${this_script_path}/.lvn.all.cus" | $m_awk '{print $2,$4}' | while read -r wc aras
 	do
-		$m_perl "${this_script_path}/${levenshtein}" "$wc" "$aras" >> "${this_script_path}/.lvn.stn"
+		$m_perl -MText::Fuzzy -e 'my $tf = Text::Fuzzy->new ("$ARGV[0]");' -e '$tf->set_max_distance (3);' -e 'print $tf->distance ("$ARGV[1]"), "\n";' "$wc" "$aras" >> "${this_script_path}/.lvn.stn"
 	done
 	$m_paste "${this_script_path}/.lvn.all.cus" "${this_script_path}/.lvn.stn" | $m_awk '($5 < 4 )' | $m_awk '{print $1,$3}' > "${my_tmp}"
 
