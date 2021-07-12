@@ -216,7 +216,7 @@ if [ "$(tail -n 1 "${0}" | head -n 1 | cut -c 1-7)" != "exit \$?" ]; then
 	fi
 
 	if [ $send_mail_err -eq 1 ]; then
-		echo "Script is incomplete, please force upgrade manually. This is possibly auto upgrade error." | mail -s "$mail_subject_err" -a "$mail_from" "$mail_to"
+		echo "Script is incomplete, please force upgrade manually." | mail -s "$mail_subject_err" -a "$mail_from" "$mail_to"
 	fi
 	exit 1
 fi
@@ -582,7 +582,11 @@ download () {
 	fi
 
 	if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
-		echo -e "\\n\$(tput setaf 2)*\$(tput sgr0) \$(tput setaf 2)Upgrade completed.\$(tput sgr0)"
+		if [ -n $f_update ]; then
+			echo -e "\\n\$(tput setaf 2)*\$(tput sgr0) \$(tput setaf 2)Force upgrade completed.\$(tput sgr0)"
+		else
+			echo -e "\\n\$(tput setaf 2)*\$(tput sgr0) \$(tput setaf 2)Upgrade completed.\$(tput sgr0)"
+		fi
 		echo "\$(tput setaf 6)${m_tab}#####################################################\$(tput sgr0)"
 		echo -e "${m_tab}\$(tput setaf 2)Script updated to version ${latest_version}\$(tput sgr0)\\n"
 		echo "$(timestamp): Upgrade completed. Script updated to version ${latest_version}" >> "${access_log}"
@@ -591,7 +595,11 @@ download () {
 	fi
 
 	# Send success mail
-	echo -e "Upgrade completed. WooCommerce-aras integration script updated to version ${latest_version}\n${changelog_p}" | mail -s "$mail_subject_suc" -a "$mail_from" "$mail_to"
+	if [ -n $f_update ]; then
+		echo "Force upgrade completed. WooCommerce-aras integration script updated to version ${latest_version}" | mail -s "$mail_subject_suc" -a "$mail_from" "$mail_to"
+	else
+		echo -e "Upgrade completed. WooCommerce-aras integration script updated to version ${latest_version}\n${changelog_p}" | mail -s "$mail_subject_suc" -a "$mail_from" "$mail_to"
+	fi
 
 	#remove the tmp script before exit
 	rm -f \$0
@@ -631,6 +639,20 @@ upgrade () {
 		else
 			echo "$(timestamp): Update process started: There is no new update." >> "${access_log}"
 
+		fi
+
+		if [ "${latest_version//./}" -eq "${current_version//./}" ]; then
+			if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
+				while true; do
+					read -n 1 -p "${m_tab}${BC}Do you want to force update version $latest_version? --> (Y)es | (N)o${EC} " yn < /dev/tty
+					echo ""
+					case "${yn}" in
+						[Yy]* ) f_update=1; download; break;;
+						[Nn]* ) exit 1;;
+						* ) echo -e "\n${m_tab}${magenta}Please answer yes or no.${reset}"; echo "${cyan}${m_tab}#####################################################${reset}";;
+					esac
+				done
+			fi
 		fi
 	elif [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 		echo -e "\n${red}*${reset} ${red}Upgrade failed! Could not find upgrade content${reset}"
