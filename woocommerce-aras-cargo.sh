@@ -1432,6 +1432,13 @@ fi
 iconv -f utf8 -t ascii//TRANSLIT < "${this_script_path}/aras.proc" | tr '[:upper:]' '[:lower:]' | $m_awk '{s=$1;gsub($1 FS,x);$1=$1;print s FS $0}' OFS= > "${this_script_path}/aras.proc.en"
 iconv -f utf8 -t ascii//TRANSLIT < "${this_script_path}/wc.proc" | tr '[:upper:]' '[:lower:]' | $m_awk '{s=$1;gsub($1 FS,x);$1=$1;print s FS $0}' OFS= > "${this_script_path}/wc.proc.en"
 
+# MAIN STRING MATCHING LOGIC
+# Approximate string matching up to 3 characters.
+# Use perl for string matching via levenshtein distance function
+# Perl Text::Fuzzy module is very fast in my tests.
+# You can try Text::Levenshtein - Text::Levenshtein::XS if you interested in speed test (need some coding)
+# =============================================================================================
+
 # Create associative array and prepeare necessary data for matching operation
 declare -A aras_array
 declare -A wc_array
@@ -1454,12 +1461,7 @@ if [[ "${#aras_array[@]}" -gt 0 && "${#wc_array[@]}" -gt 0 ]]; then
 	done
 fi
 
-# MAIN STRING MATCHING LOGIC
-# Approximate string matching up to 3 characters.
 # Use perl for string matching via levenshtein distance function
-# Perl Text::Fuzzy module is very fast in my tests.
-# You can try Text::Levenshtein - Text::Levenshtein::XS if you interested in speed test (need some coding)
-# =============================================================================================
 if [ -s "${this_script_path}/.lvn.all.cus" ]; then
 	cat "${this_script_path}/.lvn.all.cus" | $m_awk '{print $2,$4}' | while read -r wc aras
 	do
