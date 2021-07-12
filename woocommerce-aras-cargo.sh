@@ -76,6 +76,7 @@ timestamp () {
 # =====================================================================
 declare -a dependencies=("curl" "iconv" "openssl" "jq" "php" "perl" "awk" "sed" "pstree" "stat" "mail")
 for i in "${dependencies[@]}"
+do
 	if ! command -v "$i" > /dev/null 2>&1; then
 		echo -e "\n${red}*${reset} ${red}$i not found.${reset}"
 		echo "${cyan}${m_tab}#####################################################${reset}"
@@ -259,7 +260,7 @@ uninstall () {
 			rm -f  "${cron_dir}/${cron_filename_update}"
 			echo -e "\n${green}*${reset} ${yellow}Updater cron job uninstalled:${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
-			echo "${yellow}${m_tab}${cron_dir}/${cron_filename}${reset}"
+			echo "${yellow}${m_tab}${cron_dir}/${cron_filename_update}${reset}"
 		else
 			echo -e "\n${red}*${reset} ${red}Updater cron job uninstallation aborted, as file not writable: ${cron_dir}/${cron_filename_update}${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
