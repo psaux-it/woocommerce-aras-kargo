@@ -4,7 +4,7 @@
 ## Pluginless pure linux server side bash script solution #root
 [![N|Solid](https://www.cyberciti.biz/media/new/category/old/terminal.png)](https://www.psauxit.com) 
 
-The aim of this bash script solution is effortlessly integrate WooCommerce and ARAS cargo with help of AST plugin. With some drawbacks still very useful for low volume e-commerce platforms. Hope the further version will not have any drawback. Note that this is not a deep integrate solution. Instead of syncing your order with Aras end just listens ARAS for newly created cargo tracking numbers and match them with application (WooCommerce) side customer info. 
+The aim of this bash script solution is effortlessly integrate WooCommerce and ARAS cargo with help of AST plugin. Note that this is not a deep integrate solution. Instead of syncing your order with Aras end just listens ARAS for newly created cargo tracking numbers and match them with application (WooCommerce) side customer info. 
 
 ## What is the actual solution here exactly?
 > This automation updates woocomerce order status from processing to completed (REST),
@@ -14,14 +14,12 @@ The aim of this bash script solution is effortlessly integrate WooCommerce and A
 > Simply you don't need to manually add cargo tracking number and update order status
 > via WooCommerce orders dashboard. The aim of script is automating the process fully.
 
-## Is this approach works %100? What is the drawback?
-Not yet! As mentioned this is not a deep integration solution. For now useful for low volume e-commerce platforms. The actual drawback is we haven't any linked uniq string on both sides other than name,surname,telephone number. If we have multiple orders which on processing status from same customer we cannot match order with exact tracking number and you have to take manual actions.
+## What are the supported workflows?
+- 1) processing -> completed
+- 2) processing -> shipped -> delivered
 
-## How to get rid of drawback?
-Is Aras cargo able to insert/link your woocommerce order id while receiving to cargo? We need to link order on both side with uniq string. Also ARAS end must return this uniq string to match. If this is possible please contribute or simply keep in touch with me for implementation.
-
-## What is the current workflow?
-In default if the cargo on the way (tracking number generated on ARAS end) we update order status processing to completed. So we assume order is completed. Currently script doesn't support custom shipment status like 'shipped'. If you use this kind of workflow wait for further versions. I will implement three-way (processing-shipped-completed) workflow in next releases.   
+  In default if the cargo on the way (tracking number generated on ARAS end) we update order status processing to completed. If you use this workflow there is no need to create any custom order status.
+  If you use three way workflow 'processing -> shipped -> delivered' we need to do some modifications that explained below.
 
 ## Will mess up anything?
 No! Interactive setup will ask you to validate some parsed data. If you don't validate the data installation part will be skipped. This solution never ever touch any core files of wordpress or woocommerce. You can uninstall any time you want.
