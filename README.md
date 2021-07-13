@@ -18,7 +18,7 @@ The aim of this bash script solution is effortlessly integrate WooCommerce and A
 - 1. processing -> completed
 - 2. processing -> shipped -> delivered 
 
-In default workflow if the cargo on the way (tracking number generated on ARAS end) we update order status processing to completed. If you use this workflow there is no need to create any custom order status.\
+In default workflow if the cargo on the way (tracking number generated on ARAS end) we update order status processing to completed. If you use this workflow there is no need to create any custom order status. <br />
 If you use three way workflow 'processing -> shipped -> delivered' we need to do some modifications that explained below.
 
 ## Will mess up anything?
