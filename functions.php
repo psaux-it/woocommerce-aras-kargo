@@ -65,25 +65,25 @@ public function add_bulk_actions( $bulk_actions )
  */
 class Delivered_WC_Email {
 
-	/**
-	 * Delivered_WC_Email constructor.
-	 */
-	public function __construct() {
-		// Filtering the emails and adding our own email.
-		add_filter( 'woocommerce_email_classes', array( $this, 'register_email' ), 90, 1 );
-		// Absolute path to the plugin folder.
-		define( 'DELIVERED_WC_EMAIL_PATH', get_stylesheet_directory() );
-	}
+        /**
+        * Delivered_WC_Email constructor.
+        */
+        public function __construct() {
+                // Filtering the emails and adding our own email.
+                add_filter( 'woocommerce_email_classes', array( $this, 'register_email' ), 90, 1 );
+                // Absolute path to the plugin folder.
+                define( 'DELIVERED_WC_EMAIL_PATH', get_stylesheet_directory() );
+        }
 
-	/**
-	 * @param array $emails
-	 *
-	 * @return array
-	 */
-	public function register_email( $emails ) {
-		require_once 'emails/class-wc-delivered-status-order.php';
-		$emails['WC_Delivered_status_Order'] = new WC_Delivered_status_Order();
-		return $emails;
-	}
+        /**
+        * @param array $emails
+        *
+        * @return array
+        */
+        public function register_email( $emails ) {
+                require_once DELIVERED_WC_EMAIL_PATH.'/woocommerce/emails/class-wc-delivered-status-order.php';
+                $emails['WC_Delivered_status_Order'] = new WC_Delivered_status_Order();
+                return $emails;
+        }
 }
 new Delivered_WC_Email();
