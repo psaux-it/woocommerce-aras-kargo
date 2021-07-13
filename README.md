@@ -15,11 +15,11 @@ The aim of this bash script solution is effortlessly integrate WooCommerce and A
 > via WooCommerce orders dashboard. The aim of script is automating the process fully.
 
 ## What are the supported workflows?
-- 1) processing -> completed
-- 2) processing -> shipped -> delivered
+- 1. processing -> completed
+- 2. processing -> shipped -> delivered 
 
-  In default if the cargo on the way (tracking number generated on ARAS end) we update order status processing to completed. If you use this workflow there is no need to create any custom order status.
-  If you use three way workflow 'processing -> shipped -> delivered' we need to do some modifications that explained below.
+In default workflow if the cargo on the way (tracking number generated on ARAS end) we update order status processing to completed. If you use this workflow there is no need to create any custom order status.\
+If you use three way workflow 'processing -> shipped -> delivered' we need to do some modifications that explained below.
 
 ## Will mess up anything?
 No! Interactive setup will ask you to validate some parsed data. If you don't validate the data installation part will be skipped. This solution never ever touch any core files of wordpress or woocommerce. You can uninstall any time you want.
