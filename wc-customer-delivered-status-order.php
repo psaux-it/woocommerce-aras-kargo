@@ -12,7 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 do_action( 'woocommerce_email_header', $email_heading, $email ); ?>
 
-<p><?php printf( __( '#%d numaralı siparişinizin teslimat durumu "teslim edildi" olarak güncellenmiştir. Eğer siparişi teslim almadıysanız lütfen Aras Kargo ile iletişime geçiniz. Sipariş Detayları:', 'woocommerce' ), $order->get_order_number() ); ?></p>
+<p><?php printf( __( 'Siparişinizin teslimat durumu "teslim edildi" olarak güncellenmiştir. Eğer siparişi teslim almadıysanız lütfen Aras Kargo ile iletişime geçiniz. Sipariş Detayları:', 'woocommerce' ), $order->get_order_number() ); ?></p>
 
 <?php
 
@@ -33,6 +33,13 @@ do_action( 'woocommerce_email_order_meta', $order, $sent_to_admin, $plain_text, 
  * @hooked WC_Emails::email_address() Shows email address
  */
 do_action( 'woocommerce_email_customer_details', $order, $sent_to_admin, $plain_text, $email );
+
+/**
+ * Show user-defined additional content - this is set in each email's settings.
+ */
+if ( $additional_content ) {
+	echo wp_kses_post( wpautop( wptexturize( $additional_content ) ) );
+}
 
 /**
  * @hooked WC_Emails::email_footer() Output the email footer
