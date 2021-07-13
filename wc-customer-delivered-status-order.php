@@ -12,7 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 do_action( 'woocommerce_email_header', $email_heading, $email ); ?>
 
-<p><?php printf( __( 'The order #%d has been delivered. Order Details:', 'woocommerce' ), $order->get_order_number() ); ?></p>
+<p><?php printf( __( '#%d numaralı siparişinizin teslimat durumu "teslim edildi" olarak güncellenmiştir. Eğer siparişi teslim almadıysanız lütfen Aras Kargo ile iletişime geçiniz. Sipariş Detayları:', 'woocommerce' ), $order->get_order_number() ); ?></p>
 
 <?php
 
