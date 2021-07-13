@@ -6,7 +6,7 @@ add_filter('woocommerce_order_is_paid_statuses', 'delivered_woocommerce_order_is
 add_filter('bulk_actions-edit-shop_order', 'add_bulk_actions', 50, 1 );
 
 /*** Register new status : Delivered
- **/
+**/
 function register_order_status()
 {
 	register_post_status('wc-delivered', array(
@@ -31,7 +31,7 @@ function add_delivered_to_order_statuses($order_statuses)
 			$new_order_statuses['wc-delivered'] = __('Delivered', 'text-domain');
 		}
 	}
-    return $new_order_statuses;
+	return $new_order_statuses;
 }
 
 /*
@@ -68,7 +68,6 @@ function add_bulk_actions( $bulk_actions )
 */
 class Delivered_WC_Email
 {
-
 	/**
 	* Delivered_WC_Email constructor.
 	*/
