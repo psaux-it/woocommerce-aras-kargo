@@ -1512,9 +1512,26 @@ if [ -s "${this_script_path}/.lvn.all.cus" ]; then
 			magic[${id}]="${magic[$id]}${magic[$id]:+ }${track}"
 		done < "${my_tmp}"
 
-		for id in "${!magic[@]}"; do
-			echo "$id ${magic[$id]}" >> "${this_script_path}/.lvn.mytmp2"
-		done
+		if [ ! -e "${this_script_path}/.lvn.mytmp2" ]; then
+			for id in "${!magic[@]}"; do
+				echo "$id ${magic[$id]}" >> "${this_script_path}/.lvn.mytmp2"
+			done
+		elif [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
+			echo -e "\n${red}*${reset}${red} Removing temporary file failed by trap.${reset}"
+			echo "${cyan}${m_tab}#####################################################${reset}"
+			echo "${m_tab}${red}File ${this_script_path}/.lvn.mytmp2 is still exist."
+			echo "${m_tab}${red}Trap couldn't catch signal to remove file on previous run${reset}"
+			echo -e "${m_tab}${red}Or you disabled trap signal catch in script${reset}\n"
+			echo "$(timestamp): Trap couldn't catch signal to remove file ${this_script_path}/.lvn.mytmp2 on previous run" >> "${error_log}"
+			exit 1
+		elif [ $send_mail_err -eq 1 ]; then
+			send_mail_err <<< "Trap couldn't catch signal to remove file ${this_script_path}/.lvn.mytmp2 on previous run. Stopped.."
+			echo "$(timestamp): Trap couldn't catch signal to remove file ${this_script_path}/.lvn.mytmp2 on previous run" >> "${error_log}"
+			exit 1
+		else
+			echo "$(timestamp): Trap couldn't catch signal to remove file ${this_script_path}/.lvn.mytmp2 on previous run" >> "${error_log}"
+			exit 1
+		fi
 	fi
 
 	if [ -s "${this_script_path}/.lvn.mytmp2" ]; then
