@@ -15,10 +15,20 @@ The aim of this bash script solution is effortlessly integrate WooCommerce and A
 > via WooCommerce orders dashboard. The aim of script is automating the process fully.
 
 ## What are the supported workflows?
-- 1. processing -> completed
-- 2. processing -> shipped -> delivered 
+```mermaid
+graph LR
+A[Processing] --> B[Completed]
+```
 
-In default workflow if the cargo on the way (tracking number generated on ARAS end) we update order status processing to completed. If you use this workflow there is no need to create any custom order status.  
+
+```mermaid
+graph LR
+A[Processing] --> B[Shipped] --> C[Delivered]
+
+```
+
+In default workflow if the cargo on the way (tracking number generated on ARAS end) we update order status processing to completed. If you use this workflow there is no need to create any custom order status.
+
 If you use three way workflow 'processing -> shipped -> delivered' we need to do some modifications that explained below.
 
 ## Will mess up anything?
