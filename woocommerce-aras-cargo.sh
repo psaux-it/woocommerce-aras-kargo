@@ -67,6 +67,16 @@ e_date=$(date +%d-%m-%Y -d "+1 days")
 s_date=$(date +%d-%m-%Y -d "-10 days")
 # =====================================================================
 
+# Send mail functions
+# If you use sendmail, mutt etc. you can adjust here
+send_mail_err () {
+	mail -s "$mail_subject_err" -a "$mail_from" -a "MIME-Version: 1.0" -a "Content-Type: text/html; charset=UTF-8" "$mail_to"
+}
+
+send_mail_suc () {
+	mail -s "$mail_subject_suc" -a "$mail_from" -a "MIME-Version: 1.0" -a "Content-Type: text/html; charset=UTF-8" "$mail_to"
+}
+
 # Log timestamp
 timestamp () {
         date +"%Y-%m-%d %T"
@@ -216,7 +226,7 @@ if [ "$(tail -n 1 "${0}" | head -n 1 | cut -c 1-7)" != "exit \$?" ]; then
 	fi
 
 	if [ $send_mail_err -eq 1 ]; then
-		echo "Script is incomplete, please force upgrade manually." | mail -s "$mail_subject_err" -a "$mail_from" "$mail_to"
+		send_mail_err <<< "Script is incomplete, please force upgrade manually."
 	fi
 	exit 1
 fi
@@ -232,7 +242,7 @@ if [[ -n $w_in ]]; then
 	fi
 
 	if [ $send_mail_err -eq 1 ]; then
-		echo "There is no internet connection." | mail -s "$mail_subject_err" -a "$mail_from" "$mail_to"
+		send_mail_err <<< "There is no internet connection."
 	fi
 	exit 1
 fi
@@ -480,7 +490,7 @@ download () {
 		fi
 
 		if [ $send_mail_err -eq 1 ]; then
-			echo "Upgrade failed:  could not download: $sh_github" | mail -s "$mail_subject_err" -a "$mail_from" "$mail_to"
+			send_mail_err <<< "Upgrade failed:  could not download: $sh_github"
 		fi
 		exit 1
 	fi
@@ -497,7 +507,7 @@ download () {
 		fi
 
 		if [ $send_mail_err -eq 1 ]; then
-			echo "Upgrade failed: Upgrade failed, cannot verify downloaded script, please re-run." | mail -s "$mail_subject_err" -a "$mail_from" "$mail_to"
+			send_mail_err <<< "Upgrade failed: Upgrade failed, cannot verify downloaded script, please re-run."
 		fi
 		exit 1
 	fi
@@ -659,7 +669,7 @@ upgrade () {
 		echo -e "${cyan}${m_tab}#####################################################${reset}\n"
 		echo "$(timestamp): Upgrade failed. Could not find upgrade content" >> "${error_log}"
 	elif [ $send_mail_err -eq 1 ]; then
-		echo "Upgrade failed. Could not find upgrade content" | mail -s "$mail_subject_err" -a "$mail_from" "$mail_to"
+		send_mail_err <<< "Upgrade failed. Could not find upgrade content"
 		echo "$(timestamp): Upgrade failed. Could not find upgrade content" >> "${error_log}"
 	else
 		echo "$(timestamp): Upgrade failed. Could not find upgrade content" >> "${error_log}"
@@ -960,8 +970,7 @@ encrypt_wc_auth () {
 			history -w && $m_sed -i '/.key.wc.lck/d' ~/.bash_history >/dev/null 2>&1
 		else
 			if [ $send_mail_err -eq 1 ]; then
-				echo "Woocommerce-Aras Cargo integration error. Missing file .key.wc.lck. Please re-start setup manually." |
-				mail -s "$mail_subject_err" -a "$mail_from" "$mail_to"
+				send_mail_err <<< "Woocommerce-Aras Cargo integration error. Missing file .key.wc.lck. Please re-start setup manually."
 			fi
 			echo "$(timestamp): Missing file $this_script_path/.key.wc.lck" >> "${error_log}"
 			exit 1
@@ -979,8 +988,7 @@ encrypt_wc_auth () {
 			history -w && $m_sed -i '/.secret.wc.lck/d' ~/.bash_history >/dev/null 2>&1
 		else
 			if [ $send_mail_err -eq 1 ]; then
-				echo "Woocommerce-Aras Cargo integration error. Missing file .secret.wc.lck . Please re-start setup manually." |
-				mail -s "$mail_subject_err" -a "$mail_from" "$mail_to"
+				send_mail_err <<< "Woocommerce-Aras Cargo integration error. Missing file .secret.wc.lck . Please re-start setup manually."
 			fi
 			echo "$(timestamp): Missing file $this_script_path/.secret.wc.lck" >> "${error_log}"
 			exit 1
@@ -1002,8 +1010,7 @@ encrypt_wc_end () {
 			history -w && $m_sed -i '/.end.wc.lck/d' ~/.bash_history >/dev/null 2>&1
 		else
 			if [ $send_mail_err -eq 1 ]; then
-				echo "Woocommerce-Aras Cargo integration error. Missing file .end.wc.lck. Please re-start setup manually." |
-				mail -s "$mail_subject_err" -a "$mail_from" "$mail_to"
+				send_mail_err <<< "Woocommerce-Aras Cargo integration error. Missing file .end.wc.lck. Please re-start setup manually."
 			fi
 			echo "$(timestamp): Missing file $this_script_path/.end.wc.lck" >> "${error_log}"
 			exit 1
@@ -1024,8 +1031,7 @@ encrypt_aras_auth () {
 			history -w && $m_sed -i '/.key.aras.lck/d' ~/.bash_history
 		else
 			if [ $send_mail_err -eq 1 ]; then
-				echo "Woocommerce-Aras Cargo integration error. Missing file .key.aras.lck. Please re-start setup manually." |
-				mail -s "$mail_subject_err" -a "$mail_from" "$mail_to"
+				send_mail_err <<< "Woocommerce-Aras Cargo integration error. Missing file .key.aras.lck. Please re-start setup manually."
 			fi
 			echo "$(timestamp): Missing file $this_script_path/.key.aras.lck" >> "${error_log}"
 			exit 1
@@ -1043,8 +1049,7 @@ encrypt_aras_auth () {
 			history -w && $m_sed -i '/.usr.aras.lck/d' ~/.bash_history >/dev/null 2>&1
 		else
 			if [ $send_mail_err -eq 1 ]; then
-				echo "Woocommerce-Aras Cargo integration error. Missing file .usr.aras.lck. Please re-start setup manually." |
-				mail -s "$mail_subject_err" -a "$mail_from" "$mail_to"
+				send_mail_err <<< "Woocommerce-Aras Cargo integration error. Missing file .usr.aras.lck. Please re-start setup manually."
 			fi
 			echo "$(timestamp): Missing file $this_script_path/.usr.aras.lck" >> "${error_log}"
 			exit 1
@@ -1062,8 +1067,7 @@ encrypt_aras_auth () {
 			history -w && $m_sed -i '/.mrc.aras.lck/d' ~/.bash_history >/dev/null 2>&1
 		else
 			if [ $send_mail_err -eq 1 ]; then
-				echo "Woocommerce-Aras Cargo integration error. Missing file .mrc.aras.lck. Please re-start setup manually." |
-				mail -s "$mail_subject_err" -a "$mail_from" "$mail_to"
+				send_mail_err <<< "Woocommerce-Aras Cargo integration error. Missing file .mrc.aras.lck. Please re-start setup manually."
 			fi
 			echo "$(timestamp): Missing file $this_script_path/.mrc.aras.lck" >> "${error_log}"
 			exit 1
@@ -1084,8 +1088,7 @@ encrypt_aras_end () {
 			history -w && $m_sed -i '/.end.aras.lck/d' ~/.bash_history
 		else
 			if [ $send_mail_err -eq 1 ]; then
-				echo "Woocommerce-Aras Cargo integration error. Missing file .end.aras.lck. Please re-start setup manually." |
-				mail -s "$mail_subject_err" -a "$mail_from" "$mail_to"
+				send_mail_err <<< "Woocommerce-Aras Cargo integration error. Missing file .end.aras.lck. Please re-start setup manually."
 			fi
 			echo "$(timestamp): Missing file $this_script_path/.end.aras.lck" >> "${error_log}"
 			exit 1
@@ -1113,8 +1116,7 @@ encrypt_aras_qry () {
 			history -w && $m_sed -i '/.qry.aras.lck/d' ~/.bash_history
 		else
 			if [ $send_mail_err -eq 1 ]; then
-				echo "Woocommerce-Aras Cargo integration error. Missing file .qry.aras.lck. Please re-start setup manually." |
-				mail -s "$mail_subject_err" -a "$mail_from" "$mail_to"
+				send_mail_err <<< "Woocommerce-Aras Cargo integration error. Missing file .qry.aras.lck. Please re-start setup manually."
 			fi
 			echo "$(timestamp): Missing file $this_script_path/.qry.aras.lck" >> "${error_log}"
 			exit 1
@@ -1193,7 +1195,7 @@ if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 	done
 elif grep -q "Could not resolve host" "$this_script_path/curl.proc"; then
 	if [ $send_mail_err -eq 1 ]; then
-		echo "Could not resolve host! Is your DNS/Web server up?" | mail -s "$mail_subject_err" -a "$mail_from" "$mail_to"
+		send_mail_err <<< "Could not resolve host! Is your DNS/Web server up?"
 	fi
 	echo "$(timestamp): Could not resolve host! Check your DNS/Web server." >> "${error_log}"
 	exit 1
@@ -1211,8 +1213,7 @@ if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 	fi
 elif grep -q  "404\|400" "$this_script_path/curl.proc"; then
 	if [ $send_mail_err -eq 1 ]; then
-		echo "WooCommerce REST API Connection Error. Is WooCommerce plugin installed and REST API enabled? You can re-start setup anytime." |
-		mail -s "$mail_subject_err" -a "$mail_from" "$mail_to"
+		send_mail_err <<< "WooCommerce REST API Connection Error. Is WooCommerce plugin installed and REST API enabled?"
 	fi
 	echo "$(timestamp): WooCommerce REST API Connection Error. Check WooCommerce plugin installed and REST API enabled." >> "${error_log}"
 	exit 1
@@ -1232,8 +1233,7 @@ if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 	fi
 elif grep -q "403" "$this_script_path/curl.proc"; then
 	if [ $send_mail_err -eq 1 ]; then
-		echo "WooCommerce REST API Authorization error. Cannot connect destination from $my_ip. Check your firewall settings and webserver restrictions. You can re-start setup anytime." |
-		mail -s "$mail_subject_err" -a "$mail_from" "$mail_to"
+		send_mail_err <<< "WooCommerce REST API Authorization error. Cannot connect destination from $my_ip. Check your firewall settings and webserver restrictions."
 	fi
 	echo "$(timestamp): WooCommerce REST API Authorization error. Cannot connect destination from $my_ip." >> "${error_log}"
 	exit 1
@@ -1269,8 +1269,7 @@ if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 	done
 elif grep -q "woocommerce_rest_authentication_error\|woocommerce_rest_cannot_view\|401" "$this_script_path/curl.proc"; then
 	if [ $send_mail_err -eq 1 ]; then
-		echo "WooCommerce REST API Authentication Error. Check your WooCommerce REST API credentials. You can re-start setup anytime." |
-		mail -s "$mail_subject_err" -a "$mail_from" "$mail_to"
+		send_mail_err <<< "WooCommerce REST API Authentication Error. Check your WooCommerce REST API credentials."
 	fi
 	echo "$(timestamp): WooCommerce REST API Authentication Error. Check your WooCommerce REST API credentials." >> "${error_log}"
 	exit 1
@@ -1373,8 +1372,7 @@ if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 	done
 elif grep -q "error_4625264224" "$this_script_path/aras.json"; then
 	if [ $send_mail_err -eq 1 ]; then
-		echo "ARAS SOAP Endpoint Error! Check your ARAS endpoint URL. Please re-start setup manually." |
-		mail -s "$mail_subject_err" -a "$mail_from" "$mail_to"
+		send_mail_err <<< "ARAS SOAP Endpoint Error! Check your ARAS endpoint URL. Please re-start setup manually."
 	fi
 	echo "$(timestamp): ARAS SOAP Endpoint Error! Check your ARAS endpoint URL." >> "${error_log}"
 	exit 1
@@ -1414,8 +1412,7 @@ if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 	done
 elif grep -q "error_75546475052" "$this_script_path/aras.json"; then
 	if [ $send_mail_err -eq 1 ]; then
-		echo "ARAS SOAP Authentication Error! Check your login credentials. Please re-start setup manually." |
-		mail -s "$mail_subject_err" -a "$mail_from" "$mail_to"
+		send_mail_err <<< "ARAS SOAP Authentication Error! Check your login credentials."
 	fi
 	echo "$(timestamp): ARAS SOAP Authentication Error! Check your login credentials." >> "${error_log}"
 	exit 1
@@ -1638,16 +1635,14 @@ if [ -e "${this_script_path}/.woo.aras.enb" ]; then
 					sleep 10
 				elif [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 					if [ $send_mail_err -eq 1 ]; then
-						echo "Cannot post data to AST Plugin REST endpoint (wp-json/wc-ast/v3/orders/$id/shipment-trackings)" |
-						mail -s "$mail_subject_err" -a "$mail_from" "$mail_to"
+						send_mail_err <<< "Cannot post data to AST Plugin REST endpoint (wp-json/wc-ast/v3/orders/$id/shipment-trackings)"
 					fi
 					echo "${red}*${reset} ${red}Cannot post data to AST Plugin REST endpoint (wp-json/wc-ast/v3/orders/$id/shipment-trackings)${reset}"
 					echo "$(timestamp): Cannot post data to AST Plugin REST endpoint (wp-json/wc-ast/v3/orders/$id/shipment-trackings)" >> "${error_log}"
 					exit 1
 				else
 					if [ $send_mail_err -eq 1 ]; then
-						echo "Cannot post data to AST Plugin REST endpoint (wp-json/wc-ast/v3/orders/$id/shipment-trackings)" |
-						mail -s "$mail_subject_err" -a "$mail_from" "$mail_to"
+						send_mail_err <<< "Cannot post data to AST Plugin REST endpoint (wp-json/wc-ast/v3/orders/$id/shipment-trackings)"
 					fi
 					echo "$(timestamp): Cannot post data to AST Plugin REST endpoint (wp-json/wc-ast/v3/orders/$id/shipment-trackings)" >> "${error_log}"
 					exit 1
