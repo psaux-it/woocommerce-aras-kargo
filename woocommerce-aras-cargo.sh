@@ -517,33 +517,20 @@ download () {
 	fi
 
 	# Keep user defined settings before upgrading
-	u_mail_to=$(grep "^mail_to=" "${cron_script_full_path}" | awk -F= '{print $2}') &&
-	u_mail_from=$(grep "^mail_from=" "${cron_script_full_path}" | awk -F= '{print $2}') &&
-	u_mail_subject_suc=$(grep "^mail_subject_suc=" "${cron_script_full_path}" | awk -F= '{print $2}') &&
-	u_mail_subject_err=$(grep "^mail_subject_err=" "${cron_script_full_path}" | awk -F= '{print $2}') &&
-	u_e_date=$(grep "^e_date=" "${cron_script_full_path}" | awk -F= '{print $2}') &&
-	u_s_date=$(grep "^s_date=" "${cron_script_full_path}" | awk -F= '{print $2}') &&
-	u_error_log=$(grep "^error_log=" "${cron_script_full_path}" | awk -F= '{print $2}') &&
-	u_access_log=$(grep "^access_log=" "${cron_script_full_path}" | awk -F= '{print $2}') &&
-	u_send_mail_err=$(grep "^send_mail_err=" "${cron_script_full_path}" | awk -F= '{print $2}') &&
-	u_company_name=$(grep "^company_name=" "${cron_script_full_path}" | awk -F= '{print $2}') &&
-	u_company_domain=$(grep "^company_domain=" "${cron_script_full_path}" | awk -F= '{print $2}') ||
-	{ echo 'Upgrade Failed. Parse error: cannot keep old user defined settings';  echo "$(timestamp): Upgrade Failed. Parse error: cannot keep old user defined settings" >> "${error_log}";  exit 1; }
+	declare -A keeped
+	declare -a getold=("mail_to" "mail_from" "mail_subject_suc" "mail_subject_err" "e_date" "s_date" "error_log" "access_log" "send_mail_err" "company_name" "company_domain")
+
+	for i in "${getold[@]}"
+	do
+		read "keeped[$i]" <<< $(grep "^$i=" "${cron_script_full_path}" | awk -F= '{print $2}')
+	done
 
 	# Apply old user defined settings before upgrading
-	$m_sed \
-		-e "s|^mail_to=.*|mail_to=$u_mail_to|" \
-		-e "s|^mail_from=.*|mail_from=$u_mail_from|" \
-		-e "s|^mail_subject_suc=.*|mail_subject_suc=$u_mail_subject_suc|" \
-		-e "s|^mail_subject_err=.*|mail_subject_err=$u_mail_subject_err|" \
-		-e "s|^e_date=.*|e_date=$u_e_date|" \
-		-e "s|^s_date=.*|s_date=$u_s_date|" \
-		-e "s|^error_log=.*|error_log=$u_error_log|" \
-		-e "s|^access_log=.*|access_log=$u_access_log|" \
-		-e "s|^send_mail_err=.*|send_mail_err=$u_send_mail_err|" \
-		-e "s|^company_name=.*|company_name=$u_company_name|" \
-		-e "s|^company_domain=.*|company_domain=$u_company_domain|" \
-		-i "${sh_output}" || { echo 'Upgrade Failed. Copy error: cannot copy over old user defined settings';  echo "$(timestamp): Upgrade Failed. Copy error: cannot copy over old user defined settings" >> "${error_log}";  exit 1; }
+	# TODO: get sed exit code for failed 'find and replace' operations and exit
+	for i in "${!keeped[@]}"
+	do
+		$m_sed -i -e "s|^$i=.*|$i=${keeped[$i]}|" "${sh_output}"
+	done
 
 	# Copy over permissions from old version
 	OCTAL_MODE="$(stat -c "%a" "${cron_script_full_path}" 2> /dev/null)"
