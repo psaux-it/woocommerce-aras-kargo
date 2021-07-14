@@ -7,6 +7,8 @@
 The aim of this bash script solution is effortlessly integrate WooCommerce and ARAS cargo with help of AST plugin. Note that this is not a deep integrate solution. Instead of syncing your order with Aras end just listens ARAS for newly created cargo tracking numbers and match them with application (WooCommerce) side customer info. 
 
 ## What is the actual solution here exactly?
+![woocommerce](https://user-images.githubusercontent.com/25556606/125707166-aa92a5a3-5655-450c-bc23-c67d8fc5ab10.png)
+
 > This automation updates woocomerce order status from processing to completed (REST),
 > when the matching cargo tracking code is generated on the ARAS Cargo end (SOAP).
 > Attachs cargo information (tracking number, track link etc.) to
