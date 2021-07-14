@@ -1455,42 +1455,79 @@ do
 done < "${this_script_path}/wc.proc.en"
 
 if [[ "${#aras_array[@]}" -gt 0 && "${#wc_array[@]}" -gt 0 ]]; then
-	for i in "${!wc_array[@]}"; do
-		for j in "${!aras_array[@]}"; do
-			echo "${i}" "${wc_array[$i]}" "${j}" "${aras_array[$j]}" >> "${this_script_path}/.lvn.all.cus"
+	if [ ! -e "${this_script_path}/.lvn.all.cus" ]; then
+		for i in "${!wc_array[@]}"; do
+			for j in "${!aras_array[@]}"; do
+				echo "${i}" "${wc_array[$i]}" "${j}" "${aras_array[$j]}" >> "${this_script_path}/.lvn.all.cus"
+			done
 		done
-	done
+	elif [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
+		echo -e "\n${red}*${reset}${red} Removing temporary file failed by trap.${reset}"
+		echo "${cyan}${m_tab}#####################################################${reset}"
+		echo "${m_tab}${red}File ${this_script_path}/.lvn.all.cus is still exist."
+		echo "${m_tab}${red}Trap couldn't catch signal to remove file on previous run${reset}"
+		echo -e "${m_tab}${red}Or you disabled trap signal catch in script${reset}\n"
+		echo "$(timestamp): Trap cannot catch signal to remove file ${this_script_path}/.lvn.stn on previous run" >> "${error_log}"
+		exit 1
+	elif [ $send_mail_err -eq 1 ]; then
+		send_mail_err <<< "Trap couldn't catch signal to remove file ${this_script_path}/.lvn.stn on previous run. Stopped.."
+		echo "$(timestamp): Trap couldn't catch signal to remove file ${this_script_path}/.lvn.stn on previous run" >> "${error_log}"
+		exit 1
+	else
+		echo "$(timestamp): Trap couldn't catch signal to remove file ${this_script_path}/.lvn.stn on previous run" >> "${error_log}"
+		exit 1
+	fi
 fi
 
 # Use perl for string matching via levenshtein distance function
 if [ -s "${this_script_path}/.lvn.all.cus" ]; then
-	while read -r wc aras
-	do
-		$m_perl -MText::Fuzzy -e 'my $tf = Text::Fuzzy->new ("$ARGV[0]");' -e '$tf->set_max_distance (3);' -e 'print $tf->distance ("$ARGV[1]"), "\n";' "$wc" "$aras" >> "${this_script_path}/.lvn.stn"
-	done < <( < "${this_script_path}/.lvn.all.cus" $m_awk '{print $2,$4}' )
-
-	$m_paste "${this_script_path}/.lvn.all.cus" "${this_script_path}/.lvn.stn" | $m_awk '($5 < 4 )' | $m_awk '{print $1,$3}' > "${my_tmp}"
+	if [ ! -e "${this_script_path}/.lvn.stn" ]; then
+		while read -r wc aras
+		do
+			$m_perl -MText::Fuzzy -e 'my $tf = Text::Fuzzy->new ("$ARGV[0]");' -e '$tf->set_max_distance (3);' -e 'print $tf->distance ("$ARGV[1]"), "\n";' "$wc" "$aras" >> "${this_script_path}/.lvn.stn"
+		done < <( < "${this_script_path}/.lvn.all.cus" $m_awk '{print $2,$4}' )
+		$m_paste "${this_script_path}/.lvn.all.cus" "${this_script_path}/.lvn.stn" | $m_awk '($5 < 4 )' | $m_awk '{print $1,$3}' > "${my_tmp}"
+	elif [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
+		echo -e "\n${red}*${reset}${red} Removing temporary file failed by trap.${reset}"
+		echo "${cyan}${m_tab}#####################################################${reset}"
+		echo "${m_tab}${red}File ${this_script_path}/.lvn.stn is still exist."
+		echo "${m_tab}${red}Trap couldn't catch signal to remove file on previous run${reset}"
+		echo -e "${m_tab}${red}Or you disabled trap signal catch in script${reset}\n"
+		echo "$(timestamp): Trap couldn't catch signal to remove file ${this_script_path}/.lvn.stn on previous run" >> "${error_log}"
+		exit 1
+	elif [ $send_mail_err -eq 1 ]; then
+		send_mail_err <<< "Trap couldn't catch signal to remove file ${this_script_path}/.lvn.stn on previous run. Stopped.."
+		echo "$(timestamp): Trap couldn't catch signal to remove file ${this_script_path}/.lvn.stn on previous run" >> "${error_log}"
+		exit 1
+	else
+		echo "$(timestamp): Trap couldn't catch signal to remove file ${this_script_path}/.lvn.stn on previous run" >> "${error_log}"
+		exit 1
+	fi
 
 	# Better handle multiple orders(processing) for same customer
 	# Better handle multiple tracking numbers for same customer
-	declare -A magic
-	while read -r id track; do
-		magic[${id}]="${magic[$id]}${magic[$id]:+ }${track}"
-	done < "${my_tmp}"
+	if [ -s "${my_tmp}" ]; then
+		declare -A magic
+		while read -r id track; do
+			magic[${id}]="${magic[$id]}${magic[$id]:+ }${track}"
+		done < "${my_tmp}"
 
-	for id in "${!magic[@]}"; do
-		echo "$id ${magic[$id]}" >> "${this_script_path}/.lvn.mytmp2"
-	done
+		for id in "${!magic[@]}"; do
+			echo "$id ${magic[$id]}" >> "${this_script_path}/.lvn.mytmp2"
+		done
+	fi
 
-	if [ "$($m_awk '{print NF}' ${this_script_path}/.lvn.mytmp2 | sort -nu | tail -n 1)" -gt 2 ]; then
-		$m_awk 'NF==3' "${this_script_path}/.lvn.mytmp2" > "${this_script_path}/.lvn.mytmp3"
-		if [[ -n "$($m_awk 'x[$2]++ == 1 { print $2 }' ${this_script_path}/.lvn.mytmp3)" ]]; then
-			for i in $($m_awk 'x[$2]++ == 1 { print $2 }' "${this_script_path}/.lvn.mytmp3"); do
-				$m_sed -i "0,/$i/{s/$i//}" "${this_script_path}/.lvn.mytmp3"
-			done
-			cat <(cat "${this_script_path}/.lvn.mytmp3" | $m_awk '{$1=$1}1' | $m_awk '{print $1,$2}') <(cat "${this_script_path}/.lvn.mytmp2" | $m_awk 'NF<=2') > "${my_tmp}"
-		else
-			cat <(cat "${this_script_path}/.lvn.mytmp3" | $m_awk '{print $1,$2}') <(cat "${this_script_path}/.lvn.mytmp2" | $m_awk 'NF<=2') > "${my_tmp}"
+	if [ -s "${this_script_path}/.lvn.mytmp2" ]; then
+		if [ "$($m_awk '{print NF}' ${this_script_path}/.lvn.mytmp2 | sort -nu | tail -n 1)" -gt 2 ]; then
+			$m_awk 'NF==3' "${this_script_path}/.lvn.mytmp2" > "${this_script_path}/.lvn.mytmp3"
+			if [[ -n "$($m_awk 'x[$2]++ == 1 { print $2 }' ${this_script_path}/.lvn.mytmp3)" ]]; then
+				for i in $($m_awk 'x[$2]++ == 1 { print $2 }' "${this_script_path}/.lvn.mytmp3"); do
+					$m_sed -i "0,/$i/{s/$i//}" "${this_script_path}/.lvn.mytmp3"
+				done
+				cat <(cat "${this_script_path}/.lvn.mytmp3" | $m_awk '{$1=$1}1' | $m_awk '{print $1,$2}') <(cat "${this_script_path}/.lvn.mytmp2" | $m_awk 'NF<=2') > "${my_tmp}"
+			else
+				cat <(cat "${this_script_path}/.lvn.mytmp3" | $m_awk '{print $1,$2}') <(cat "${this_script_path}/.lvn.mytmp2" | $m_awk 'NF<=2') > "${my_tmp}"
+			fi
 		fi
 	fi
 fi
