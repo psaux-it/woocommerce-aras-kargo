@@ -1,3 +1,11 @@
+1.0.8 - 07/14/2021
+=========================================================
+- Add send_mail function for more flexibility
+- Use process substitution
+- Various optimizations
+- Prepeare adding new workflow ->
+  processing - shipped - delivered 
+
 1.0.7 - 07/13/2021
 =========================================================
 - Use one-liner perl code instead of script
