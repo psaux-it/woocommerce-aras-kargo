@@ -1463,16 +1463,17 @@ fi
 
 # Use perl for string matching via levenshtein distance function
 if [ -s "${this_script_path}/.lvn.all.cus" ]; then
-	cat "${this_script_path}/.lvn.all.cus" | $m_awk '{print $2,$4}' | while read -r wc aras
+	while read -r wc aras
 	do
 		$m_perl -MText::Fuzzy -e 'my $tf = Text::Fuzzy->new ("$ARGV[0]");' -e '$tf->set_max_distance (3);' -e 'print $tf->distance ("$ARGV[1]"), "\n";' "$wc" "$aras" >> "${this_script_path}/.lvn.stn"
-	done
+	done < <( < "${this_script_path}/.lvn.all.cus" $m_awk '{print $2,$4}' )
+
 	$m_paste "${this_script_path}/.lvn.all.cus" "${this_script_path}/.lvn.stn" | $m_awk '($5 < 4 )' | $m_awk '{print $1,$3}' > "${my_tmp}"
 
 	# Better handle multiple orders(processing) for same customer
 	# Better handle multiple tracking numbers for same customer
 	declare -A magic
-	while read id track; do
+	while read -r id track; do
 		magic[${id}]="${magic[$id]}${magic[$id]:+ }${track}"
 	done < "${my_tmp}"
 
