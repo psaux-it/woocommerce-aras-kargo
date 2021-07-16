@@ -26,10 +26,13 @@ In default workflow if the cargo on the way (tracking number generated on ARAS e
 If you use three way workflow 'processing -> shipped -> delivered' we need to do some modifications that explained below.
 
 ## Will mess up anything?
-No! At least if you don't modify source code blindly.
+No! At least if you don't modify source code blindly. If you have a pre-prod env. test it before production.
 Also interactive setup will ask you to validate some parsed data. If you don't validate the data -installation part will be skipped. This solution never ever touch any core files of wordpress or woocommerce. You can uninstall any time you want.
 
 ![setup5](https://user-images.githubusercontent.com/25556606/124501159-baf95700-ddc9-11eb-81ce-84c5b9117639.png)
+
+## Any drawbacks?
+Partially Yes! If you have multiple order from same customer just ship them all at once. If you partially ship them (multiple tracking number) matching algorithm can fail but not mess up anything. Keep in mind that If you have a large volume e-commerce platform eg. marketplace you need deep integration solutions.
 
 ## Where is the Turkish translation?
 Critical part such as success mails, custom order status fronted label supports Turkish. You are welcome to add support/contribute on Turkish translation of setup&logging&readme part.
