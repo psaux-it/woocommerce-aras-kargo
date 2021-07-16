@@ -96,7 +96,7 @@ So it is enough to set one time. For mail notification you need working mail ser
 - mail_subject_err
 
 ## Usage
-- If you go with three way fulfillment workflow (with custom order status package) be sure your setup working
+- If you go with three way fulfillment workflow (with custom order status package) be sure your setup is working
 - Get necessary credentials from ARAS commercial user control panel (https://esasweb.araskargo.com.tr/) (choose JSON fromat)
 ![araskargo-11](https://user-images.githubusercontent.com/25556606/125905483-99941283-cd59-4ac5-b9ea-afc54132dc7b.png)
 - Enable and setup WooCommerce REST API, get credentials (only support REST API v3)
