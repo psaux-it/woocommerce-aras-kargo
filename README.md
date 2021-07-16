@@ -65,6 +65,16 @@ You are welcome to add support/contribute on Turkish translation. Currently scri
 - Ubuntu
 - Debian
 
+## Requirements During Installation
+- WooCommerce API Key (v3)
+- WooCommerce API Secret (v3)
+- Wordpress Domain URL
+- ARAS SOAP API Password
+- ARAS SOAP API Username
+- ARAS SOAP Endpoint URL (wsdl)
+- ARAS SOAP Merchant Code
+- ARAS SOAP Query Type (12 or 13)
+
 ## User Defined Settings
 Please set below settings manually in the script. While auto update triggers we always keep these settings.
 So it is enough to set one time. For mail notification you need working mail server like postfix with 'mail' command which comes with mailutils linux package.
@@ -77,16 +87,6 @@ So it is enough to set one time. For mail notification you need working mail ser
 - mail_from
 - mail_subject_suc
 - mail_subject_err
-
-## Pre-Requisites
-- WooCommerce API Key (v3)
-- WooCommerce API Secret (v3)
-- Wordpress Domain URL
-- ARAS SOAP API Password
-- ARAS SOAP API Username
-- ARAS SOAP Endpoint URL (wsdl)
-- ARAS SOAP Merchant Code
-- ARAS SOAP Query Type (12 or 13)
 
 ## Usage
 - Get necessary credentials from ARAS commercial user control panel (https://esasweb.araskargo.com.tr/) (choose JSON fromat)
