@@ -1,3 +1,10 @@
+1.0.9 - 07/16/2021
+=========================================================
+- IMPORTANT FIX - null data corrupting array 
+  and matching logic
+- More error handling for file operations (trap cleanup)
+- Optimize upgrade process code
+
 1.0.8 - 07/14/2021
 =========================================================
 - Add send_mail function for more flexibility
