@@ -9,14 +9,14 @@ The aim of this bash script solution is effortlessly integrate WooCommerce and A
 ## What is the actual solution here exactly?
 ![woocommerce](https://user-images.githubusercontent.com/25556606/125707166-aa92a5a3-5655-450c-bc23-c67d8fc5ab10.png)
 
-> This automation updates woocomerce order status from 'processing' to 
-> 'completed/shipped' (REST), when the matching cargo tracking code is 
-> generated on the ARAS Cargo end (SOAP). Attachs cargo information 
-> (tracking number, track link etc.) to order completed e-mail with the
+> This automation updates woocomerce order status 'processing' to 
+> 'completed/shipped' (via REST), when the matching cargo tracking code is 
+> generated on the ARAS Cargo end (via SOAP). Attachs cargo information 
+> (tracking number, track link etc.) to order completed/shipped e-mail with the
 > help of AST plugin (REST) and notify customer. If you implemented
-> three way fulfillment workflow. script updates 'shipped' order status
-> to 'delivered'. Simply you don't need to manually add cargo 
-> tracking number and update order status via WooCommerce orders dashboard.
+> three way fulfillment workflow, script goes one layer up and updates order status 'shipped'
+> to 'delivered' and notify customer via second mail. Simply you don't need to add cargo 
+> tracking number manually and update order status via WooCommerce orders dashboard.
 > The aim of script is automating the process fully.
 
 ## What are the supported workflows?
@@ -60,7 +60,7 @@ Critical part such as success mails, custom order status fronted label supports 
 - php>=7.0 --> for creating SOAP client to get data from ARAS 
 
 ## Recommended Tools
-- mail --> for system admin mail alerts (comes with mailutils linux package)
+- mail --> for shop manager mail alerts (comes with mailutils linux package)
 
 ## Tested Applications Versions
 - wordpress>=5.7.2
