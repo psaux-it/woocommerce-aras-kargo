@@ -35,33 +35,35 @@ You are welcome to add support/contribute on Turkish translation. Currently scri
 
 ## Features
 - Interactive easy setup
-- Encrypt all sensetive data (REST,SOAP credentials) also never seen on bash history. Doesn't keep any sensetive data on files.
+- Three way fulfillment workflow with custom order status package
+- Encryped sensetive data (REST,SOAP credentials) also never seen on bash history
 - Powerful error handling for various checks like SOAP and REST API connections
 - Auto installation methods via cron, systemd
-- Adds logrotate if you have
+- Logrotate support
 - Pluginless pure server side bash solution, set and forget
 - HTML notify mails for updated orders, errors
 - Easily auto upgrade to latest version
-- Prevent mismatchs caused by typo via levenshtein distance function. Approximate string matching up to 3 characters.
+- Strong string matching logic via levenshtein distance function
 
 ![setup](https://user-images.githubusercontent.com/25556606/124499928-7e2c6080-ddc7-11eb-9df2-672a0f5ab2d1.png) ![setup4](https://user-images.githubusercontent.com/25556606/124500396-61445d00-ddc8-11eb-92eb-de3af3ff3d63.png)
 
-## Hard Dependencies
-- bash
-- perl
-- perl Text::Fuzzy
-- curl
-- openssl
-- mail (mailutils)
-- jq
-- php
-- iconv
-- pstree
-- sed
-- awk
-- stat
-- paste
-- woocommerce AST plugin free (https://wordpress.org/plugins/woo-advanced-shipment-tracking/)
+## Hard Dependencies (not included in default linux installations)
+- perl-Text::Fuzzy>=0.29
+- jq>=1.6
+- php>=7.0
+
+## Recommended Tools
+- mail (mailutils linux package)
+
+## Tested Applications Versions
+- wordpress>=5.7.2
+- wocommerce>=5.5.1 
+- woocommerce AST plugin>=3.2.5 (https://wordpress.org/plugins/woo-advanced-shipment-tracking/)
+
+## Tested Linux Distros
+- Gentoo
+- Ubuntu
+- Debian
 
 ## User Defined Settings
 Please set below settings manually in the script. While auto update triggers we always keep these settings.
