@@ -158,8 +158,13 @@ if [ -z "$this_script_full_path" ] || [ -z "$this_script_path" ] || [ -z "$this_
 	exit 1
 fi
 
-# Listen exit signals to destroy temporary files
+# Create tmp folder
 my_tmp=$(mktemp)
+if [ ! -d "${this_script_path}/tmp" ]; then
+	mkdir -p "${this_script_path}/tmp"
+fi
+
+# Listen exit signals to destroy temporary files
 trap "rm -rf ${my_tmp} ${this_script_path}/*.en ${this_script_path}/*.proc ${this_script_path}/*.json* ${this_script_path}/aras_request.php ${this_script_path}/.lvn*" 0 1 2 3 15
 
 # Global variables
@@ -186,6 +191,7 @@ sh_github="https://raw.githubusercontent.com/hsntgm/woocommerce-aras-kargo/main/
 changelog_github="https://raw.githubusercontent.com/hsntgm/woocommerce-aras-kargo/main/CHANGELOG"
 sh_output="${this_script_path}/woocommerce-aras-cargo.sh.tmp"
 update_script="woocommerce-aras-update-script.sh"
+my_tmp_folder="${this_script_path}/tmp"
 
 # Determine script run by cron
 TEST_CRON="$($m_pstree -s $$ | grep -c cron 2>/dev/null)"
@@ -1670,47 +1676,50 @@ fi
 # Lets start updating woocommerce order status as completed with AST plugin.
 # ARAS Tracking number will be sent to customer.
 if [ -e "${this_script_path}/.woo.aras.enb" ]; then
-	# Check multiple orders(processing) & tracking numbers for same customer.
-	# As mentioned this is not deep integration solution. This is the biggest drawback.
-	# If we have multiple orders from same customer we cannot match order with exact tracking number.
-
 	if [ -s "$my_tmp" ]; then
-			while read -r id track
-			do
-				# Update order with AST Plugin REST API
-				if $m_curl -s -o /dev/null -X POST --fail \
-					-u "$api_key":"$api_secret" \
-					-H "Content-Type: application/json" \
-					-d '{"tracking_provider": "Aras Kargo","tracking_number": "'"${track}"'","date_shipped": "'"${t_date}"'","status_shipped": 1}' \
-					"https://$api_endpoint/wp-json/wc-ast/v3/orders/$id/shipment-trackings"; then
-					# HTML mail about order updates
-					sleep 5
-					c_name=$(curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/orders/$id" -u "$api_key":"$api_secret" -H "Content-Type: application/json" | jq -r '[.shipping.first_name,.shipping.last_name]|join(" ")')
-					# If you use 'sequential order number' plugins
-					order_number=$(curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/orders/$id" -u "$api_key":"$api_secret" -H "Content-Type: application/json" | jq -r '[.meta_data]' | awk '/_order_number/{getline; print}' | awk -F: '{print $2}' | tr -d '"' | sed -r 's/\s+//g' | tr " " "*" | tr "\t" "&")
-					send_mail_suc <<- EOF
-					<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd"><html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"/></head><body><table id="v1template_container" style="background-color: #ffffff; border: 1px solid #dedede; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1); border-radius: 3px;" border="0" width="600" cellspacing="0" cellpadding="0"><tbody><tr><td align="center" valign="top"><table id="v1template_header" style="background-color: #567d46; color: #ffffff; border-bottom: 0; font-weight: bold; line-height: 100%; vertical-align: middle; font-family: 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif; border-radius: 3px 3px 0 0;" border="0" width="100%" cellspacing="0" cellpadding="0"><tbody><tr><td id="v1header_wrapper" style="padding: 36px 48px; display: block;"><h2 style="font-family: 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif; font-size: 30px; font-weight: 300; line-height: 150%; margin: 0px; text-shadow: #78976b 0px 1px 0px; color: #ffffff; background-color: inherit; text-align: center;">Aras Kargo Otomatik Güncelleme: $id - $order_number</h2></td></tr></tbody></table></td></tr><tr><td align="center" valign="top"><table id="v1template_body" border="0" width="600" cellspacing="0" cellpadding="0"><tbody><tr><td id="v1body_content" style="background-color: #ffffff;" valign="top"><table border="0" width="100%" cellspacing="0" cellpadding="20"><tbody><tr><td style="padding: 48px 48px 32px;" valign="top"><div id="v1body_content_inner" style="color: #636363; font-family: 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif; font-size: 14px; line-height: 150%; text-align: left;"><p style="margin: 0 0 16px;">Merhaba $company_name, $c_name siparişi kargoya verildi ve sipariş durumu tamamlandı olarak güncellendi: Müşteriye kargo takip kodunu da içeren bir bilgilendirme maili gönderildi.</p><h2 style="color: #567d46; display: block; font-family: 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif; font-size: 18px; font-weight: bold; line-height: 130%; margin: 0 0 18px; text-align: left;"><a class="v1link" style="font-weight: normal; text-decoration: underline; color: #567d46;" href="#" target="_blank" rel="noreferrer">[Sipariş #$id]</a> ($t_date)</h2><div style="margin-bottom: 40px;"><table class="v1td" style="color: #636363; border: 1px solid #e5e5e5; vertical-align: middle; width: 100%; font-family: 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif;" border="1" cellspacing="0" cellpadding="6"><thead><tr><th class="v1td" style="color: #636363; border: 1px solid #e5e5e5; vertical-align: middle; padding: 12px; text-align: left;">KARGO</th><th class="v1td" style="color: #636363; border: 1px solid #e5e5e5; vertical-align: middle; padding: 12px; text-align: left;">İSİM</th><th class="v1td" style="color: #636363; border: 1px solid #e5e5e5; vertical-align: middle; padding: 12px; text-align: left;">TAKİP KODU</th></tr></thead><tbody><tr class="v1order_item"><td class="v1td" style="color: #636363; border: 1px solid #e5e5e5; padding: 12px; text-align: left; vertical-align: middle; font-family: 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif; word-wrap: break-word;">ARAS KARGO</td><td class="v1td" style="color: #636363; border: 1px solid #e5e5e5; padding: 12px; text-align: left; vertical-align: middle; font-family: 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif;">$c_name</td><td class="v1td" style="color: #636363; border: 1px solid #e5e5e5; padding: 12px; text-align: left; vertical-align: middle; font-family: 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif;">$track</td></tr></tbody></table></div></div></td></tr></tbody></table></td></tr></tbody></table></td></tr></tbody></table></body></html>
-					EOF
-					echo "$(timestamp): ORDER UPDATED: Order_Id=$id Order_Number=$order_number Aras_Tracking_Number=$track Customer_Info=$c_name" >> "${access_log}"
-					if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
-						echo "${green}*${reset} ${green}ORDER UPDATED: Order_Id=$id Order_Number=$order_number Aras_Tracking_Number=$track Customer_Info=$c_name${reset}"
-					fi
-					sleep 10
-				elif [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
-					if [ $send_mail_err -eq 1 ]; then
-						send_mail_err <<< "Cannot post data to AST Plugin REST endpoint (wp-json/wc-ast/v3/orders/$id/shipment-trackings)"
-					fi
-					echo "${red}*${reset} ${red}Cannot post data to AST Plugin REST endpoint (wp-json/wc-ast/v3/orders/$id/shipment-trackings)${reset}"
-					echo "$(timestamp): Cannot post data to AST Plugin REST endpoint (wp-json/wc-ast/v3/orders/$id/shipment-trackings)" >> "${error_log}"
-					exit 1
-				else
-					if [ $send_mail_err -eq 1 ]; then
-						send_mail_err <<< "Cannot post data to AST Plugin REST endpoint (wp-json/wc-ast/v3/orders/$id/shipment-trackings)"
-					fi
-					echo "$(timestamp): Cannot post data to AST Plugin REST endpoint (wp-json/wc-ast/v3/orders/$id/shipment-trackings)" >> "${error_log}"
-					exit 1
+		# First to handle strange behaviours save the data in tmp
+		cat <(cat "${my_tmp}") > "$my_tmp_folder/`date +%d-%m-%Y`-main.$$"
+		cat <(cat "${this_script_path}/wc.proc.en") > "$my_tmp_folder/`date +%d-%m-%Y`-wc.proc.en.$$"
+		cat <(cat "${this_script_path}/aras.proc.en") > "$my_tmp_folder/`date +%d-%m-%Y`-aras.proc.en.$$"
+
+		while read -r id track
+		do
+			# Update order with AST Plugin REST API
+			if $m_curl -s -o /dev/null -X POST --fail \
+				-u "$api_key":"$api_secret" \
+				-H "Content-Type: application/json" \
+				-d '{"tracking_provider": "Aras Kargo","tracking_number": "'"${track}"'","date_shipped": "'"${t_date}"'","status_shipped": 1}' \
+				"https://$api_endpoint/wp-json/wc-ast/v3/orders/$id/shipment-trackings"; then
+				# HTML mail about order updates
+				sleep 5
+				c_name=$(curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/orders/$id" -u "$api_key":"$api_secret" -H "Content-Type: application/json" | jq -r '[.shipping.first_name,.shipping.last_name]|join(" ")')
+				# If you use 'sequential order number' plugins
+				order_number=$(curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/orders/$id" -u "$api_key":"$api_secret" -H "Content-Type: application/json" | jq -r '[.meta_data]' | awk '/_order_number/{getline; print}' | awk -F: '{print $2}' | tr -d '"' | sed -r 's/\s+//g' | tr " " "*" | tr "\t" "&")
+				send_mail_suc <<- EOF
+				<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd"><html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"/></head><body><table id="v1template_container" style="background-color: #ffffff; border: 1px solid #dedede; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1); border-radius: 3px;" border="0" width="600" cellspacing="0" cellpadding="0"><tbody><tr><td align="center" valign="top"><table id="v1template_header" style="background-color: #567d46; color: #ffffff; border-bottom: 0; font-weight: bold; line-height: 100%; vertical-align: middle; font-family: 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif; border-radius: 3px 3px 0 0;" border="0" width="100%" cellspacing="0" cellpadding="0"><tbody><tr><td id="v1header_wrapper" style="padding: 36px 48px; display: block;"><h2 style="font-family: 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif; font-size: 30px; font-weight: 300; line-height: 150%; margin: 0px; text-shadow: #78976b 0px 1px 0px; color: #ffffff; background-color: inherit; text-align: center;">Aras Kargo Otomatik Güncelleme: $id - $order_number</h2></td></tr></tbody></table></td></tr><tr><td align="center" valign="top"><table id="v1template_body" border="0" width="600" cellspacing="0" cellpadding="0"><tbody><tr><td id="v1body_content" style="background-color: #ffffff;" valign="top"><table border="0" width="100%" cellspacing="0" cellpadding="20"><tbody><tr><td style="padding: 48px 48px 32px;" valign="top"><div id="v1body_content_inner" style="color: #636363; font-family: 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif; font-size: 14px; line-height: 150%; text-align: left;"><p style="margin: 0 0 16px;">Merhaba $company_name, $c_name siparişi kargoya verildi ve sipariş durumu tamamlandı olarak güncellendi: Müşteriye kargo takip kodunu da içeren bir bilgilendirme maili gönderildi.</p><h2 style="color: #567d46; display: block; font-family: 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif; font-size: 18px; font-weight: bold; line-height: 130%; margin: 0 0 18px; text-align: left;"><a class="v1link" style="font-weight: normal; text-decoration: underline; color: #567d46;" href="#" target="_blank" rel="noreferrer">[Sipariş #$id]</a> ($t_date)</h2><div style="margin-bottom: 40px;"><table class="v1td" style="color: #636363; border: 1px solid #e5e5e5; vertical-align: middle; width: 100%; font-family: 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif;" border="1" cellspacing="0" cellpadding="6"><thead><tr><th class="v1td" style="color: #636363; border: 1px solid #e5e5e5; vertical-align: middle; padding: 12px; text-align: left;">KARGO</th><th class="v1td" style="color: #636363; border: 1px solid #e5e5e5; vertical-align: middle; padding: 12px; text-align: left;">İSİM</th><th class="v1td" style="color: #636363; border: 1px solid #e5e5e5; vertical-align: middle; padding: 12px; text-align: left;">TAKİP KODU</th></tr></thead><tbody><tr class="v1order_item"><td class="v1td" style="color: #636363; border: 1px solid #e5e5e5; padding: 12px; text-align: left; vertical-align: middle; font-family: 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif; word-wrap: break-word;">ARAS KARGO</td><td class="v1td" style="color: #636363; border: 1px solid #e5e5e5; padding: 12px; text-align: left; vertical-align: middle; font-family: 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif;">$c_name</td><td class="v1td" style="color: #636363; border: 1px solid #e5e5e5; padding: 12px; text-align: left; vertical-align: middle; font-family: 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif;">$track</td></tr></tbody></table></div></div></td></tr></tbody></table></td></tr></tbody></table></td></tr></tbody></table></body></html>
+				EOF
+				echo "$(timestamp): ORDER UPDATED: Order_Id=$id Order_Number=$order_number Aras_Tracking_Number=$track Customer_Info=$c_name" >> "${access_log}"
+				if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
+					echo "${green}*${reset} ${green}ORDER UPDATED: Order_Id=$id Order_Number=$order_number Aras_Tracking_Number=$track Customer_Info=$c_name${reset}"
 				fi
-			done < "${my_tmp}"
+				sleep 10
+			elif [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
+				if [ $send_mail_err -eq 1 ]; then
+					send_mail_err <<< "Wrong Order ID caused by corrupt data or AST plugin endpoint error. Check $my_tmp_folder/`date +%d-%m-%Y`-main.$$"
+				fi
+				echo "${red}*${reset} ${red}Cannot post data to AST Plugin REST endpoint.${reset}"
+				echo "${m_tab}${cyan}#####################################################${reset}"
+				echo "${red}*${reset} ${red}Wrong Order ID caused by corrupt data or AST plugin endpoint error${reset}"
+				echo "$(timestamp): Wrong Order ID caused by corrupt data or AST plugin endpoint error. Check $my_tmp_folder/`date +%d-%m-%Y`-main.$$" >> "${error_log}"
+				exit 1
+			else
+				if [ $send_mail_err -eq 1 ]; then
+					send_mail_err <<< "Wrong Order ID caused by corrupt data or AST plugin endpoint error. Check $my_tmp_folder/`date +%d-%m-%Y`-main.$$"
+				fi
+				echo "$(timestamp): Wrong Order ID caused by corrupt data or AST plugin endpoint error. Check $my_tmp_folder/`date +%d-%m-%Y`-main.$$" >> "${error_log}"
+				exit 1
+			fi
+		done < "${my_tmp}"
 	else
 		if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 			echo "${yellow}*${reset} ${yellow}Couldn't find any updateable order now.${reset}"
