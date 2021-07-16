@@ -31,8 +31,8 @@ Also interactive setup will ask you to validate some parsed data. If you don't v
 
 ![setup5](https://user-images.githubusercontent.com/25556606/124501159-baf95700-ddc9-11eb-81ce-84c5b9117639.png)
 
-## Where is Turkish translation?
-You are welcome to add support/contribute on Turkish translation. Currently script only supports mail notifications in Turkish. The setup and logs not supported yet.
+## Where is the Turkish translation?
+Critical part such as success mails, custom order status fronted label supports Turkish. You are welcome to add support/contribute on Turkish translation of setup&logging&readme part.
 
 ## Features
 - Interactive easy setup
@@ -90,9 +90,10 @@ So it is enough to set one time. For mail notification you need working mail ser
 - mail_subject_err
 
 ## Usage
+- If you go with three way fulfillment workflow (with custom order status package) be sure your setup working
 - Get necessary credentials from ARAS commercial user control panel (https://esasweb.araskargo.com.tr/) (choose JSON fromat)
 ![araskargo-11](https://user-images.githubusercontent.com/25556606/125905483-99941283-cd59-4ac5-b9ea-afc54132dc7b.png)
-- Enable and setup WooCommerce REST API (use v3, not legacy)
+- Enable and setup WooCommerce REST API, get credentials (only support REST API v3)
 - Adjust user defined settings as mentioned before
 - Clear wordpress cache for some security checks
 - Be sure you have some data both on woocommerce and ARAS for validations (if not create test orders)
