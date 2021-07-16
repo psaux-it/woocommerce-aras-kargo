@@ -1449,18 +1449,18 @@ do
 				good=false
 				break
 			fi
-		done < "$en"
+		done < "${en}"
 		if $good; then
-			if grep -q "wc.proc" "${en}"; then
+			if grep -q "wc.proc" <<< "${en}"; then
 				while read -r id w_customer
 				do
-        				wc_array[$id]="${w_customer}"
-				done < "${this_script_path}/wc.proc.en"
-			elif grep -q "aras.proc" "${en}"; then
+					wc_array[$id]="${w_customer}"
+				done < "${en}"
+			elif grep -q "aras.proc" <<< "${en}"; then
 				while read -r track a_customer
 				do
-        				aras_array[$track]="${a_customer}"
-				done < "${this_script_path}/aras.proc.en"
+					aras_array[$track]="${a_customer}"
+				done < "${en}"
 			fi
 		fi
 	fi
@@ -1527,7 +1527,7 @@ if [ -s "${this_script_path}/.lvn.all.cus" ]; then
 
 		if [ ! -e "${this_script_path}/.lvn.mytmp2" ]; then
 			for id in "${!magic[@]}"; do
-				echo "$id ${magic[$id]}" >> "${this_script_path}/.lvn.mytmp2"
+				echo "$id ${magic[$id]}" >> "${this_script_path}/.lvn.mytmp2" # This is always appended file and trap can fail, linux is mystery
 			done
 		elif [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 			echo -e "\n${red}*${reset}${red} Removing temporary file failed by trap.${reset}"
