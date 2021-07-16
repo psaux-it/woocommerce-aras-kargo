@@ -26,7 +26,7 @@ In default workflow if the cargo on the way (tracking number generated on ARAS e
 
 ![mermaid-diagram-20210714032102](https://user-images.githubusercontent.com/25556606/125541613-e1232826-72ad-4555-98cc-5e1b79c8e352.png)
 
-If you use three way workflow 'processing -> shipped -> delivered' we need to do some modifications that explained below.
+If you are implementing three way workflow 'processing -> shipped -> delivered' we need to do some extra stuff that explained below.
 
 ## Will mess up anything?
 No! At least if you don't modify source code blindly. If you have a pre-prod env. test it before production.
