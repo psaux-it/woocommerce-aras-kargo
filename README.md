@@ -30,7 +30,8 @@ If you use three way workflow 'processing -> shipped -> delivered' we need to do
 
 ## Will mess up anything?
 No! At least if you don't modify source code blindly. If you have a pre-prod env. test it before production.
-Also interactive setup will ask you to validate some parsed data. If you don't validate the data -installation part will be skipped. This solution never ever touch any core files of wordpress or woocommerce. You can uninstall any time you want.
+Also interactive setup will ask you to validate some parsed data. If you don't validate the data -installation part will be skipped.
+While auto implementing three way fulfillment workflow we just use child theme so we never ever touch any core files of wordpress or woocommerce directly.
 
 ![setup5](https://user-images.githubusercontent.com/25556606/124501159-baf95700-ddc9-11eb-81ce-84c5b9117639.png)
 
@@ -73,14 +74,14 @@ Critical part such as success mails, custom order status fronted label supports 
 - Debian
 
 ## Requirements During Interactive Setup
-- WooCommerce API Key (v3)
-- WooCommerce API Secret (v3)
-- Wordpress Domain URL
+- WooCommerce REST API Key (v3)
+- WooCommerce REST API Secret (v3)
+- Wordpress Site URL (format in www.my-ecommerce.com)
 - ARAS SOAP API Password
 - ARAS SOAP API Username
-- ARAS SOAP Endpoint URL (wsdl)
+- ARAS SOAP Endpoint URL (wsdl) (get from ARAS commercial user control panel)
 - ARAS SOAP Merchant Code
-- ARAS SOAP Query Type (12 or 13)
+- ARAS SOAP Query Type (restricted to 12/13)
 
 ## User Defined Settings
 Please set below settings manually in the script. While auto update triggers we always keep these settings.
