@@ -72,7 +72,7 @@ Critical part such as success mails, custom order status fronted label supports 
 - Ubuntu
 - Debian
 
-## Requirements During Installation
+## Requirements During Interactive Setup
 - WooCommerce API Key (v3)
 - WooCommerce API Secret (v3)
 - Wordpress Domain URL
