@@ -9,12 +9,15 @@ The aim of this bash script solution is effortlessly integrate WooCommerce and A
 ## What is the actual solution here exactly?
 ![woocommerce](https://user-images.githubusercontent.com/25556606/125707166-aa92a5a3-5655-450c-bc23-c67d8fc5ab10.png)
 
-> This automation updates woocomerce order status from processing to completed (REST),
-> when the matching cargo tracking code is generated on the ARAS Cargo end (SOAP).
-> Attachs cargo information (tracking number, track link etc.) to
-> order completed e-mail with the help of AST plugin (REST) and notify customer.
-> Simply you don't need to manually add cargo tracking number and update order status
-> via WooCommerce orders dashboard. The aim of script is automating the process fully.
+> This automation updates woocomerce order status from 'processing' to 
+> 'completed/shipped' (REST), when the matching cargo tracking code is 
+> generated on the ARAS Cargo end (SOAP). Attachs cargo information 
+> (tracking number, track link etc.) to order completed e-mail with the
+> help of AST plugin (REST) and notify customer. If you implemented
+> three way fulfillment workflow. script updates 'shipped' order status
+> to 'delivered'. Simply you don't need to manually add cargo 
+> tracking number and update order status via WooCommerce orders dashboard.
+> The aim of script is automating the process fully.
 
 ## What are the supported workflows?
 ![mermaid-diagram-20210714032040](https://user-images.githubusercontent.com/25556606/125541661-f8a05b42-c174-4bfb-81c9-84e01036a1f6.png)
