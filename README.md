@@ -52,7 +52,7 @@ Critical part such as success mails, custom order status fronted label supports 
 - Easily auto upgrade to latest version
 - Strong string matching logic via levenshtein distance function
 
-![setup](https://user-images.githubusercontent.com/25556606/124499928-7e2c6080-ddc7-11eb-9df2-672a0f5ab2d1.png) ![setup4](https://user-images.githubusercontent.com/25556606/124500396-61445d00-ddc8-11eb-92eb-de3af3ff3d63.png)
+![setup](https://user-images.githubusercontent.com/25556606/124499928-7e2c6080-ddc7-11eb-9df2-672a0f5ab2d1.png)
 
 ## Hard Dependencies (not included in default linux installations)
 - perl-Text::Fuzzy>=0.29 --> for string matching via levenshtein distance function
