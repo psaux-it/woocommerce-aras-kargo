@@ -1427,22 +1427,41 @@ iconv -f utf8 -t ascii//TRANSLIT < "${this_script_path}/wc.proc" | tr '[:upper:]
 # You can try Text::Levenshtein - Text::Levenshtein::XS if you interested in speed test (need some coding)
 # =============================================================================================
 
-# Create associative array and prepeare necessary data for matching operation
+# Verify data integrity (check fields only contains digits, letters && existence of data (eliminate null,whitespace)
+# If only data valid then read file into associative array (array length will not effected by null data)
 declare -A aras_array
 declare -A wc_array
 
-while read -r track a_customer
+for en in ${this_script_path}/*.en
 do
-	aras_array[$track]="${a_customer}"
-done < "${this_script_path}/aras.proc.en"
+	if [ -s "$en" ]; then
+		good=true
+		while read -ra fields
+		do
+			if [[ ! (${fields[0]} =~ ^[+-]?[[:digit:]]+$ && ${fields[1]} =~ ^[a-z]+$ ) ]]; then
+				good=false
+				break
+			fi
+		done < "$en"
+		if $good; then
+			if grep -q "wc.proc" "${en}"; then
+				while read -r id w_customer
+				do
+        				wc_array[$id]="${w_customer}"
+				done < "${this_script_path}/wc.proc.en"
+			elif grep -q "aras.proc" "${en}"; then
+				while read -r track a_customer
+				do
+        				aras_array[$track]="${a_customer}"
+				done < "${this_script_path}/aras.proc.en"
+			fi
+		fi
+	fi
+done
 
-while read -r id w_customer
-do
-	wc_array[$id]="${w_customer}"
-done < "${this_script_path}/wc.proc.en"
-
-if [[ "${#aras_array[@]}" -gt 0 && "${#wc_array[@]}" -gt 0 ]]; then
-	if [ ! -e "${this_script_path}/.lvn.all.cus" ]; then
+# Prepeare necessary data for matching operation
+if [[ "${#aras_array[@]}" -gt 0 && "${#wc_array[@]}" -gt 0 ]]; then # Check length of arrays to continue
+	if [ ! -e "${this_script_path}/.lvn.all.cus" ]; then # This is always appended file and trap(cleanup) can fail, linux is mystery
 		for i in "${!wc_array[@]}"; do
 			for j in "${!aras_array[@]}"; do
 				echo "${i}" "${wc_array[$i]}" "${j}" "${aras_array[$j]}" >> "${this_script_path}/.lvn.all.cus"
@@ -1468,7 +1487,7 @@ fi
 
 # Use perl for string matching via levenshtein distance function
 if [ -s "${this_script_path}/.lvn.all.cus" ]; then
-	if [ ! -e "${this_script_path}/.lvn.stn" ]; then
+	if [ ! -e "${this_script_path}/.lvn.stn" ]; then # This is always appended file and trap can fail, linux is mystery
 		while read -r wc aras
 		do
 			$m_perl -MText::Fuzzy -e 'my $tf = Text::Fuzzy->new ("$ARGV[0]");' -e '$tf->set_max_distance (3);' -e 'print $tf->distance ("$ARGV[1]"), "\n";' "$wc" "$aras" >> "${this_script_path}/.lvn.stn"
@@ -1655,16 +1674,14 @@ if [ -e "${this_script_path}/.woo.aras.enb" ]; then
 	# If we have multiple orders from same customer we cannot match order with exact tracking number.
 
 	if [ -s "$my_tmp" ]; then
-			while IFS=' ' read -r id track
+			while read -r id track
 			do
 				# Update order with AST Plugin REST API
-				$m_curl -s -o /dev/null -X POST \
+				if $m_curl -s -o /dev/null -X POST --fail \
 					-u "$api_key":"$api_secret" \
 					-H "Content-Type: application/json" \
 					-d '{"tracking_provider": "Aras Kargo","tracking_number": "'"${track}"'","date_shipped": "'"${t_date}"'","status_shipped": 1}' \
-					"https://$api_endpoint/wp-json/wc-ast/v3/orders/$id/shipment-trackings"
-				res=$?
-				if test "$res" == "0"; then
+					"https://$api_endpoint/wp-json/wc-ast/v3/orders/$id/shipment-trackings"; then
 					# HTML mail about order updates
 					sleep 5
 					c_name=$(curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/orders/$id" -u "$api_key":"$api_secret" -H "Content-Type: application/json" | jq -r '[.shipping.first_name,.shipping.last_name]|join(" ")')
