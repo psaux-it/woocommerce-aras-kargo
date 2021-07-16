@@ -1153,18 +1153,18 @@ decrypt_aras_auth && decrypt_aras_end && decrypt_wc_auth && decrypt_wc_end ||
 #=====================================================================
 # Pre-defined curl functions for various tests
 w_curl_s () {
-	$m_curl -H "Content-Type: application/json" "https://$api_endpoint/wp-json/wc/v3/system_status" > "$this_script_path/curl.proc" 2>&1
+	$m_curl -X GET -H "Content-Type: application/json" "https://$api_endpoint/wp-json/wc/v3/system_status" > "$this_script_path/curl.proc" 2>&1
 }
 
 w_curl_a () {
 	$m_curl -X GET \
 		-u "$api_key":"$api_secret" \
 		-H "Content-Type: application/json" \
-		"https://$api_endpoint/wp-json/wc/v3/customers" > "$this_script_path/curl.proc" 2>&1
+		"https://$api_endpoint/wp-json/wc/v3/system_status" > "$this_script_path/curl.proc" 2>&1
 }
 
 # Test Wordpress domain & host connection
-w_curl_s
+w_curl_a
 if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 	try=0
 	while grep -q "Could not resolve host" "$this_script_path/curl.proc"
@@ -1185,7 +1185,7 @@ if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 				[Yy]* ) rm -rf "${this_script_path}/.end.wc.lck";
 					encrypt_wc_end;
 					decrypt_wc_end;
-					w_curl_s; break;;
+					w_curl_a; break;;
 					[Nn]* ) exit 1;;
 				* ) echo -e "\n${m_tab}${magenta}Please answer yes or no.${reset}"; echo "${cyan}${m_tab}#####################################################${reset}";;
 			esac
@@ -1238,7 +1238,6 @@ elif grep -q "403" "$this_script_path/curl.proc"; then
 fi
 
 # Test WooCommerce REST API Authentication
-w_curl_a
 if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 	try=0
 	while grep -q "woocommerce_rest_authentication_error\|woocommerce_rest_cannot_view\|401" "$this_script_path/curl.proc"
