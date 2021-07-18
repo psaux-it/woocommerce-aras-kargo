@@ -14,7 +14,7 @@ The aim of this bash script solution is effortlessly integrate WooCommerce and A
 > generated on the ARAS Cargo end (via SOAP). Attachs cargo information 
 > (tracking number, track link etc.) to order completed/shipped e-mail with the
 > help of AST plugin (REST) and notify customer. If you implemented
-> three way fulfillment workflow, script goes one layer up and updates order status 'shipped'
+> two way fulfillment workflow, script goes one layer up and updates order status 'shipped'
 > to 'delivered' and notify customer via second mail. Simply you don't need to add cargo 
 > tracking number manually and update order status via WooCommerce orders dashboard.
 > The aim of script is automating the process fully.
@@ -26,12 +26,12 @@ In default workflow if the cargo on the way (tracking number generated on ARAS e
 
 ![mermaid-diagram-20210714032102](https://user-images.githubusercontent.com/25556606/125541613-e1232826-72ad-4555-98cc-5e1b79c8e352.png)
 
-If you are implementing three way workflow 'processing -> shipped -> delivered' we need to do some extra stuff that explained below.
+If you are implementing two way workflow 'processing -> shipped -> delivered' we need to do some extra stuff that explained below.
 
 ## Will mess up anything?
 No! At least if you don't modify source code blindly. If you have a pre-prod env. test it before production.
 Also interactive setup will ask you to validate some parsed data. If you don't validate the data -installation part will be skipped.
-While auto implementing three way fulfillment workflow we just use child theme so we never ever touch any core files of wordpress or woocommerce directly.
+While auto implementing two way fulfillment workflow we just use child theme so we never ever touch any core files of wordpress or woocommerce directly.
 
 ![setup5](https://user-images.githubusercontent.com/25556606/124501159-baf95700-ddc9-11eb-81ce-84c5b9117639.png)
 
@@ -39,11 +39,11 @@ While auto implementing three way fulfillment workflow we just use child theme s
 Partially Yes! If you have multiple order from same customer just ship them all at once. If you partially ship them (multiple tracking number) matching algorithm can fail but not mess up anything. Keep in mind that If you have a large volume e-commerce platform eg. marketplace you need deep integration solutions.
 
 ## Where is the Turkish translation?
-Critical part such as success mails, custom order status fronted label supports Turkish. You are welcome to add support/contribute on Turkish translation of setup&logging&readme part.
+Critical part such as success mails, fronted&admin side custom order status label supports Turkish. You are welcome to add support/contribute on Turkish translation of setup&logging&readme part.
 
 ## Features
 - Interactive easy setup
-- Three way fulfillment workflow with custom order status package
+- Two way fulfillment workflow with custom order status package
 - Encryped sensetive data (REST,SOAP credentials) also never seen on bash history
 - Powerful error handling for various checks like SOAP and REST API connections
 - Auto installation methods via cron, systemd
@@ -58,7 +58,8 @@ Critical part such as success mails, custom order status fronted label supports 
 ## Hard Dependencies (not included in default linux installations)
 - perl-Text::Fuzzy>=0.29 --> for string matching via levenshtein distance function
 - jq>=1.6 --> simplify JSON parsing operations
-- php>=7.0 --> for creating SOAP client to get data from ARAS 
+- php>=7.0 --> for creating SOAP client to get data from ARAS
+- whiptail (as also known (newt,libnewt))
 
 ## Recommended Tools
 - mail --> for shop manager mail alerts (comes with mailutils linux package)
@@ -97,7 +98,7 @@ So it is enough to set one time. For mail notification you need working mail ser
 - mail_subject_err
 
 ## Usage
-- If you go with three way fulfillment workflow (with custom order status package) be sure your setup is working
+- If you go with two way fulfillment workflow (with custom order status package) be sure your setup is working
 - Get necessary credentials from ARAS commercial user control panel (https://esasweb.araskargo.com.tr/) (choose JSON fromat)
 ![araskargo-11](https://user-images.githubusercontent.com/25556606/125905483-99941283-cd59-4ac5-b9ea-afc54132dc7b.png)
 - Enable and setup WooCommerce REST API, get credentials (only support REST API v3)
