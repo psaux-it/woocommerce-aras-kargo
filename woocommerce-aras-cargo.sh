@@ -192,6 +192,7 @@ changelog_github="https://raw.githubusercontent.com/hsntgm/woocommerce-aras-karg
 sh_output="${this_script_path}/woocommerce-aras-cargo.sh.tmp"
 update_script="woocommerce-aras-update-script.sh"
 my_tmp_folder="${this_script_path}/tmp"
+my_string="woocommerce-aras-cargo-integration"
 
 # Determine script run by cron
 TEST_CRON="$($m_pstree -s $$ | grep -c cron 2>/dev/null)"
