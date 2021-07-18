@@ -269,40 +269,105 @@ twoway_pretty_error () {
 	exit 1
 }
 
-# (processing --> shipped --> delivered) twoway fulfillment workflow setup
-twoway_workflow () {
-# Check there is active child theme
-theme_child=$(curl -s -X GET -u "$api_key":"$api_secret" -H "Content-Type: application/json" "https://$api_endpoint/wp-json/wc/v3/system_status" | $m_jq -r '[.theme.is_child_theme]|join(" ")')
 
-# Find absolute path of child theme if exist
-if [ "$theme_child" == "true" ]; then
-	theme_path=$(curl -s -X GET -u "$api_key":"$api_secret" -H "Content-Type: application/json" "https://$api_endpoint/wp-json/wc/v3/system_status" | $m_jq -r '[.environment.log_directory]|join(" ")' | $m_awk -F 'wp-content' '{print $1"wp-content"}')
-	theme_name=$(curl -s -X GET -u "$api_key":"$api_secret" -H "Content-Type: application/json" "https://$api_endpoint/wp-json/wc/v3/system_status" | $m_jq -r '[.theme.name]|join(" ")')
-	theme_name="${theme_name//[^[:alnum:]]/}"
-	theme_name="${theme_name,,}"
-	for i in $theme_path/themes/*; do
-		if [ -d "$i" ]; then
-			j="$i"
-			i="${i##*/}"
-			i="${i//[^[:alnum:]]/}"
-			i="${i,,}"
-			if grep -q "${theme_name}" <<< "${i}"; then
-				absolute_child_path="${j}"
-				break
-			fi
+validate_twoway () {
+	# Collect missing files if exist
+	declare -a missing_files=()
+	for i in "${my_files[@]}"
+	do
+		if ! grep -qw "${my_string}" "$i"; then
+			missing_files+=("$i")
 		fi
 	done
-else
-	echo -e "\n${red}*${reset} ${red}You have no activated child theme${reset}"
-	echo "${cyan}${m_tab}#####################################################${reset}"
-	echo "${m_tab}${red}Please activate child theme and re-start setup.${reset}"
-	echo "${m_tab}${red}Without active child theme we cannot implement two way fulfillment workflow.${reset}"
-	echo "$(timestamp): You have no activated child theme. Without child theme we cannot implement two way fulfillment workflow" >> "${error_log}"
-	exit 1
-fi
 
-# Get current ownership
-if [[ -n $absolute_child_path ]]; then
+	if ! grep -qw "${my_string}" "$absolute_child_path/functions.php"; then
+		missing_files+=("$absolute_child_path/functions.php")
+	fi
+
+	for i in "${missing_files[@]}"
+	do
+		echo "$i"
+	done
+}
+
+find_child_path () {
+	# Get active child theme info
+	theme_child=$(curl -s -X GET -u "$api_key":"$api_secret" -H "Content-Type: application/json" "https://$api_endpoint/wp-json/wc/v3/system_status" | $m_jq -r '[.theme.is_child_theme]|join(" ")')
+
+	# Find absolute path of child theme if exist
+	if [ "$theme_child" == "true" ]; then
+		theme_path=$(curl -s -X GET -u "$api_key":"$api_secret" -H "Content-Type: application/json" "https://$api_endpoint/wp-json/wc/v3/system_status" | $m_jq -r '[.environment.log_directory]|join(" ")' | $m_awk -F 'wp-content' '{print $1"wp-content"}')
+		theme_name=$(curl -s -X GET -u "$api_key":"$api_secret" -H "Content-Type: application/json" "https://$api_endpoint/wp-json/wc/v3/system_status" | $m_jq -r '[.theme.name]|join(" ")')
+		theme_name="${theme_name//[^[:alnum:]]/}"
+		theme_name="${theme_name,,}"
+		for i in $theme_path/themes/*; do
+			if [ -d "$i" ]; then
+				j="$i"
+				i="${i##*/}"
+				i="${i//[^[:alnum:]]/}"
+				i="${i,,}"
+				if grep -q "${theme_name}" <<< "${i}"; then
+					absolute_child_path="${j}"
+					break
+				fi
+			fi
+		done
+
+		# Check child theme path found or not
+		if [[ ! -n $absolute_child_path ]]; then
+			echo -e "\n${red}*${reset} ${red}Could not get child theme path${reset}"
+			echo "${cyan}${m_tab}#####################################################${reset}"
+			echo "${m_tab}${red}Expected in $theme_path/themes/${reset}"
+			echo "$(timestamp): Could not found child theme path: Expected in $theme_path/themes/" >> "${error_log}"
+			exit 1
+		else
+			declare -a my_paths=("$absolute_child_path/woocommerce"
+								 "$absolute_child_path/woocommerce/emails"
+								 "$absolute_child_path/woocommerce/templates"
+								 "$absolute_child_path/woocommerce/templates/emails"
+								 "$absolute_child_path/woocommerce/templates/emails/plain")
+			declare -a my_files=("$absolute_child_path/woocommerce/emails/class-wc-delivered-status-order.php"
+								 "$absolute_child_path/woocommerce/templates/emails/wc-customer-delivered-status-order.php"
+								 "$absolute_child_path/woocommerce/templates/emails/plain/wc-customer-delivered-status-order.php")
+		fi
+	else
+		echo -e "\n${red}*${reset} ${red}You have no activated child theme${reset}"
+		echo "${cyan}${m_tab}#####################################################${reset}"
+		echo "${m_tab}${red}You have no activated child theme${reset}"
+		echo "${m_tab}${red}Without active child theme we cannot implement two way fulfillment workflow.${reset}"
+		echo "$(timestamp): You have no activated child theme. Without child theme we cannot implement two way fulfillment workflow" >> "${error_log}"
+		exit 1
+	fi
+}
+
+uninstall_twoway () {
+	find_child_path
+	# Remove installed files from child theme
+	# We don't remove any folder we created before!
+	declare -a installed_files=()
+	for i in "${my_files[@]}"
+	do
+		if grep -qw "${my_string}" "$i"; then
+			installed_files+=("$i")
+		fi
+	done
+
+	for i in "${installed_files[@]}"
+	do
+		rm -f "$i"
+	done
+
+	# Take back modifications from functions.php
+	if grep -qw "${my_string}" "$absolute_child_path/functions.php"; then
+		sed -i "/${my_string}/,/${my_string}/d" "$absolute_child_path/functions.php"
+	fi
+}
+
+# (processing --> shipped --> delivered) twoway fulfillment workflow setup
+install_twoway () {
+	find_child_path
+
+	# Get ownership operations
 	if [ -f "$absolute_child_path/functions.php" ]; then
 		if [ -r "$absolute_child_path/functions.php" ]; then
 			GROUP_OWNER="$(stat --format "%G" "$absolute_child_path/functions.php" 2> /dev/null)"
@@ -326,117 +391,126 @@ if [[ -n $absolute_child_path ]]; then
 		echo "$(timestamp): Installation aborted, as file not readable: $theme_path/index.php" >> "${error_log}"
 		exit 1
 	fi
-else
-	echo -e "\n${red}*${reset} ${red}Installation aborted, couldn't find child theme absolute path${reset}"
-	echo "${cyan}${m_tab}#####################################################${reset}"
-	echo "${m_tab}${red}Please check manual installation guide of two way fulfillment workflow${reset}"
-	echo "$(timestamp): Installation aborted, couldn't find child theme absolute path" >> "${error_log}"
-	exit 1
-fi
 
-# Create folders, files & copy necessary files & apply user:group ownerships
-if [[ -n $GROUP_OWNER && -n $USER_OWNER ]]; then
-	if [ ! -f "$absolute_child_path/functions.php" ]; then
-		if ! grep -q 'Permission denied' <<< "$(touch "$absolute_child_path/functions.php" 2>&1)"; then
-			cat "$this_script_path/custom-order-status-package/functions.php" > "$absolute_child_path/functions.php" &&
-			chown $USER_OWNER:$GROUP_OWNER "$absolute_child_path/functions.php" ||
-			{
-			echo -e "\n${red}*${reset} ${red}Installation aborted, as file cannot modified: ${reset}";
-			echo "${cyan}${m_tab}#####################################################${reset}";
-			echo "${m_tab}${red}$absolute_child_path/functions.php${reset}";
-			echo "$(timestamp): Installation aborted, as file cannot modified: $absolute_child_path/functions.php" >> "${error_log}";
-			exit 1;
-			}
+	# Copy, create apply operations
+	if [[ -n $GROUP_OWNER && -n $USER_OWNER ]]; then
+		# Function.php operations
+		if [ ! -f "$absolute_child_path/functions.php" ]; then
+			if ! grep -q 'Permission denied' <<< "$(touch "$absolute_child_path/functions.php" 2>&1)"; then
+				cat "$this_script_path/custom-order-status-package/functions.php" > "$absolute_child_path/functions.php" &&
+				chown $USER_OWNER:$GROUP_OWNER "$absolute_child_path/functions.php" ||
+				{
+				echo -e "\n${red}*${reset} ${red}Installation aborted, as file cannot modified: ${reset}";
+				echo "${cyan}${m_tab}#####################################################${reset}";
+				echo "${m_tab}${red}$absolute_child_path/functions.php${reset}";
+				echo "$(timestamp): Installation aborted, as file cannot modified: $absolute_child_path/functions.php" >> "${error_log}";
+				exit 1;
+				}
+			else
+				echo -e "\n${red}*${reset} ${red}Installation aborted, as file not writeable: ${reset}"
+				echo "${cyan}${m_tab}#####################################################${reset}"
+				echo "${m_tab}${red}$absolute_child_path/functions.php${reset}"
+				echo "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}\n"
+				echo "$(timestamp): Installation aborted, as file not writeable: $absolute_child_path/functions.php" >> "${error_log}"
+			fi
+		elif [ -w "$absolute_child_path/functions.php" ]; then
+			if [ -s "$absolute_child_path/functions.php" ]; then
+				# Take backup of user functions.php first
+				cp "$absolute_child_path/functions.php" "$absolute_child_path/functions.php.wo-aras.backup.$$" ||
+				{
+				echo -e "\n${red}*${reset} ${red}Two way fulfillment workflow installation aborted: ${reset}";
+				echo "${cyan}${m_tab}#####################################################${reset}";
+				echo "${m_tab}${red}Cannot take backup of $absolute_child_path/functions.php${reset}";
+				echo "$(timestamp): Two way fulfillment workflow installation aborted: Cannot take backup of $absolute_child_path/functions.php" >> "${error_log}";
+				exit 1;
+				}
+
+				if grep -q "woocommerce-aras-cargo-integration" "$absolute_child_path/functions.php"; then
+					two_way_installed=1
+				elif [ $(< "$absolute_child_path/functions.php" $m_sed '1q') == "<?php" ]; then
+					< "$this_script_path/custom-order-status-package/functions.php" $m_sed "1 s/.*/ /" >> "$absolute_child_path/functions.php"
+				else
+					# We cannot go further where is the shebang?
+					# Remove backup first
+					rm -f "$absolute_child_path/functions.php.wo-aras.backup.$$" ||
+					{
+					echo "cannot take backup $absolute_child_path/functions.php";
+					echo "$(timestamp): cannot take backup $absolute_child_path/functions.php" >> "${error_log}";
+					}
+				fi
+			else
+				cat "$this_script_path/custom-order-status-package/functions.php" > "$absolute_child_path/functions.php"
+			fi
 		else
 			echo -e "\n${red}*${reset} ${red}Installation aborted, as file not writeable: ${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			echo "${m_tab}${red}$absolute_child_path/functions.php${reset}"
 			echo "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}\n"
 			echo "$(timestamp): Installation aborted, as file not writeable: $absolute_child_path/functions.php" >> "${error_log}"
+			exit 1
 		fi
-	elif [ -w "$absolute_child_path/functions.php" ]; then
-		if [ -s "$absolute_child_path/functions.php" ]; then
-			# Take backup of user functions.php first
-			cp "$absolute_child_path/functions.php" "$absolute_child_path/functions.php.wo-aras.backup.$$" ||
-			{
-			echo -e "\n${red}*${reset} ${red}Two way fulfillment workflow installation aborted: ${reset}";
-			echo "${cyan}${m_tab}#####################################################${reset}";
-			echo "${m_tab}${red}Cannot take backup of $absolute_child_path/functions.php${reset}";
-			echo "$(timestamp): Two way fulfillment workflow installation aborted: Cannot take backup of $absolute_child_path/functions.php" >> "${error_log}";
-			exit 1;
-			}
 
-			if grep -q "woocommerce-aras-cargo-integration" "$absolute_child_path/functions.php"; then
-				two_way_installed=1
-			elif [ $(< "$absolute_child_path/functions.php" $m_sed '1q') == "<?php" ]; then
-				< "$this_script_path/custom-order-status-package/functions.php" $m_sed "1 s/.*/ /" >> "$absolute_child_path/functions.php"
-			else
-				# We cannot go further where is the shebang?
-				# Remove backup first
-				rm -f "$absolute_child_path/functions.php.wo-aras.backup.$$" ||
-				{
-				echo "cannot take backup $absolute_child_path/functions.php";
-				echo "$(timestamp): cannot take backup $absolute_child_path/functions.php" >> "${error_log}";
-				}
-			fi
-		else
-			cat "$this_script_path/custom-order-status-package/functions.php" > "$absolute_child_path/functions.php"
-		fi
-	else
-		echo -e "\n${red}*${reset} ${red}Installation aborted, as file not writeable: ${reset}"
-		echo "${cyan}${m_tab}#####################################################${reset}"
-		echo "${m_tab}${red}$absolute_child_path/functions.php${reset}"
-		echo "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}\n"
-		echo "$(timestamp): Installation aborted, as file not writeable: $absolute_child_path/functions.php" >> "${error_log}"
-		exit 1
-	fi
-
-	if [ -w "$absolute_child_path/functions.php" ]; then
-		for i in "${my_paths[@]}"
-		do
-			if [[ ! -d "$i" ]]; then
-				mkdir "$i" &&
-				chown $USER_OWNER:$GROUP_OWNER "$i" ||
-				{
-				echo -e "\n${red}*${reset} ${red}Two way fulfillment workflow Installation aborted: ${reset}";
-				echo "${cyan}${m_tab}#####################################################${reset}";
-				echo "${m_tab}${red}Cannot create folder: $i${reset}";
-				echo "$(timestamp): Cannot create folder $i" >> "${error_log}";
-				exit 1;
-				}
-			fi
-		done
-
-		for i in "${my_files[@]}"
-		do
-			if [[ ! -f "$i" ]]; then
-				if grep -qw "woocommerce/emails" <<< "${i}"; then
-					cp "$this_script_path/custom-order-status-package/class-wc-delivered-status-order.php" "${i%/*}/" &&
-					chown -R $USER_OWNER:$GROUP_OWNER "${i%/*}/" || twoway_pretty_error
-				elif grep -qw "emails/plain" <<< "${i}"; then
-					cp "$this_script_path/custom-order-status-package/wc-customer-delivered-status-order.php" "${i%/*}/" &&
-					chown -R $USER_OWNER:$GROUP_OWNER "${i%/*}/" || twoway_pretty_error
-				else
-					cp "$this_script_path/custom-order-status-package/wc-customer-delivered-status-order.php" "${i%/*}/" &&
-					chown -R $USER_OWNER:$GROUP_OWNER "${i%/*}/" || twoway_pretty_error
+		# File, folder operations
+		if [ -w "$absolute_child_path/functions.php" ]; then
+			for i in "${my_paths[@]}"
+			do
+				if [[ ! -d "$i" ]]; then
+					mkdir "$i" &&
+					chown $USER_OWNER:$GROUP_OWNER "$i" ||
+					{
+					echo -e "\n${red}*${reset} ${red}Two way fulfillment workflow Installation aborted: ${reset}";
+					echo "${cyan}${m_tab}#####################################################${reset}";
+					echo "${m_tab}${red}Cannot create folder: $i${reset}";
+					echo "$(timestamp): Cannot create folder $i" >> "${error_log}";
+					exit 1;
+					}
 				fi
-			fi
-		done
+			done
+
+			for i in "${my_files[@]}"
+			do
+				if [[ ! -f "$i" ]]; then
+					if grep -qw "woocommerce/emails" <<< "${i}"; then
+						cp "$this_script_path/custom-order-status-package/class-wc-delivered-status-order.php" "${i%/*}/" &&
+						chown -R $USER_OWNER:$GROUP_OWNER "${i%/*}/" || twoway_pretty_error
+					elif grep -qw "emails/plain" <<< "${i}"; then
+						cp "$this_script_path/custom-order-status-package/wc-customer-delivered-status-order.php" "${i%/*}/" &&
+						chown -R $USER_OWNER:$GROUP_OWNER "${i%/*}/" || twoway_pretty_error
+					else
+						cp "$this_script_path/custom-order-status-package/wc-customer-delivered-status-order.php" "${i%/*}/" &&
+						chown -R $USER_OWNER:$GROUP_OWNER "${i%/*}/" || twoway_pretty_error
+					fi
+				fi
+			done
+		else
+			echo -e "\n${red}*${reset} ${red}Installation aborted, as file not writeable: ${reset}"
+			echo "${cyan}${m_tab}#####################################################${reset}"
+			echo "${m_tab}${red}$absolute_child_path/functions.php${reset}"
+			echo "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}\n"
+			echo "$(timestamp): Installation aborted, as file not writeable: $absolute_child_path/functions.php" >> "${error_log}"
+			exit 1
+		fi
 	else
-		echo -e "\n${red}*${reset} ${red}Installation aborted, as file not writeable: ${reset}"
+		echo -e "\n${red}*${reset} ${red}Installation aborted, could not read file permissions: ${reset}"
 		echo "${cyan}${m_tab}#####################################################${reset}"
-		echo "${m_tab}${red}$absolute_child_path/functions.php${reset}"
 		echo "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}\n"
-		echo "$(timestamp): Installation aborted, as file not writeable: $absolute_child_path/functions.php" >> "${error_log}"
+		echo "$(timestamp): Installation aborted, could not read file permissions" >> "${error_log}"
 		exit 1
 	fi
-else
-	echo -e "\n${red}*${reset} ${red}Installation aborted, could not read file permissions: ${reset}"
-	echo "${cyan}${m_tab}#####################################################${reset}"
-	echo "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}\n"
-	echo "$(timestamp): Installation aborted, could not read file permissions" >> "${error_log}"
-	exit 1
-fi
+
+	# Validate files
+	if [[ -n $(validate_twoway) ]]; then
+		echo -e "\n${red}*${reset} ${red}Two way fulfillment workflow installation aborted: ${reset}"
+		echo "${cyan}${m_tab}#####################################################${reset}"
+		echo "${m_tab}${red}Missing file(s) $(validate_twoway)${reset}"
+		echo "$(timestamp): Missing file(s) $(validate_twoway)" >> "${error_log}"
+		exit 1;
+	else
+		echo -e "\n${green}*${reset} ${green}Two way fulfillment workflow installation: ${reset}"
+		echo "${cyan}${m_tab}#####################################################${reset}"
+		echo "${m_tab}${red}Installation completed${reset}"
+		echo "$(timestamp): Two way fulfillment workflow installation completed" >> "${error_log}"
+	fi
 }
 
 # Dialog box for twoway fulfillment workflow setup
@@ -450,6 +524,7 @@ my_whip_tail () {
 
 # Uninstall bundles like crons, systemd services, logrotate, logs
 uninstall () {
+	uninstall_twoway
 	if [[ -s "${cron_dir}/${cron_filename}" ]]; then
 		if [[ -w "${cron_dir}/${cron_filename}" ]]; then
 			rm -f  "${cron_dir}/${cron_filename}"
