@@ -292,7 +292,7 @@ else
 	exit 1
 fi
 
-# Check file permissions & get ownership
+# Get current ownership
 if [[ -n $absolute_child_path ]]; then
 	if [ -f "$absolute_child_path/functions.php" ]; then
 		if [ -r "$absolute_child_path/functions.php" ]; then
@@ -328,13 +328,14 @@ fi
 # Create folders, files & copy necessary files & apply user:group ownerships
 if [[ -n $GROUP_OWNER && -n $USER_OWNER ]]; then
 	if [ ! -f "$absolute_child_path/functions.php" ]; then
-		if [ -w "$absolute_child_path/functions.php" ]; then
-			touch "$absolute_child_path/functions.php" &&
+		if ! grep -q 'Permission denied' <<< "$(touch "$absolute_child_path/functions.php" 2>&1)"; then
 			cat "$this_script_path/custom-order-status-package/functions.php" > "$absolute_child_path/functions.php" &&
 			chown $USER_OWNER:$GROUP_OWNER "$absolute_child_path/functions.php" ||
 			{
-			echo "cannot create $absolute_child_path/functions.php";
-			echo "$(timestamp): cannot create $absolute_child_path/functions.php" >> "${error_log}";
+			echo -e "\n${red}*${reset} ${red}Installation aborted, as file cannot modified: ${reset}";
+			echo "${cyan}${m_tab}#####################################################${reset}";
+			echo "${m_tab}${red}$absolute_child_path/functions.php${reset}";
+			echo "$(timestamp): Installation aborted, as file cannot modified: $absolute_child_path/functions.php" >> "${error_log}";
 			exit 1;
 			}
 		else
@@ -343,17 +344,19 @@ if [[ -n $GROUP_OWNER && -n $USER_OWNER ]]; then
 			echo "${m_tab}${red}$absolute_child_path/functions.php${reset}"
 			echo "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}\n"
 			echo "$(timestamp): Installation aborted, as file not writeable: $absolute_child_path/functions.php" >> "${error_log}"
-			exit 1
 		fi
 	elif [ -w "$absolute_child_path/functions.php" ]; then
 		if [ -s "$absolute_child_path/functions.php" ]; then
 			# Take backup of user functions.php first
 			cp "$absolute_child_path/functions.php" "$absolute_child_path/functions.php.wo-aras.backup.$$" ||
 			{
-			echo "cannot take backup $absolute_child_path/functions.php";
-			echo "$(timestamp): cannot take backup $absolute_child_path/functions.php" >> "${error_log}";
+			echo -e "\n${red}*${reset} ${red}Two way fulfillment workflow installation aborted: ${reset}";
+			echo "${cyan}${m_tab}#####################################################${reset}";
+			echo "${m_tab}${red}Cannot take backup of $absolute_child_path/functions.php${reset}";
+			echo "$(timestamp): Two way fulfillment workflow installation aborted: Cannot take backup of $absolute_child_path/functions.php" >> "${error_log}";
 			exit 1;
 			}
+
 			if grep -q "woocommerce-aras-cargo-integration" "$absolute_child_path/functions.php"; then
 				two_way_installed=1
 			elif [ $(< "$absolute_child_path/functions.php" $m_sed '1q') == "<?php" ]; then
