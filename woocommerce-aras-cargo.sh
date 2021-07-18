@@ -290,6 +290,25 @@ validate_twoway () {
 	done
 }
 
+check_delivered () {
+	echo -e "\n${yellow}*${reset} ${yellow}WARNING: Two way fulfillment workflow installation:${reset}"
+	echo "${cyan}${m_tab}#####################################################${reset}"
+	echo "${m_tab}${yellow}You already have 'delivered' custom order status${reset}"
+	echo "${m_tab}${yellow}If you are doing the initial setup for the first time, ${red}DON'T CONTINUE.${reset}"
+	echo -e "${m_tab}${yellow}If you have integrated 'delivered' custom order status via this script before, ${green}IT'S OK TO CONTINUE${reset}\n"
+
+	while true; do
+		echo "${cyan}${m_tab}#####################################################${reset}"
+		read -n 1 -p "${m_tab}${BC}Do you want to continue setup? --> (Y)es | (N)o${EC} " yn < /dev/tty
+		echo ""
+			case "${yn}" in
+				[Yy]* ) break;;
+				[Nn]* ) exit 1;;
+				* ) echo -e "\n${m_tab}${magenta}Please answer yes or no.${reset}";;
+			esac
+	done
+}
+
 find_child_path () {
 	# Get active child theme info
 	theme_child=$(curl -s -X GET -u "$api_key":"$api_secret" -H "Content-Type: application/json" "https://$api_endpoint/wp-json/wc/v3/system_status" | $m_jq -r '[.theme.is_child_theme]|join(" ")')
@@ -365,8 +384,8 @@ uninstall_twoway () {
 
 # (processing --> shipped --> delivered) twoway fulfillment workflow setup
 install_twoway () {
+	check_delivered
 	find_child_path
-
 	# Get ownership operations
 	if [ -f "$absolute_child_path/functions.php" ]; then
 		if [ -r "$absolute_child_path/functions.php" ]; then
@@ -498,7 +517,7 @@ install_twoway () {
 		exit 1
 	fi
 
-	# Validate files
+	# Validate installation
 	if [[ -n $(validate_twoway) ]]; then
 		echo -e "\n${red}*${reset} ${red}Two way fulfillment workflow installation aborted: ${reset}"
 		echo "${cyan}${m_tab}#####################################################${reset}"
@@ -508,7 +527,9 @@ install_twoway () {
 	else
 		echo -e "\n${green}*${reset} ${green}Two way fulfillment workflow installation: ${reset}"
 		echo "${cyan}${m_tab}#####################################################${reset}"
-		echo "${m_tab}${red}Installation completed${reset}"
+		echo "${m_tab}${green}Installation completed${reset}"
+		echo "${m_tab}${green}Please check your website working correctly.${reset}"
+		echo "${m_tab}${green}Please check your website working correctly.${reset}"
 		echo "$(timestamp): Two way fulfillment workflow installation completed" >> "${error_log}"
 	fi
 }
@@ -1920,9 +1941,14 @@ if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 			esac
 		done
 
-		echo -e "\n${green}*${reset} ${green}Setup completed.${reset}"
+		echo -e "\n${green}*${reset} ${green}Default setup completed.${reset}"
 		echo -e "${cyan}${m_tab}#####################################################${reset}\n"
-		echo "${m_tab}${green}Please select installation method.${reset}"
+		if [ "$twoway" == "true" ]; then
+			echo "${m_tab}${green}Installing two way fulfillment workflow.${reset}"
+			install_twoway
+		else
+			echo "${m_tab}${green}Please select installation method.${reset}"
+		fi
 
 		while true
 		do
