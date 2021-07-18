@@ -1,8 +1,6 @@
 <?php
 
-/**
-* woocommerce-aras-cargo-integration
-*/
+/** * woocommerce-aras-cargo-integration */
 
 add_action('init', 'register_order_status');
 add_filter('wc_order_statuses', 'add_delivered_to_order_statuses');
@@ -96,6 +94,4 @@ class Delivered_WC_Email
 }
 new Delivered_WC_Email();
 
-/**
-* woocommerce-aras-cargo-integration
-*/
+/** * woocommerce-aras-cargo-integration */
