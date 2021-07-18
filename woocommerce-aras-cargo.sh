@@ -260,6 +260,15 @@ if [[ -n $w_in ]]; then
 fi
 
 
+twoway_pretty_error () {
+	echo -e "\n${red}*${reset} ${red}Two way fulfillment workflow installation aborted: ${reset}"
+	echo "${cyan}${m_tab}#####################################################${reset}"
+	echo "${m_tab}${red}Cannot copy ${i##*/} to${reset}"
+	echo "${m_tab}${red}${i%/*}${reset}"
+	echo "$(timestamp): Cannot copy ${i##*/} to ${i%/*}" >> "${error_log}"
+	exit 1
+}
+
 # (processing --> shipped --> delivered) twoway fulfillment workflow setup
 twoway_workflow () {
 # Check there is active child theme
@@ -383,54 +392,36 @@ if [[ -n $GROUP_OWNER && -n $USER_OWNER ]]; then
 	fi
 
 	if [ -w "$absolute_child_path/functions.php" ]; then
-		# Create directories & take ownership
-		[[ ! -d "$absolute_child_path/woocommerce" ]] &&
-		{
-		mkdir "$absolute_child_path/woocommerce";
-		chown $USER_OWNER:$GROUP_OWNER "$absolute_child_path/woocommerce";
-		} ||
-		{
-		echo "cannot create $absolute_child_path/woocommerce";
-		echo "$(timestamp): cannot create $absolute_child_path/woocommerce" >> "${error_log}";
-		exit 1;
-		}
-		[[ ! -d "$absolute_child_path/woocommerce/emails" ]] &&
-		mkdir "$absolute_child_path/woocommerce/emails" &&
-		cp "$this_script_path/custom-order-status-package/class-wc-delivered-status-order.php" "$absolute_child_path/woocommerce/emails/" &&
-		chown -R $USER_OWNER:$GROUP_OWNER "$absolute_child_path/woocommerce/emails/" ||
-		{
-		echo "cannot create $absolute_child_path/woocommerce/emails";
-		echo "$(timestamp): cannot create $absolute_child_path/woocommerce/emails" >> "${error_log}";
-		exit 1;
-		}
-		[[ ! -d "$absolute_child_path/woocommerce/templates" ]] &&
-		{
-		mkdir "$absolute_child_path/woocommerce/templates";
-		chown $USER_OWNER:$GROUP_OWNER "$absolute_child_path/woocommerce/templates";
-		} ||
-		{
-		echo "cannot create $absolute_child_path/woocommerce/templates";
-		echo "$(timestamp): cannot create $absolute_child_path/woocommerce/templates" >> "${error_log}";
-		exit 1;
-		}
-		[[ ! -d "$absolute_child_path/woocommerce/templates/emails" ]] &&
-		mkdir "$absolute_child_path/woocommerce/templates/emails" &&
-		cp "$this_script_path/custom-order-status-package/wc-customer-delivered-status-order.php" "$absolute_child_path/woocommerce/templates/emails/" &&
-		chown -R $USER_OWNER:$GROUP_OWNER "$absolute_child_path/woocommerce/templates/emails/" ||
-		{
-		echo "cannot create $absolute_child_path/woocommerce/templates/emails";
-		echo "$(timestamp): cannot create $absolute_child_path/woocommerce/templates/emails" >> "${error_log}";
-		exit 1;
-		}
-		[[ ! -d "$absolute_child_path/woocommerce/templates/emails/plain" ]] &&
-		mkdir "$absolute_child_path/woocommerce/templates/emails/plain" &&
-		cp "$this_script_path/custom-order-status-package/wc-customer-delivered-status-order.php" "$absolute_child_path/woocommerce/templates/emails/plain/" &&
-		chown -R $USER_OWNER:$GROUP_OWNER "$absolute_child_path/woocommerce/templates/emails/plain/" ||
-		{
-		echo "cannot create $absolute_child_path/woocommerce/templates/emails/plain";
-		echo "$(timestamp): cannot create $absolute_child_path/woocommerce/templates/emails/plain" >> "${error_log}";
-		exit 1;
-		}
+		for i in "${my_paths[@]}"
+		do
+			if [[ ! -d "$i" ]]; then
+				mkdir "$i" &&
+				chown $USER_OWNER:$GROUP_OWNER "$i" ||
+				{
+				echo -e "\n${red}*${reset} ${red}Two way fulfillment workflow Installation aborted: ${reset}";
+				echo "${cyan}${m_tab}#####################################################${reset}";
+				echo "${m_tab}${red}Cannot create folder: $i${reset}";
+				echo "$(timestamp): Cannot create folder $i" >> "${error_log}";
+				exit 1;
+				}
+			fi
+		done
+
+		for i in "${my_files[@]}"
+		do
+			if [[ ! -f "$i" ]]; then
+				if grep -qw "woocommerce/emails" <<< "${i}"; then
+					cp "$this_script_path/custom-order-status-package/class-wc-delivered-status-order.php" "${i%/*}/" &&
+					chown -R $USER_OWNER:$GROUP_OWNER "${i%/*}/" || twoway_pretty_error
+				elif grep -qw "emails/plain" <<< "${i}"; then
+					cp "$this_script_path/custom-order-status-package/wc-customer-delivered-status-order.php" "${i%/*}/" &&
+					chown -R $USER_OWNER:$GROUP_OWNER "${i%/*}/" || twoway_pretty_error
+				else
+					cp "$this_script_path/custom-order-status-package/wc-customer-delivered-status-order.php" "${i%/*}/" &&
+					chown -R $USER_OWNER:$GROUP_OWNER "${i%/*}/" || twoway_pretty_error
+				fi
+			fi
+		done
 	else
 		echo -e "\n${red}*${reset} ${red}Installation aborted, as file not writeable: ${reset}"
 		echo "${cyan}${m_tab}#####################################################${reset}"
