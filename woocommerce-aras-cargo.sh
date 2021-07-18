@@ -294,7 +294,7 @@ check_delivered () {
 	echo -e "\n${yellow}*${reset} ${yellow}WARNING: Two way fulfillment workflow installation:${reset}"
 	echo "${cyan}${m_tab}#####################################################${reset}"
 	echo "${m_tab}${yellow}You already have 'delivered' custom order status${reset}"
-	echo "${m_tab}${yellow}If you are doing the initial setup for the first time, ${red}DON'T CONTINUE.${reset}"
+	echo "${m_tab}${yellow}If you are doing the initial setup for the first time, ${red}!!!DON'T CONTINUE!!!${reset}"
 	echo -e "${m_tab}${yellow}If you have integrated 'delivered' custom order status via this script before, ${green}IT'S OK TO CONTINUE${reset}\n"
 
 	while true; do
@@ -340,6 +340,20 @@ find_child_path () {
 			echo "$(timestamp): Could not found child theme path: Expected in $theme_path/themes/" >> "${error_log}"
 			exit 1
 		else
+			echo -e "\n${green}*${reset} ${green}Please validate child theme path.${reset}"
+			echo "${cyan}${m_tab}#####################################################${reset}"
+			echo "${m_tab}${green}$absolute_child_path${reset}"
+			while true; do
+				echo "${cyan}${m_tab}#####################################################${reset}"
+				read -n 1 -p "${m_tab}${BC}Is child theme absolute path correct? --> (Y)es | (N)o${EC} " yn < /dev/tty
+				echo ""
+				case "${yn}" in
+					[Yy]* ) break;;
+					[Nn]* ) exit 1;;
+					* ) echo -e "\n${m_tab}${magenta}Please answer yes or no.${reset}";;
+				esac
+			done
+
 			declare -a my_paths=("$absolute_child_path/woocommerce"
 								 "$absolute_child_path/woocommerce/emails"
 								 "$absolute_child_path/woocommerce/templates"
