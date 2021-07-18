@@ -1,4 +1,9 @@
 <?php
+
+/**
+* woocommerce-aras-cargo-integration
+*/
+
 add_action('init', 'register_order_status');
 add_filter('wc_order_statuses', 'add_delivered_to_order_statuses');
 add_filter('woocommerce_reports_order_statuses', 'include_custom_order_status_to_reports', 20, 1);
@@ -90,3 +95,7 @@ class Delivered_WC_Email
 	}
 }
 new Delivered_WC_Email();
+
+/**
+* woocommerce-aras-cargo-integration
+*/
