@@ -1,4 +1,8 @@
 <?php
+
+/**
+* woocommerce-aras-cargo-integration
+*/
 if ( ! defined( 'ABSPATH' ) ) {
 	exit; // Exit if accessed directly
 }
