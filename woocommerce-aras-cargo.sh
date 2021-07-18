@@ -291,11 +291,14 @@ validate_twoway () {
 }
 
 check_delivered () {
-	echo -e "\n${yellow}*${reset} ${yellow}WARNING: Two way fulfillment workflow installation:${reset}"
-	echo "${cyan}${m_tab}#####################################################${reset}"
-	echo "${m_tab}${yellow}You already have 'delivered' custom order status${reset}"
-	echo "${m_tab}${yellow}If you are doing the initial setup for the first time, ${red}!!!DON'T CONTINUE!!!${reset}"
-	echo -e "${m_tab}${yellow}If you have integrated 'delivered' custom order status via this script before, ${green}IT'S OK TO CONTINUE${reset}\n"
+	w_delivered=$(curl -s -X GET -u "$api_key":"$api_secret" -H "Content-Type: application/json" "https://$api_endpoint/wp-json/wc/v3/orders?status=delivered")
+	if ! grep -q "rest_invalid_param" <<< "${w_delivered}"; then
+		echo -e "\n${yellow}*${reset} ${yellow}WARNING: Two way fulfillment workflow installation:${reset}"
+		echo "${cyan}${m_tab}#####################################################${reset}"
+		echo "${m_tab}${yellow}You already have 'delivered' custom order status${reset}"
+		echo "${m_tab}${yellow}If you are doing the initial setup for the first time, ${red}!!!DON'T CONTINUE!!!${reset}"
+		echo -e "${m_tab}${yellow}If you have integrated 'delivered' custom order status via this script before, ${green}IT'S OK TO CONTINUE${reset}\n"
+	fi
 
 	while true; do
 		echo "${cyan}${m_tab}#####################################################${reset}"
