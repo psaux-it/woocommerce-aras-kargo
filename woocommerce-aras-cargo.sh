@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# shellcheck disable=SC2016
+# shellcheck disable=SC2016,SC2015
 #
 # Copyright 2021 Hasan ÇALIŞIR
 #
@@ -346,11 +346,8 @@ pre_check () {
 	esac
 
 	# Check AST Plugin
-	$m_curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/system_status" -u "$api_key":"$api_secret" -H "Content-Type: application/json" |
-	$m_jq -r '[.active_plugins[].plugin]' | tr -d '[],"' | $m_awk -F/ '{print $2}' | $m_awk -F. '{print $1}' | $m_sed '/^[[:space:]]*$/d' > ${this_script_path}/.plg.proc
-
-	$m_curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/system_status" -u "$api_key":"$api_secret" -H "Content-Type: application/json" |
-	$m_jq -r '[.active_plugins[].version]' | tr -d '[],"' | $m_sed '/^[[:space:]]*$/d' | $m_awk '{$1=$1};1' > ${this_script_path}/.plg.ver.proc
+	$m_curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/system_status" -u "$api_key":"$api_secret" -H "Content-Type: application/json" | $m_jq -r '[.active_plugins[].plugin]' | tr -d '[],"' | $m_awk -F/ '{print $2}' | $m_awk -F. '{print $1}' | $m_sed '/^[[:space:]]*$/d' > "${this_script_path}"/.plg.proc
+	$m_curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/system_status" -u "$api_key":"$api_secret" -H "Content-Type: application/json" | $m_jq -r '[.active_plugins[].version]' | tr -d '[],"' | $m_sed '/^[[:space:]]*$/d' | $m_awk '{$1=$1};1' > "${this_script_path}"/.plg.ver.proc
 
 	paste "${this_script_path}/.plg.proc" "${this_script_path}/.plg.ver.proc" > "${this_script_path}/.plg.act.proc"
 
@@ -396,7 +393,7 @@ pre_check () {
 
 	} > "${this_script_path}/.msg.proc" # End redirection to file
 
-	column -t -s ' ' <<< $(< "${this_script_path}/.msg.proc" sed 's/^/ /')
+	column -t -s ' ' <<< "$(< "${this_script_path}/.msg.proc" sed 's/^/ /')"
 
 	if [ "$ast_ver" == "false" ]; then
 		exit 1
@@ -413,7 +410,7 @@ find_child_path () {
 		theme_name=$(curl -s -X GET -u "$api_key":"$api_secret" -H "Content-Type: application/json" "https://$api_endpoint/wp-json/wc/v3/system_status" | $m_jq -r '[.theme.name]|join(" ")')
 		theme_name="${theme_name//[^[:alnum:]]/}"
 		theme_name="${theme_name,,}"
-		for i in $theme_path/themes/*; do
+		for i in "$theme_path"/themes/*; do
 			if [ -d "$i" ]; then
 				j="$i"
 				i="${i##*/}"
@@ -934,7 +931,7 @@ download () {
 
 	for i in "${getold[@]}"
 	do
-		read "keeped[$i]" <<< $(grep "^$i=" "${cron_script_full_path}" | awk -F= '{print $2}')
+		read "keeped[$i]" <<< "$(grep "^$i=" "${cron_script_full_path}" | awk -F= '{print $2}')"
 	done
 
 	# Apply old user defined settings before upgrading
@@ -1024,7 +1021,7 @@ download () {
 
 upgrade () {
 	latest_version=$($m_curl -s --compressed -k "$sh_github" 2>&1 | grep "^script_version=" | head -n1 | cut -d '"' -f 2)
-	current_version=$(grep "^script_version=" ${cron_script_full_path} | head -n1 | cut -d '"' -f 2)
+	current_version=$(grep "^script_version=" "${cron_script_full_path}" | head -n1 | cut -d '"' -f 2)
 	changelog_p=$($m_curl -s --compressed -k "$changelog_github" 2>&1 | $m_sed -n "/$latest_version/,/$current_version/p" 2>/dev/null | head -n -2)
 
 	if [[ -n $latest_version && -n $current_version ]]; then
@@ -1962,9 +1959,9 @@ if [ -s "${this_script_path}/.lvn.all.cus" ]; then
 	fi
 
 	if [ -s "${this_script_path}/.lvn.mytmp2" ]; then
-		if [ "$($m_awk '{print NF}' ${this_script_path}/.lvn.mytmp2 | sort -nu | tail -n 1)" -gt 2 ]; then
+		if [ "$($m_awk '{print NF}' "${this_script_path}"/.lvn.mytmp2 | sort -nu | tail -n 1)" -gt 2 ]; then
 			$m_awk 'NF==3' "${this_script_path}/.lvn.mytmp2" > "${this_script_path}/.lvn.mytmp3"
-			if [[ -n "$($m_awk 'x[$2]++ == 1 { print $2 }' ${this_script_path}/.lvn.mytmp3)" ]]; then
+			if [[ -n "$($m_awk 'x[$2]++ == 1 { print $2 }' "${this_script_path}"/.lvn.mytmp3)" ]]; then
 				for i in $($m_awk 'x[$2]++ == 1 { print $2 }' "${this_script_path}/.lvn.mytmp3"); do
 					$m_sed -i "0,/$i/{s/$i//}" "${this_script_path}/.lvn.mytmp3"
 				done
@@ -2037,7 +2034,7 @@ if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 		else
 			echo -e "\n${green}${m_tab}Please validate Tracking_Number & Customer_Info.${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
-			column -t -s' ' <<< $(cat "$this_script_path/aras.json.mod" | $m_jq -r '.[]|[.DURUM_KODU,.KARGO_TAKIP_NO,.ALICI]|join(" ")' |
+			column -t -s' ' <<< $(< "$this_script_path/aras.json.mod" $m_jq -r '.[]|[.DURUM_KODU,.KARGO_TAKIP_NO,.ALICI]|join(" ")' |
 				cut -f2- -d ' ' | iconv -f utf8 -t ascii//TRANSLIT | tr '[:upper:]' '[:lower:]' |
 				$m_awk '{s=$1;gsub($1 FS,x);$1=$1;print s FS $0}' OFS= |
 				$m_sed '1i Tracking_Number Customer_Name' | $m_sed '2i --------------- -------------' |
