@@ -1105,9 +1105,24 @@ done
 #=====================================================================
 add_cron () {
 	if [ ! -e "${cron_dir}/${cron_filename}" ]; then
-		mkdir -p "$cron_dir" /dev/null 2>&1
-		touch "${cron_dir}/${cron_filename}" /dev/null 2>&1 ||
-		{ echo "could not create cron ${cron_filename}";  echo "$(timestamp): SETUP: could not create cron ${cron_filename}" >> "${error_log}";  exit 1; }
+		if [ ! -d "${cron_dir}" ]; then
+			mkdir "$cron_dir" >/dev/null 2>&1 &&
+			touch "${cron_dir}/${cron_filename}" >/dev/null 2>&1 ||
+			{
+			echo -e "\n${red}*${reset} Cron install aborted, cannot create directory ${cron_dir}";
+			echo -e "${cyan}${m_tab}#####################################################${reset}\n";
+			echo "$(timestamp): SETUP: Cron install aborted, as cannot create directory ${cron_dir}" >> "${error_log}";
+			exit 1;
+			}
+		else
+			touch "${cron_dir}/${cron_filename}" >/dev/null 2>&1 ||
+			{
+                        echo -e "\n${red}*${reset} Cron install aborted, cannot create ${cron_dir}/${cron_filename}";
+			echo -e "${cyan}${m_tab}#####################################################${reset}\n";
+                        echo "$(timestamp): SETUP: could not create cron ${cron_filename}" >> "${error_log}";
+                        exit 1;
+                        }
+		fi
 	fi
 
 	if [ ! -w "${cron_dir}/${cron_filename}" ]; then
