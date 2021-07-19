@@ -184,7 +184,8 @@ fi
 
 # Listen exit signals to destroy temporary files
 clean_up () {
-	rm -rf ${my_tmp:?} ${this_script_path:?}/*.en ${this_script_path:?}/{*proc*,.*proc} ${this_script_path:?}/{*json*,.*json} ${this_script_path:?}/aras_request.php ${this_script_path:?}/.lvn*
+	# An extra check for securing rm command with ':?'
+	rm -rf ${my_tmp:?} "${this_script_path:?}"/*.en "${this_script_path:?}"/{*proc*,.*proc} "${this_script_path:?}"/{*json*,.*json} "${this_script_path:?}"/aras_request.php "${this_script_path:?}"/.lvn*
 }
 trap clean_up EXIT HUP INT QUIT TERM
 
