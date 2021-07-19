@@ -165,7 +165,7 @@ if [ ! -d "${this_script_path}/tmp" ]; then
 fi
 
 # Listen exit signals to destroy temporary files
-trap "rm -rf ${my_tmp} ${this_script_path}/*.en ${this_script_path}/*.proc ${this_script_path}/*.json* ${this_script_path}/aras_request.php ${this_script_path}/.lvn*" 0 1 2 3 15
+trap "rm -rf ${my_tmp} ${this_script_path}/*.en ${this_script_path}/*.proc ${this_script_path}/.*proc ${this_script_path}/*.json* ${this_script_path}/aras_request.php ${this_script_path}/.lvn*" 0 1 2 3 15
 
 # Global variables
 user="$(whoami)"
@@ -345,7 +345,7 @@ pre_check () {
 	# Bash Version
 	bash_ver="${BASH_VERSINFO:-0}"
 
-	echo -e "\n${green}*${reset} ${green}System Status:${reset}"
+	echo -e "\n${green}*${reset} ${magenta}System Status:${reset}"
 	echo "${cyan}${m_tab}#####################################################${reset}"
 
 	{ # Start redirection to file
@@ -376,7 +376,6 @@ pre_check () {
 	} > "${this_script_path}/.msg.proc" # End redirection to file
 
 	column -t -s ' ' <<< $(< "${this_script_path}/.msg.proc" sed 's/^/ /')
-	echo ""
 
 	if [ "$ast_ver" == "false" ]; then
 		exit 1
@@ -617,7 +616,6 @@ install_twoway () {
 		echo "${cyan}${m_tab}#####################################################${reset}"
 		echo "${m_tab}${green}Installation completed${reset}"
 		echo "${m_tab}${green}Please check your website working correctly.${reset}"
-		echo "${m_tab}${green}Please check your website working correctly.${reset}"
 		echo "$(timestamp): Two way fulfillment workflow installation completed" >> "${error_log}"
 	fi
 }
@@ -633,7 +631,7 @@ my_whip_tail () {
 
 # Uninstall bundles like crons, systemd services, logrotate, logs
 uninstall () {
-	uninstall_twoway
+	#uninstall_twoway
 	if [[ -s "${cron_dir}/${cron_filename}" ]]; then
 		if [[ -w "${cron_dir}/${cron_filename}" ]]; then
 			rm -f  "${cron_dir}/${cron_filename}"
@@ -730,6 +728,9 @@ uninstall () {
 on_fly_disable () {
 	touch "${this_script_path}/.woo.aras.set"
 	touch "${this_script_path}/.woo.aras.enb"
+	if [ "$twoway" == "true" ]; then
+		touch "${this_script_path}/.two.way.enb"
+	fi
 }
 
 # Pre-setup operations
@@ -746,7 +747,7 @@ on_fly_enable () {
 			-e "${error_log}" ||
 			-e "${access_log}" ||
 			-e "${systemd_dir}/${timer_filename}" ||
-			-e "${systemd_dir}/${cron_filename_update}" ]]; then
+			-e "${cron_dir}/${cron_filename_update}" ]]; then
 
 			echo -e "\n${green}*${reset} ${green}Found absolute files from old installation..${reset}"
 			echo -ne "${cyan}${m_tab}########                                             [20%]\r${reset}"
@@ -816,13 +817,18 @@ on_fly_enable () {
 help () {
 	echo -e "\n${m_tab}${cyan}# WOOCOMMERCE - ARAS CARGO INTEGRATION HELP"
 	echo -e "${m_tab}# ---------------------------------------------------------------------"
-	echo -e "${m_tab}#${m_tab}--setup        |-s      hard reset and re-starts setup"
-	echo -e "${m_tab}#${m_tab}--uninstall    |-r      removes install bundles aka cron,systemd,logrotate,logs"
-	echo -e "${m_tab}#${m_tab}--upgrade      |-u      upgrade script to latest version automatically"
-	echo -e "${m_tab}#${m_tab}--dependencies |-d      display necessary dependencies"
-	echo -e "${m_tab}#${m_tab}--version      |-v      display script version"
-	echo -e "${m_tab}#${m_tab}--help         |-h      display help"
+	echo -e "${m_tab}#${m_tab}--setup         |-s      hard reset and re-starts setup"
+	echo -e "${m_tab}#${m_tab}--twoway-enable |-e      enable twoway fulfillment workflow (for manual implementations)"
+	echo -e "${m_tab}#${m_tab}--uninstall     |-r      removes install bundles aka cron,systemd,logrotate,logs"
+	echo -e "${m_tab}#${m_tab}--upgrade       |-u      upgrade script to latest version automatically"
+	echo -e "${m_tab}#${m_tab}--dependencies  |-d      display necessary dependencies"
+	echo -e "${m_tab}#${m_tab}--version       |-v      display script version"
+	echo -e "${m_tab}#${m_tab}--help          |-h      display help"
 	echo -e "${m_tab}# ---------------------------------------------------------------------${reset}\n"
+}
+
+twoway_enable () {
+	touch "${this_script_path}/.two.way.enb"
 }
 
 # Accept only one argument
@@ -837,7 +843,7 @@ version () {
 	echo -e "\n${m_tab}${cyan}# WOOCOMMERCE - ARAS CARGO INTEGRATION VERSION"
 	echo -e "${m_tab}# ---------------------------------------------------------------------"
 	echo -e "${m_tab}# Written by : Hasan ÇALIŞIR - hasan.calisir@psauxit.com"
-	echo -e "${m_tab}# Version    : 1.0.0"
+	echo -e "${m_tab}# Version    : 1.0.9"
 	echo -e "${m_tab}# Bash       : 5.1.8"
 	echo -e "${m_tab}# ---------------------------------------------------------------------${reset}\n"
 }
@@ -855,6 +861,7 @@ dependencies () {
 	echo -e "${m_tab}# gnu sed"
 	echo -e "${m_tab}# gnu awk"
 	echo -e "${m_tab}# stat"
+	echo -e "${m_tab}# whiptail"
 	echo -e "${m_tab}# mail (mail server aka postfix)"
 	echo -e "${m_tab}# woocommerce"
 	echo -e "${m_tab}# woocommerce AST plugin"
@@ -1052,22 +1059,25 @@ upgrade () {
 
 while :; do
 	case "${1}" in
-	-u|--upgrade      ) upgrade
-			  exit
-			  ;;
-	-r|--uninstall    ) uninstall
-			  exit
-			  ;;
-	-d|--dependencies ) dependencies
-			  exit
-			  ;;
-	-v|--version      ) version
-			  exit
-			  ;;
-	-h|--help         ) help
-			  exit
-			  ;;
-	*              )  break;;
+	-e|--twoway-enable ) twoway_enable
+			   exit
+			   ;;
+	-u|--upgrade       ) upgrade
+			   exit
+			   ;;
+	-r|--uninstall     ) uninstall
+			   exit
+			   ;;
+	-d|--dependencies  ) dependencies
+			   exit
+			   ;;
+	-v|--version       ) version
+			   exit
+			   ;;
+	-h|--help          ) help
+			   exit
+			   ;;
+	*                  ) break;;
 	esac
 	shift
 done
