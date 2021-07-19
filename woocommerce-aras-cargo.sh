@@ -184,7 +184,7 @@ fi
 
 # Listen exit signals to destroy temporary files
 clean_up () {
-        rm -rf $my_tmp $this_script_path/*.en $this_script_path/{*proc*,.*proc} $this_script_path/{*json*,.*json} $this_script_path/aras_request.php $this_script_path/.lvn*
+	rm -rf ${my_tmp:?} ${this_script_path:?}/*.en ${this_script_path:?}/{*proc*,.*proc} ${this_script_path:?}/{*json*,.*json} ${this_script_path:?}/aras_request.php ${this_script_path:?}/.lvn*
 }
 trap clean_up EXIT HUP INT QUIT TERM
 
@@ -691,7 +691,7 @@ uninstall () {
 			systemctl disable "${timer_filename}" >/dev/null 2>&1
 			systemctl stop "${timer_filename}" >/dev/null 2>&1
 			systemctl daemon-reload >/dev/null 2>&1
-			rm -rf  "${systemd_dir}/${service_filename}" "${systemd_dir}/${timer_filename}"  >/dev/null 2>&1
+			rm -rf  "${systemd_dir:?}/${service_filename}" "${systemd_dir:?}/${timer_filename}"  >/dev/null 2>&1
 			echo -e "\n${green}*${reset} ${yellow}Systemd unit uninstalled: services stopped:${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			echo "${yellow}${m_tab}${systemd_dir}/${service_filename}${reset}"
@@ -724,7 +724,7 @@ uninstall () {
 
 	if [[ -s "${error_log}" || -s "${access_log}" ]]; then
 		if [[ -w "${access_log}" || -w "${error_log}" ]]; then
-			rm -rf "${error_log}" "${access_log}" >/dev/null 2>&1
+			rm -rf "${error_log:?}" "${access_log:?}" >/dev/null 2>&1
 			echo "${green}*${reset} ${yellow}Log files removed:${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			echo "${yellow}${m_tab}${error_log}${reset}"
@@ -757,9 +757,9 @@ on_fly_disable () {
 # Pre-setup operations
 on_fly_enable () {
 		# Remove lock files (hard-reset) to re-start fresh setup
-		rm -rf "${this_script_path}"/.*lck >/dev/null 2>&1
-		rm -f "${this_script_path}/.woo.aras.set" >/dev/null 2>&1
-		rm -f "${this_script_path}/.woo.aras.enb" >/dev/null 2>&1
+		rm -rf "${this_script_path:?}"/.*lck >/dev/null 2>&1
+		rm -f "${this_script_path:?}/.woo.aras.set" >/dev/null 2>&1
+		rm -f "${this_script_path:?}/.woo.aras.enb" >/dev/null 2>&1
 
 		# Check absolute files from previous setup
 		if [[ -e "${cron_dir}/${cron_filename}" ||
@@ -1596,7 +1596,7 @@ if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 			read -r -n 1 -p "${m_tab}${BC}Do you want to reset your Wordpress domain now? --> (Y)es | (N)o${EC} " yn < /dev/tty
 			echo ""
 			case "${yn}" in
-				[Yy]* ) rm -rf "${this_script_path}/.end.wc.lck";
+				[Yy]* ) rm -rf "${this_script_path:?}/.end.wc.lck";
 					encrypt_wc_end;
 					decrypt_wc_end;
 					w_curl_a; break;;
@@ -1668,7 +1668,7 @@ if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 			read -r -n 1 -p "${m_tab}${BC}Do you want to reset your WooCommerce API credentials now? --> (Y)es | (N)o${EC} " yn < /dev/tty
 			echo ""
 			case "${yn}" in
-				[Yy]* ) rm -rf "${this_script_path}/.key.wc.lck" "${this_script_path}/.secret.wc.lck";
+				[Yy]* ) rm -rf "${this_script_path:?}/.key.wc.lck" "${this_script_path:?}/.secret.wc.lck";
 					encrypt_wc_auth;
 					decrypt_wc_auth;
 					w_curl_a; break;;
@@ -1807,7 +1807,7 @@ if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 			read -r -n 1 -p "${m_tab}${BC}Do you want to reset your ARAS SOAP API credentials now? --> (Y)es | (N)o${EC}" yn < /dev/tty
 			echo ""
 			case "${yn}" in
-				[Yy]* ) rm -rf "${this_script_path}/.key.aras.lck" "${this_script_path}/.usr.aras.lck" "${this_script_path}/.mrc.aras.lck";
+				[Yy]* ) rm -rf "${this_script_path:?}/.key.aras.lck" "${this_script_path:?}/.usr.aras.lck" "${this_script_path:?}/.mrc.aras.lck";
 					encrypt_aras_auth;
 					decrypt_aras_auth;
 					$m_sed -i \
