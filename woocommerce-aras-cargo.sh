@@ -111,7 +111,7 @@ do
 	if ! command -v "$i" > /dev/null 2>&1; then
 		echo -e "\n${red}*${reset} ${red}$i not found.${reset}"
 		echo "${cyan}${m_tab}#####################################################${reset}"
-		if [ $i == "mail" ]; then
+		if [ "$i" == "mail" ]; then
 			echo "${yellow}${m_tab}You need running mail server with 'mail' command.${reset}"
 			echo "${yellow}${m_tab}'mail' command is part of mailutils package in linux.${reset}"
 		else
@@ -124,7 +124,7 @@ do
 done
 
 if ! command -v logrotate > /dev/null 2>&1; then
-	echo "\n${yellow}*${reset} ${yellow}Logrotate not found, there will be no logrotation support.${reset}"
+	echo -e "\n${yellow}*${reset} ${yellow}Logrotate not found, there will be no logrotation support.${reset}"
 	echo "${cyan}${m_tab}#####################################################${reset}"
 	echo "${yellow}${m_tab}You can install logrotate from distro repo and re-start setup.${reset}"
 	echo "$(timestamp): logrotate not found, there will be no logrotation support" >> "${error_log}"
@@ -228,16 +228,15 @@ RUNNING_FROM_SYSTEMD="${RUNNING_FROM_SYSTEMD:=$FROM_SYSTEMD}"
 
 # My colors
 if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
-	green=`tput setaf 2`
-	red=`tput setaf 1`
-	reset=`tput sgr0`
-	cyan=`tput setaf 6`
-	magenta=`tput setaf 5`
-	yellow=`tput setaf 3`
+	green=$(tput setaf 2)
+	red=$(tput setaf 1)
+	reset=$(tput sgr0)
+	cyan=$(tput setaf 6)
+	magenta=$(tput setaf 5)
+	yellow=$(tput setaf 3)
 	BC=$'\e[32m'
 	EC=$'\e[0m'
 	m_tab='  '
-	m_tab_2='              '
 	m_tab_3=' '
 fi
 
@@ -318,7 +317,7 @@ check_delivered () {
 
 	while true; do
 		echo "${cyan}${m_tab}#####################################################${reset}"
-		read -n 1 -p "${m_tab}${BC}Do you want to continue setup? --> (Y)es | (N)o${EC} " yn < /dev/tty
+		read -r -n 1 -p "${m_tab}${BC}Do you want to continue setup? --> (Y)es | (N)o${EC} " yn < /dev/tty
 		echo ""
 			case "${yn}" in
 				[Yy]* ) break;;
@@ -342,10 +341,10 @@ pre_check () {
 
 	# Check AST Plugin
 	$m_curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/system_status" -u "$api_key":"$api_secret" -H "Content-Type: application/json" |
-	$m_jq -r '[.active_plugins[].plugin]' | tr -d '[],"' | $m_awk -F/ '{print $2}' | $m_awk -F. '{print $1}' | $m_sed '/^[[:space:]]*$/d' > "${this_script_path}/.plg.proc"
+	$m_jq -r '[.active_plugins[].plugin]' | tr -d '[],"' | $m_awk -F/ '{print $2}' | $m_awk -F. '{print $1}' | $m_sed '/^[[:space:]]*$/d' > ${this_script_path}/.plg.proc
 
 	$m_curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/system_status" -u "$api_key":"$api_secret" -H "Content-Type: application/json" |
-	$m_jq -r '[.active_plugins[].version]' | tr -d '[],"' | $m_sed '/^[[:space:]]*$/d' | $m_awk '{$1=$1};1' > "${this_script_path}/.plg.ver.proc"
+	$m_jq -r '[.active_plugins[].version]' | tr -d '[],"' | $m_sed '/^[[:space:]]*$/d' | $m_awk '{$1=$1};1' > ${this_script_path}/.plg.ver.proc
 
 	paste "${this_script_path}/.plg.proc" "${this_script_path}/.plg.ver.proc" > "${this_script_path}/.plg.act.proc"
 
@@ -380,7 +379,7 @@ pre_check () {
 		echo "${red}AST_Plugin_Version: NOT FOUND x${reset}"
 	fi
 
-	if [ $bash_ver -ge 5 ]; then
+	if [ "$bash_ver" -ge 5 ]; then
 		echo "${green}Bash_Version: $bash_ver ✓${reset}"
 	else
 		echo "${yellow}Bash_Version: $bash_ver x${reset}"
@@ -434,7 +433,7 @@ find_child_path () {
 			echo "${m_tab}${magenta}$absolute_child_path${reset}"
 			while true; do
 				echo -e "\n${cyan}${m_tab}#####################################################${reset}"
-				read -n 1 -p "${m_tab}${BC}Is child theme absolute path correct? --> (Y)es | (N)o${EC} " yn < /dev/tty
+				read -r -n 1 -p "${m_tab}${BC}Is child theme absolute path correct? --> (Y)es | (N)o${EC} " yn < /dev/tty
 				echo ""
 				case "${yn}" in
 					[Yy]* ) break;;
@@ -498,7 +497,7 @@ install_twoway () {
 			echo -e "\n${red}*${reset} ${red}Installation aborted, as file not readable: ${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			echo "${m_tab}${red}$absolute_child_path/functions.php${reset}"
-			echo "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}\n"
+			echo -e "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}\n"
 			echo "$(timestamp): Installation aborted, as file not readable: $absolute_child_path/functions.php" >> "${error_log}"
 			exit 1
 		fi
@@ -509,7 +508,7 @@ install_twoway () {
 		echo -e "\n${red}*${reset} ${red}Installation aborted, as file not readable: ${reset}"
 		echo "${cyan}${m_tab}#####################################################${reset}"
 		echo "${m_tab}${red}$theme_path/index.php${reset}"
-		echo "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}\n"
+		echo -e "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}\n"
 		echo "$(timestamp): Installation aborted, as file not readable: $theme_path/index.php" >> "${error_log}"
 		exit 1
 	fi
@@ -520,7 +519,7 @@ install_twoway () {
 		if [ ! -f "$absolute_child_path/functions.php" ]; then
 			if ! grep -q 'Permission denied' <<< "$(touch "$absolute_child_path/functions.php" 2>&1)"; then
 				cat "$this_script_path/custom-order-status-package/functions.php" > "$absolute_child_path/functions.php" &&
-				chown $USER_OWNER:$GROUP_OWNER "$absolute_child_path/functions.php" ||
+				chown "$USER_OWNER":"$GROUP_OWNER" "$absolute_child_path/functions.php" ||
 				{
 				echo -e "\n${red}*${reset} ${red}Installation aborted, as file cannot modified: ${reset}";
 				echo "${cyan}${m_tab}#####################################################${reset}";
@@ -532,8 +531,9 @@ install_twoway () {
 				echo -e "\n${red}*${reset} ${red}Installation aborted, as file not writeable: ${reset}"
 				echo "${cyan}${m_tab}#####################################################${reset}"
 				echo "${m_tab}${red}$absolute_child_path/functions.php${reset}"
-				echo "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}\n"
+				echo -e "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}\n"
 				echo "$(timestamp): Installation aborted, as file not writeable: $absolute_child_path/functions.php" >> "${error_log}"
+				exit 1
 			fi
 		elif [ -w "$absolute_child_path/functions.php" ]; then
 			if [ -s "$absolute_child_path/functions.php" ]; then
@@ -567,7 +567,7 @@ install_twoway () {
 			echo -e "\n${red}*${reset} ${red}Installation aborted, as file not writeable: ${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			echo "${m_tab}${red}$absolute_child_path/functions.php${reset}"
-			echo "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}\n"
+			echo -e "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}\n"
 			echo "$(timestamp): Installation aborted, as file not writeable: $absolute_child_path/functions.php" >> "${error_log}"
 			exit 1
 		fi
@@ -578,7 +578,7 @@ install_twoway () {
 			do
 				if [[ ! -d "$i" ]]; then
 					mkdir "$i" &&
-					chown $USER_OWNER:$GROUP_OWNER "$i" ||
+					chown "$USER_OWNER":"$GROUP_OWNER" "$i" ||
 					{
 					echo -e "\n${red}*${reset} ${red}Two way fulfillment workflow Installation aborted: ${reset}";
 					echo "${cyan}${m_tab}#####################################################${reset}";
@@ -594,13 +594,13 @@ install_twoway () {
 				if [[ ! -f "$i" ]]; then
 					if grep -qw "woocommerce/emails" <<< "${i}"; then
 						cp "$this_script_path/custom-order-status-package/class-wc-delivered-status-order.php" "${i%/*}/" &&
-						chown -R $USER_OWNER:$GROUP_OWNER "${i%/*}/" || twoway_pretty_error
+						chown -R "$USER_OWNER":"$GROUP_OWNER" "${i%/*}/" || twoway_pretty_error
 					elif grep -qw "emails/plain" <<< "${i}"; then
 						cp "$this_script_path/custom-order-status-package/wc-customer-delivered-status-order.php" "${i%/*}/" &&
-						chown -R $USER_OWNER:$GROUP_OWNER "${i%/*}/" || twoway_pretty_error
+						chown -R "$USER_OWNER":"$GROUP_OWNER" "${i%/*}/" || twoway_pretty_error
 					else
 						cp "$this_script_path/custom-order-status-package/wc-customer-delivered-status-order.php" "${i%/*}/" &&
-						chown -R $USER_OWNER:$GROUP_OWNER "${i%/*}/" || twoway_pretty_error
+						chown -R "$USER_OWNER":"$GROUP_OWNER" "${i%/*}/" || twoway_pretty_error
 					fi
 				fi
 			done
@@ -608,14 +608,14 @@ install_twoway () {
 			echo -e "\n${red}*${reset} ${red}Installation aborted, as file not writeable: ${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			echo "${m_tab}${red}$absolute_child_path/functions.php${reset}"
-			echo "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}\n"
+			echo -e "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}\n"
 			echo "$(timestamp): Installation aborted, as file not writeable: $absolute_child_path/functions.php" >> "${error_log}"
 			exit 1
 		fi
 	else
 		echo -e "\n${red}*${reset} ${red}Installation aborted, could not read file permissions: ${reset}"
 		echo "${cyan}${m_tab}#####################################################${reset}"
-		echo "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}\n"
+		echo -e "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}\n"
 		echo "$(timestamp): Installation aborted, could not read file permissions" >> "${error_log}"
 		exit 1
 	fi
@@ -657,7 +657,7 @@ uninstall () {
 		else
 			echo -e "\n${red}*${reset} ${red}Cron uninstall aborted, as file not writable: ${cron_dir}/${cron_filename}${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
-			echo "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}\n"
+			echo "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}"
 			echo "$(timestamp): Uninstallation error: $cron_dir/$cron_filename not writeable" >> "${error_log}"
 		fi
 	else
@@ -673,7 +673,7 @@ uninstall () {
 		else
 			echo -e "\n${red}*${reset} ${red}Updater cron job uninstallation aborted, as file not writable: ${cron_dir}/${cron_filename_update}${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
-			echo "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}\n"
+			echo "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}"
 			echo "$(timestamp): Uninstallation error: ${cron_dir}/${cron_filename_update} is not writeable" >> "${error_log}"
 		fi
 	else
@@ -694,7 +694,7 @@ uninstall () {
 		else
 			echo -e "\n${red}*${reset} ${red}Systemd uninstall aborted, as directory not writable: $systemd_dir${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
-			echo "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}\n"
+			echo "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}"
 			echo "$(timestamp): Uninstallation error: $systemd_dir/$service_filename not writeable" >> "${error_log}"
 		fi
 	else
@@ -710,7 +710,7 @@ uninstall () {
 		else
 			echo -e "\n${red}*${reset} ${red}Logrotate uninstall aborted, as file not writable: ${logrotate_dir}/${logrotate_filename}${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
-			echo "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}\n"
+			echo "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}"
 			echo "$(timestamp): Uninstallation error: ${logrotate_dir}/${logrotate_filename} not writeable" >> "${error_log}"
 		fi
 	else
@@ -1028,7 +1028,7 @@ upgrade () {
 				echo "${cyan}${m_tab}#####################################################${reset}"
 				echo -e "${magenta}$changelog_p${reset}\n" | sed 's/^/  /'
 				while true; do
-					read -n 1 -p "${m_tab}${BC}Do you want to update version $latest_version? --> (Y)es | (N)o${EC} " yn < /dev/tty
+					read -r -n 1 -p "${m_tab}${BC}Do you want to update version $latest_version? --> (Y)es | (N)o${EC} " yn < /dev/tty
 					echo ""
 					case "${yn}" in
 						[Yy]* ) download; break;;
@@ -1051,7 +1051,7 @@ upgrade () {
 		if [ "${latest_version//./}" -eq "${current_version//./}" ]; then
 			if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 				while true; do
-					read -n 1 -p "${m_tab}${BC}Do you want to force update version $latest_version? --> (Y)es | (N)o${EC} " yn < /dev/tty
+					read -r -n 1 -p "${m_tab}${BC}Do you want to force update version $latest_version? --> (Y)es | (N)o${EC} " yn < /dev/tty
 					echo ""
 					case "${yn}" in
 						[Yy]* ) f_update=1; download; break;;
@@ -1110,7 +1110,7 @@ add_cron () {
 	if [ ! -w "${cron_dir}/${cron_filename}" ]; then
 		echo -e "\n${red}*${reset} Cron install aborted, as file not writable: ${cron_dir}/${cron_filename}"
 		echo "${cyan}${m_tab}#####################################################${reset}"
-		echo "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}"
+		echo -e "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}\n"
 		echo "$(timestamp): SETUP: Cron install aborted, as file not writable: ${cron_dir}/${cron_filename}." >> "${error_log}"
 		exit 1
 	else
@@ -1179,7 +1179,7 @@ add_systemd () {
 	if [ ! -w "${systemd_dir}/${service_filename}" ]; then
 		echo -e "\n${red}*${reset} ${red}Systemd install aborted, as file not writable:${reset} ${green}${systemd_dir}/${service_filename}${reset}"
 		echo "${cyan}${m_tab}#####################################################${reset}"
-		echo "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}"
+		echo -e "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}\n"
 		echo "$(timestamp): Systemd install aborted, as file not writable: ${systemd_dir}/${service_filename}" >> "${error_log}"
 		exit 1
 	else
@@ -1226,7 +1226,7 @@ add_systemd () {
 			if [ ! -w "${cron_dir}/${cron_filename_update}" ]; then
 				echo -e "\n${red}*${reset} Updater cron install aborted, as file not writable: ${cron_dir}/${cron_filename_update}"
 				echo "${cyan}${m_tab}#####################################################${reset}"
-				echo "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}"
+				echo -e "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}\n"
 				echo "$(timestamp): SETUP: Cron install aborted, as file not writable: ${cron_dir}/${cron_filename_update}." >> "${error_log}"
 				exit 1
 			else
@@ -1362,7 +1362,7 @@ encrypt_wc_auth () {
 		if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 			echo -e "\n${green}*${reset} ${magenta}Setting your woocommerce api_key, type q for quit${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
-			read -p "${m_tab}${BC}Enter WooCommerce API key:${EC} " my_wc_api_key < /dev/tty
+			read -r -p "${m_tab}${BC}Enter WooCommerce API key:${EC} " my_wc_api_key < /dev/tty
 			if [ "$my_wc_api_key" == "q" ] || [ "$my_wc_api_key" == "quit" ]; then exit 1; fi
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			echo "$my_wc_api_key" | openssl enc -base64 -e -aes-256-cbc -nosalt  -pass pass:garbageKey  2>/dev/null > "$this_script_path/.key.wc.lck"
@@ -1380,7 +1380,7 @@ encrypt_wc_auth () {
 		if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 			echo -e "\n${green}*${reset} ${magenta}Setting your woocommerce api_secret, type q for quit${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
-			read -p "${m_tab}${BC}Enter WooCommerce API secret:${EC} " my_wc_api_secret < /dev/tty
+			read -r -p "${m_tab}${BC}Enter WooCommerce API secret:${EC} " my_wc_api_secret < /dev/tty
 			if [ "$my_wc_api_secret" == "q" ] || [ "$my_wc_api_secret" == "quit" ]; then exit 1; fi
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			echo "$my_wc_api_secret" | openssl enc -base64 -e -aes-256-cbc -nosalt  -pass pass:garbageKey  2>/dev/null > "$this_script_path/.secret.wc.lck"
@@ -1402,7 +1402,7 @@ encrypt_wc_end () {
 			echo -e "\n${green}*${reset} ${magenta}Setting your Wordpress installation url, type q for quit${reset}"
 			echo -e "${m_tab}${magenta}format --> www.example.com | www.example.com/wordpress.${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
-			read -p "${m_tab}${BC}Enter Wordpress Domain URL:${EC} " my_wc_api_endpoint < /dev/tty
+			read -r -p "${m_tab}${BC}Enter Wordpress Domain URL:${EC} " my_wc_api_endpoint < /dev/tty
 			if [ "$my_wc_api_endpoint" == "q" ] || [ "$my_wc_api_endpoint" == "quit" ]; then exit 1; fi
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			echo "$my_wc_api_endpoint" | openssl enc -base64 -e -aes-256-cbc -nosalt  -pass pass:garbageKey  2>/dev/null > "$this_script_path/.end.wc.lck"
@@ -1423,7 +1423,7 @@ encrypt_aras_auth () {
 		if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 			echo -e "\n${green}*${reset} ${magenta}Setting your ARAS SOAP api_key, type q for quit${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
-			read -p "${m_tab}${BC}Enter ARAS SOAP API Password:${EC} " my_aras_api_pass < /dev/tty
+			read -r -p "${m_tab}${BC}Enter ARAS SOAP API Password:${EC} " my_aras_api_pass < /dev/tty
 			if [ "$my_aras_api_pass" == "q" ] || [ "$my_aras_api_pass" == "quit" ]; then exit 1; fi
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			echo "$my_aras_api_pass" | openssl enc -base64 -e -aes-256-cbc -nosalt  -pass pass:garbageKey  2>/dev/null > "$this_script_path/.key.aras.lck"
@@ -1441,7 +1441,7 @@ encrypt_aras_auth () {
 		if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 			echo -e "\n${green}*${reset} ${magenta}Setting your ARAS SOAP api_username, type q for quit${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
-			read -p "${m_tab}${BC}Enter ARAS SOAP API Username:${EC} " my_aras_api_usr < /dev/tty
+			read -r -p "${m_tab}${BC}Enter ARAS SOAP API Username:${EC} " my_aras_api_usr < /dev/tty
 			if [ "$my_aras_api_usr" == "q" ] || [ "$my_aras_api_usr" == "quit" ]; then exit 1; fi
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			echo "$my_aras_api_usr" | openssl enc -base64 -e -aes-256-cbc -nosalt  -pass pass:garbageKey  2>/dev/null > "$this_script_path/.usr.aras.lck"
@@ -1460,7 +1460,7 @@ encrypt_aras_auth () {
 			while true; do
 				echo -e "\n${green}*${reset} ${magenta}Setting your ARAS SOAP merchant_code, type q for quit${reset}"
 				echo "${cyan}${m_tab}#####################################################${reset}"
-				read -p "${m_tab}${BC}Enter ARAS SOAP Merchant Code:${EC} " my_aras_api_mrc < /dev/tty
+				read -r -p "${m_tab}${BC}Enter ARAS SOAP Merchant Code:${EC} " my_aras_api_mrc < /dev/tty
 				echo "${cyan}${m_tab}#####################################################${reset}"
 				echo ""
 				case "${my_aras_api_mrc}" in
@@ -1487,7 +1487,7 @@ encrypt_aras_end () {
 		if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 			echo -e "\n${green}*${reset} ${magenta}Setting your ARAS SOAP endpoint_url, type q for quit${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
-			read -p "${m_tab}${BC}Enter ARAS SOAP endpoint URL (wsdl):${EC} " my_aras_api_end < /dev/tty
+			read -r -p "${m_tab}${BC}Enter ARAS SOAP endpoint URL (wsdl):${EC} " my_aras_api_end < /dev/tty
 			if [ "$my_aras_api_end" == "q" ] || [ "$my_aras_api_end" == "quit" ]; then exit 1; fi
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			echo "$my_aras_api_end" | openssl enc -base64 -e -aes-256-cbc -nosalt  -pass pass:garbageKey  2>/dev/null > "$this_script_path/.end.aras.lck"
@@ -1509,7 +1509,7 @@ encrypt_aras_qry () {
 			echo -e "\n${green}*${reset} ${magenta}Setting your ARAS SOAP query_type.${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			while true; do
-				read -p "${m_tab}${BC}Enter ARAS SOAP query type:${EC} " my_aras_api_qry < /dev/tty
+				read -r -p "${m_tab}${BC}Enter ARAS SOAP query type:${EC} " my_aras_api_qry < /dev/tty
 				case "${my_aras_api_qry}" in
 					12) break;;
 					13) break;;
@@ -1578,7 +1578,7 @@ if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 	try=0
 	while grep -q "Could not resolve host" "$this_script_path/curl.proc"
 	do
-		try=$[$try+1]
+		try=$(($try+1))
 		[[ $try -eq 3 ]] && { echo -e "\n${red}>${m_tab}Too many bad try. Cannot connect WooCommerce REST API.${reset}\n"; echo "$(timestamp): Too many bad try. Cannot connect WooCommerce REST API." >> "${error_log}"; exit 1; }
 		echo ""
 		echo -e "\n${red}*${reset} ${red}Could not resolve host${reset}"
@@ -1588,7 +1588,7 @@ if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 		while true
 		do
 			echo -e "\n${m_tab}${cyan}##################################################################${reset}"
-			read -n 1 -p "${m_tab}${BC}Do you want to reset your Wordpress domain now? --> (Y)es | (N)o${EC} " yn < /dev/tty
+			read -r -n 1 -p "${m_tab}${BC}Do you want to reset your Wordpress domain now? --> (Y)es | (N)o${EC} " yn < /dev/tty
 			echo ""
 			case "${yn}" in
 				[Yy]* ) rm -rf "${this_script_path}/.end.wc.lck";
@@ -1651,7 +1651,7 @@ if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 	try=0
 	while grep -q "woocommerce_rest_authentication_error\|woocommerce_rest_cannot_view\|401" "$this_script_path/curl.proc"
 	do
-		try=$[$try+1]
+		try=$(($try+1))
 		[[ $try -eq 3 ]] && { echo -e "\n${red}>${m_tab}Too many bad try. Cannot connect REST API. Check your credentials.${reset}\n"; echo "$(timestamp): Too many bad try. Cannot connect REST API. Check your credentials." >> "${error_log}"; exit 1; }
 		echo -e "\n${red}*${reset} ${red}WooCommerce REST API Authentication error${reset}"
 		echo "${cyan}${m_tab}#####################################################${reset}"
@@ -1660,7 +1660,7 @@ if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 		while true
 		do
 			echo "${m_tab}${cyan}###########################################################################${reset}"
-			read -n 1 -p "${m_tab}${BC}Do you want to reset your WooCommerce API credentials now? --> (Y)es | (N)o${EC} " yn < /dev/tty
+			read -r -n 1 -p "${m_tab}${BC}Do you want to reset your WooCommerce API credentials now? --> (Y)es | (N)o${EC} " yn < /dev/tty
 			echo ""
 			case "${yn}" in
 				[Yy]* ) rm -rf "${this_script_path}/.key.wc.lck" "${this_script_path}/.secret.wc.lck";
@@ -1752,7 +1752,7 @@ if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 	try=0
 	while grep -q "error_4625264224" "$this_script_path/aras.json"
 	do
-		try=$[$try+1]
+		try=$(($try+1))
 		[[ $try -eq 3 ]] && { echo -e "\n${red}Too many bad try. Cannot connect ARAS SOAP API.${reset}\n"; echo "$(timestamp): Too many bad try. Cannot connect ARAS SOAP API. Check your ARAS endpoint URL." >> "${error_log}";  exit 1; }
 		echo ""
 		echo -e "\n${red}*${reset} ${red}ARAS SOAP Endpoint error${reset}"
@@ -1763,7 +1763,7 @@ if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 		while true
 		do
 			echo "${m_tab}${cyan}###########################################################################${reset}"
-			read -n 1 -p "${m_tab}${BC}Do you want to reset your ARAS SOAP endpoint URL now? --> (Y)es | (N)o${EC}" yn < /dev/tty
+			read -r -n 1 -p "${m_tab}${BC}Do you want to reset your ARAS SOAP endpoint URL now? --> (Y)es | (N)o${EC}" yn < /dev/tty
 			echo ""
 			case "${yn}" in
 				[Yy]* ) rm -f "${this_script_path}/.end.aras.lck";
@@ -1789,7 +1789,7 @@ if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 	try=0
 	while grep -q "error_75546475052" "$this_script_path/aras.json"
 	do
-		try=$[$try+1]
+		try=$(($try+1))
 		[[ $try -eq 3 ]] && { echo -e "\n${red}Too many bad try. Cannot connect ARAS SOAP API.${reset}\n"; echo "$(timestamp): Too many bad try. Cannot connect ARAS SOAP API. Check your login credentials." >> "${error_log}";  exit 1; }
 		echo ""
                 echo -e "\n${red}*${reset} ${red}ARAS SOAP Authentication error${reset}"
@@ -1799,7 +1799,7 @@ if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 		while true
 		do
 			echo "${m_tab}${cyan}###########################################################################${reset}"
-			read -n 1 -p "${m_tab}${BC}Do you want to reset your ARAS SOAP API credentials now? --> (Y)es | (N)o${EC}" yn < /dev/tty
+			read -r -n 1 -p "${m_tab}${BC}Do you want to reset your ARAS SOAP API credentials now? --> (Y)es | (N)o${EC}" yn < /dev/tty
 			echo ""
 			case "${yn}" in
 				[Yy]* ) rm -rf "${this_script_path}/.key.aras.lck" "${this_script_path}/.usr.aras.lck" "${this_script_path}/.mrc.aras.lck";
@@ -1847,7 +1847,7 @@ iconv -f utf8 -t ascii//TRANSLIT < "${this_script_path}/wc.proc" | tr '[:upper:]
 declare -A aras_array
 declare -A wc_array
 
-for en in ${this_script_path}/*.en
+for en in "${this_script_path}"/*.en
 do
 	if [ -s "$en" ]; then
 		good=true
@@ -2010,7 +2010,7 @@ if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 			while true
  			do
 				echo "${m_tab}${cyan}#####################################################${reset}"
-				read -n 1 -p "${m_tab}${BC}Is data correct? --> (Y)es | (N)o${EC} " yn < /dev/tty
+				read -r -n 1 -p "${m_tab}${BC}Is data correct? --> (Y)es | (N)o${EC} " yn < /dev/tty
 				echo ""
 				case "${yn}" in
 					[Yy]* ) break;;
@@ -2039,7 +2039,7 @@ if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 			while true
 			do
 				echo "${m_tab}${cyan}#####################################################${reset}"
-				read -n 1 -p "${m_tab}${BC}Is data correct? --> (Y)es | (N)o${EC} " yn < /dev/tty
+				read -r -n 1 -p "${m_tab}${BC}Is data correct? --> (Y)es | (N)o${EC} " yn < /dev/tty
 				echo ""
 				case "${yn}" in
 					[Yy]* ) break;;
@@ -2054,7 +2054,7 @@ if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 
 		while true
 		do
-			read -n 1 -p "${m_tab}${BC}Script automatically update itself? --> (Y)es | (N)o${EC} " yn < /dev/tty
+			read -r -n 1 -p "${m_tab}${BC}Script automatically update itself? --> (Y)es | (N)o${EC} " yn < /dev/tty
 			echo ""
 			case "${yn}" in
 				[Yy]* ) auto_update=1; break;;
@@ -2076,7 +2076,7 @@ if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 		while true
 		do
 			echo "${m_tab}${cyan}#####################################################${reset}"
-			read -n 1 -p "${m_tab}${BC}c for crontab, s for systemd, q for quit${EC} " cs < /dev/tty
+			read -r -n 1 -p "${m_tab}${BC}c for crontab, s for systemd, q for quit${EC} " cs < /dev/tty
 			echo ""
 			case "${cs}" in
 				[Cc]* ) add_cron; break;;
@@ -2093,9 +2093,9 @@ fi
 if [ -e "${this_script_path}/.woo.aras.enb" ]; then
 	if [ -s "$my_tmp" ]; then
 		# First to handle strange behaviours save the data in tmp
-		cat <(cat "${my_tmp}") > "$my_tmp_folder/`date +%d-%m-%Y`-main.$$"
-		cat <(cat "${this_script_path}/wc.proc.en") > "$my_tmp_folder/`date +%d-%m-%Y`-wc.proc.en.$$"
-		cat <(cat "${this_script_path}/aras.proc.en") > "$my_tmp_folder/`date +%d-%m-%Y`-aras.proc.en.$$"
+		cat <(cat "${my_tmp}") > "$my_tmp_folder/$(date +%d-%m-%Y)-main.$$"
+		cat <(cat "${this_script_path}/wc.proc.en") > "$my_tmp_folder/$(date +%d-%m-%Y)-wc.proc.en.$$"
+		cat <(cat "${this_script_path}/aras.proc.en") > "$my_tmp_folder/$(date +%d-%m-%Y)-aras.proc.en.$$"
 
 		while read -r id track
 		do
@@ -2120,18 +2120,18 @@ if [ -e "${this_script_path}/.woo.aras.enb" ]; then
 				sleep 10
 			elif [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 				if [ $send_mail_err -eq 1 ]; then
-					send_mail_err <<< "Wrong Order ID caused by corrupt data or AST plugin endpoint error. Check $my_tmp_folder/`date +%d-%m-%Y`-main.$$"
+					send_mail_err <<< "Wrong Order ID caused by corrupt data or AST plugin endpoint error. Check $my_tmp_folder/$(date +%d-%m-%Y)-main.$$"
 				fi
 				echo "${red}*${reset} ${red}Cannot post data to AST Plugin REST endpoint.${reset}"
 				echo "${m_tab}${cyan}#####################################################${reset}"
 				echo "${red}*${reset} ${red}Wrong Order ID caused by corrupt data or AST plugin endpoint error${reset}"
-				echo "$(timestamp): Wrong Order ID caused by corrupt data or AST plugin endpoint error. Check $my_tmp_folder/`date +%d-%m-%Y`-main.$$" >> "${error_log}"
+				echo "$(timestamp): Wrong Order ID caused by corrupt data or AST plugin endpoint error. Check $my_tmp_folder/$(date +%d-%m-%Y)-main.$$" >> "${error_log}"
 				exit 1
 			else
 				if [ $send_mail_err -eq 1 ]; then
-					send_mail_err <<< "Wrong Order ID caused by corrupt data or AST plugin endpoint error. Check $my_tmp_folder/`date +%d-%m-%Y`-main.$$"
+					send_mail_err <<< "Wrong Order ID caused by corrupt data or AST plugin endpoint error. Check $my_tmp_folder/$(date +%d-%m-%Y)-main.$$"
 				fi
-				echo "$(timestamp): Wrong Order ID caused by corrupt data or AST plugin endpoint error. Check $my_tmp_folder/`date +%d-%m-%Y`-main.$$" >> "${error_log}"
+				echo "$(timestamp): Wrong Order ID caused by corrupt data or AST plugin endpoint error. Check $my_tmp_folder/$(date +%d-%m-%Y)-main.$$" >> "${error_log}"
 				exit 1
 			fi
 		done < "${my_tmp}"
