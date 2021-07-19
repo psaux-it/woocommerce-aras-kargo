@@ -1,5 +1,7 @@
 #!/bin/bash
 #
+# shellcheck disable=SC2016
+#
 # Copyright 2021 Hasan ÇALIŞIR
 #
 # This program is free software: you can redistribute it and/or modify
@@ -181,7 +183,10 @@ if [ ! -d "${this_script_path}/tmp" ]; then
 fi
 
 # Listen exit signals to destroy temporary files
-trap "rm -rf ${my_tmp} ${this_script_path}/*.en ${this_script_path}/*.proc ${this_script_path}/.*proc ${this_script_path}/*.json* ${this_script_path}/aras_request.php ${this_script_path}/.lvn*" 0 1 2 3 15
+clean_up () {
+        rm -rf $my_tmp $this_script_path/*.en $this_script_path/{*proc*,.*proc} $this_script_path/{*json*,.*json} $this_script_path/aras_request.php $this_script_path/.lvn*
+}
+trap clean_up EXIT HUP INT QUIT TERM
 
 # Global variables
 user="$(whoami)"
@@ -1578,7 +1583,7 @@ if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 	try=0
 	while grep -q "Could not resolve host" "$this_script_path/curl.proc"
 	do
-		try=$(($try+1))
+		try=$((try+1))
 		[[ $try -eq 3 ]] && { echo -e "\n${red}>${m_tab}Too many bad try. Cannot connect WooCommerce REST API.${reset}\n"; echo "$(timestamp): Too many bad try. Cannot connect WooCommerce REST API." >> "${error_log}"; exit 1; }
 		echo ""
 		echo -e "\n${red}*${reset} ${red}Could not resolve host${reset}"
@@ -1651,7 +1656,7 @@ if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 	try=0
 	while grep -q "woocommerce_rest_authentication_error\|woocommerce_rest_cannot_view\|401" "$this_script_path/curl.proc"
 	do
-		try=$(($try+1))
+		try=$((try+1))
 		[[ $try -eq 3 ]] && { echo -e "\n${red}>${m_tab}Too many bad try. Cannot connect REST API. Check your credentials.${reset}\n"; echo "$(timestamp): Too many bad try. Cannot connect REST API. Check your credentials." >> "${error_log}"; exit 1; }
 		echo -e "\n${red}*${reset} ${red}WooCommerce REST API Authentication error${reset}"
 		echo "${cyan}${m_tab}#####################################################${reset}"
@@ -1752,7 +1757,7 @@ if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 	try=0
 	while grep -q "error_4625264224" "$this_script_path/aras.json"
 	do
-		try=$(($try+1))
+		try=$((try+1))
 		[[ $try -eq 3 ]] && { echo -e "\n${red}Too many bad try. Cannot connect ARAS SOAP API.${reset}\n"; echo "$(timestamp): Too many bad try. Cannot connect ARAS SOAP API. Check your ARAS endpoint URL." >> "${error_log}";  exit 1; }
 		echo ""
 		echo -e "\n${red}*${reset} ${red}ARAS SOAP Endpoint error${reset}"
@@ -1789,7 +1794,7 @@ if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 	try=0
 	while grep -q "error_75546475052" "$this_script_path/aras.json"
 	do
-		try=$(($try+1))
+		try=$((try+1))
 		[[ $try -eq 3 ]] && { echo -e "\n${red}Too many bad try. Cannot connect ARAS SOAP API.${reset}\n"; echo "$(timestamp): Too many bad try. Cannot connect ARAS SOAP API. Check your login credentials." >> "${error_log}";  exit 1; }
 		echo ""
                 echo -e "\n${red}*${reset} ${red}ARAS SOAP Authentication error${reset}"
