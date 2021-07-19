@@ -63,6 +63,23 @@ mail_to="order_info@${company_domain}"
 mail_from="From: ${company_name} <aras_woocommerce@${company_domain}>"
 mail_subject_suc="SUCCESS: WooCommerce - ARAS Cargo"
 mail_subject_err="ERROR: WooCommerce - ARAS Cargo Integration Error"
+# =====================================================================
+
+# Set PATHS to prevent cron errors.
+# We will also add explicit paths for specific binaries.
+export PATH="${PATH}:/sbin:/usr/sbin:/usr/local/bin:/usr/local/sbin"
+uniquepath () {
+	local path=""
+	while read -r; do
+		if [[ ! ${path} =~ (^|:)"${REPLY}"(:|$) ]]; then
+			[ -n "${path}" ] && path="${path}:"
+			path="${path}${REPLY}"
+		fi
+	done < <(echo "${PATH}" | tr ":" "\n")
+
+	[ -n "${path}" ] && [[ ${PATH} =~ /bin ]] && [[ ${PATH} =~ /sbin ]] && export PATH="${path}"
+}
+uniquepath
 
 # Set ARAS cargo request date range --> last 10 days
 # Supports Max 30 days.
@@ -70,7 +87,6 @@ mail_subject_err="ERROR: WooCommerce - ARAS Cargo Integration Error"
 t_date=$(date +%d/%m/%Y)
 e_date=$(date +%d-%m-%Y -d "+1 days")
 s_date=$(date +%d-%m-%Y -d "-10 days")
-# =====================================================================
 
 # Send mail functions
 # If you use sendmail, mutt etc. you can adjust here
