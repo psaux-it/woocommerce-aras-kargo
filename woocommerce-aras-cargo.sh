@@ -312,6 +312,77 @@ check_delivered () {
 	done
 }
 
+pre_check () {
+	# Find distro
+	running_os="$(grep '^ID=' /etc/os-release | cut -d'=' -f2 | $m_sed -e 's/"//g')"
+	case "${running_os}" in
+		"centos"|"fedora"|"CentOS") o_s=CentOS;;
+		"debian"|"ubuntu") o_s=Debian;;
+		"opensuse-leap"|"opensuse-tumbleweed") o_s=OpenSUSE;;
+		"arch")  o_s=Arch;;
+		"alpine") o_s=Alpine;;
+		*) o_s="${running_os}";;
+	esac
+
+	# Check AST Plugin
+	$m_curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/system_status" -u "$api_key":"$api_secret" -H "Content-Type: application/json" |
+	$m_jq -r '[.active_plugins[].plugin]' | tr -d '[],"' | $m_awk -F/ '{print $2}' | $m_awk -F. '{print $1}' | $m_sed '/^[[:space:]]*$/d' > "${this_script_path}/.plg.proc"
+
+	$m_curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/system_status" -u "$api_key":"$api_secret" -H "Content-Type: application/json" |
+	$m_jq -r '[.active_plugins[].version]' | tr -d '[],"' | $m_sed '/^[[:space:]]*$/d' | $m_awk '{$1=$1};1' > "${this_script_path}/.plg.ver.proc"
+
+	paste "${this_script_path}/.plg.proc" "${this_script_path}/.plg.ver.proc" > "${this_script_path}/.plg.act.proc"
+
+	if grep -q "woocommerce-advanced-shipment-tracking" "${this_script_path}/.plg.act.proc"; then
+		ast_ver=$(< "${this_script_path}/.plg.act.proc" grep "woocommerce-advanced-shipment-tracking" | $m_awk '{print $2}')
+	else
+		ast_ver=false
+	fi
+
+	# WooCommerce version
+	woo_ver=$($m_curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/system_status" -u "$api_key":"$api_secret" -H "Content-Type: application/json" | $m_jq -r '[.environment.version]|join(" ")')
+
+	# Bash Version
+	bash_ver="${BASH_VERSINFO:-0}"
+
+	echo -e "\n${green}*${reset} ${green}System Status:${reset}"
+	echo "${cyan}${m_tab}#####################################################${reset}"
+
+	{ # Start redirection to file
+
+	if [ "${woo_ver%%.*}" -ge 5 ]; then
+		echo "${green}WooCommerce_Version: $woo_ver ✓${reset}"
+	else
+		echo "${yellow}WooCommerce_Version: $woo_ver x${reset}"
+	fi
+
+	if [ "$ast_ver" != "false" ]; then
+		echo "${green}AST_Plugin: ACTIVE ✓${reset}"
+		echo "${green}AST_Plugin_Version: $ast_ver ✓${reset}"
+	else
+		echo "${red}AST_Plugin: NOT FOUND x${reset}"
+		echo "${red}AST_Plugin_Version: NOT FOUND x${reset}"
+	fi
+
+	if [ $bash_ver -ge 5 ]; then
+		echo "${green}Bash_Version: $bash_ver ✓${reset}"
+	else
+		echo "${yellow}Bash_Version: $bash_ver x${reset}"
+	fi
+
+	echo "${green}Operating_System: $o_s ✓${reset}"
+	echo "${green}Dependencies: Ok ✓${reset}"
+
+	} > "${this_script_path}/.msg.proc" # End redirection to file
+
+	column -t -s ' ' <<< $(< "${this_script_path}/.msg.proc" sed 's/^/ /')
+	echo ""
+
+	if [ "$ast_ver" == "false" ]; then
+		exit 1
+	fi
+}
+
 find_child_path () {
 	# Get active child theme info
 	theme_child=$(curl -s -X GET -u "$api_key":"$api_secret" -H "Content-Type: application/json" "https://$api_endpoint/wp-json/wc/v3/system_status" | $m_jq -r '[.theme.is_child_theme]|join(" ")')
@@ -1881,6 +1952,7 @@ fi
 # If ARAS data is empty first check 'merchant code' which not return any error from ARAS end
 if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 	if [ ! -e "${this_script_path}/.woo.aras.set" ]; then
+		pre_check
 		echo -e "\n${green}*${reset} ${green}Parsing some random data to validate.${reset}"
 		echo -ne "${cyan}${m_tab}########                                             [20%]\r${reset}"
 		sleep 1
