@@ -1360,11 +1360,18 @@ encrypt_aras_auth () {
 	fi
 	if [[ ! -s "$this_script_path/.mrc.aras.lck" ]]; then
 		if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
-			echo -e "\n${green}*${reset} ${magenta}Setting your ARAS SOAP merchant_code, type q for quit${reset}"
-			echo "${cyan}${m_tab}#####################################################${reset}"
-			read -p "${m_tab}${BC}Enter ARAS SOAP Merchant Code:${EC} " my_aras_api_mrc < /dev/tty
-			if [ "$my_aras_api_mrc" == "q" ] || [ "$my_aras_api_mrc" == "quit" ]; then exit 1; fi
-			echo "${cyan}${m_tab}#####################################################${reset}"
+			while true; do
+				echo -e "\n${green}*${reset} ${magenta}Setting your ARAS SOAP merchant_code, type q for quit${reset}"
+				echo "${cyan}${m_tab}#####################################################${reset}"
+				read -p "${m_tab}${BC}Enter ARAS SOAP Merchant Code:${EC} " my_aras_api_mrc < /dev/tty
+				echo "${cyan}${m_tab}#####################################################${reset}"
+				echo ""
+				case "${my_aras_api_mrc}" in
+					q) exit 1;;
+					''|*[!0-9]*) echo "${yellow}*${reset} ${yellow}Only numbers are allowed.${reset}";;
+					*) break;;
+				esac
+			done
 			echo "$my_aras_api_mrc" | openssl enc -base64 -e -aes-256-cbc -nosalt  -pass pass:garbageKey  2>/dev/null > "$this_script_path/.mrc.aras.lck"
 			# delete sensetive data from bash history
 			history -w && $m_sed -i '/.mrc.aras.lck/d' ~/.bash_history >/dev/null 2>&1
@@ -1479,7 +1486,7 @@ if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 		echo ""
 		echo -e "\n${red}*${reset} ${red}Could not resolve host${reset}"
 		echo "${cyan}${m_tab}#####################################################${reset}"
-		echo  "${m_tab}${red}Is your Wordpress domain correct?${reset}"
+		echo  "${m_tab}${red}Is your Wordpress domain ${magenta}$api_endpoint${reset} ${red}correct?${reset}"
 		echo "$(timestamp): Could not resolve host! Check your DNS/Web server." >> "${error_log}"
 		while true
 		do
@@ -1551,8 +1558,7 @@ if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 		[[ $try -eq 3 ]] && { echo -e "\n${red}>${m_tab}Too many bad try. Cannot connect REST API. Check your credentials.${reset}\n"; echo "$(timestamp): Too many bad try. Cannot connect REST API. Check your credentials." >> "${error_log}"; exit 1; }
 		echo -e "\n${red}*${reset} ${red}WooCommerce REST API Authentication error${reset}"
 		echo "${cyan}${m_tab}#####################################################${reset}"
-		echo "${m_tab}${red}Is your WooCommerce REST API credentials correct?${reset}"
-		echo -e "${m_tab}${red}Did you encrypted correct WooCommerce REST API credentials?${reset}\n"
+		echo -e "${m_tab}${red}Is your WooCommerce REST API credentials correct?${reset}\n"
 		echo "$(timestamp): WooCommerce REST API Authentication Error. Check your WooCommerce REST API credentials." >> "${error_log}"
 		while true
 		do
@@ -1654,7 +1660,8 @@ if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 		echo ""
 		echo -e "\n${red}*${reset} ${red}ARAS SOAP Endpoint error${reset}"
 		echo "${cyan}${m_tab}#####################################################${reset}"
-		echo -e "${m_tab}${red}Is your ARAS endpoint URL correct?${reset}\n"
+		echo "${m_tab}${red}Is your ARAS endpoint URL correct?${reset}"
+		echo -e "${m_tab}${magenta}$api_end_aras${reset}\n"
 		echo "$(timestamp): ARAS SOAP Endpoint Error! Check your ARAS endpoint URL." >> "${error_log}"
 		while true
 		do
