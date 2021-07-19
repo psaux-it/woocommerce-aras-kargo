@@ -345,9 +345,9 @@ find_child_path () {
 		else
 			echo -e "\n${green}*${reset} ${green}Please validate child theme path.${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
-			echo "${m_tab}${green}$absolute_child_path${reset}"
+			echo "${m_tab}${magenta}$absolute_child_path${reset}"
 			while true; do
-				echo "${cyan}${m_tab}#####################################################${reset}"
+				echo -e "\n${cyan}${m_tab}#####################################################${reset}"
 				read -n 1 -p "${m_tab}${BC}Is child theme absolute path correct? --> (Y)es | (N)o${EC} " yn < /dev/tty
 				echo ""
 				case "${yn}" in
@@ -377,7 +377,7 @@ find_child_path () {
 }
 
 uninstall_twoway () {
-	find_child_path
+#	find_child_path
 	# Remove installed files from child theme
 	# We don't remove any folder we created before!
 	declare -a installed_files=()
@@ -1458,14 +1458,14 @@ decrypt_aras_auth && decrypt_aras_end && decrypt_wc_auth && decrypt_wc_end ||
 #=====================================================================
 # Pre-defined curl functions for various tests
 w_curl_s () {
-	$m_curl -X GET -H "Content-Type: application/json" "https://$api_endpoint/wp-json/wc/v3/system_status" > "$this_script_path/curl.proc" 2>&1
+	$m_curl -X GET -H "Content-Type: application/json" "https://$api_endpoint/wp-json/wc/v3/settings" > "$this_script_path/curl.proc" 2>&1
 }
 
 w_curl_a () {
 	$m_curl -X GET \
 		-u "$api_key":"$api_secret" \
 		-H "Content-Type: application/json" \
-		"https://$api_endpoint/wp-json/wc/v3/system_status" > "$this_script_path/curl.proc" 2>&1
+		"https://$api_endpoint/wp-json/wc/v3/settings" > "$this_script_path/curl.proc" 2>&1
 }
 
 # Test Wordpress domain & host connection
@@ -1959,11 +1959,12 @@ if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 		done
 
 		echo -e "\n${green}*${reset} ${green}Default setup completed.${reset}"
-		echo -e "${cyan}${m_tab}#####################################################${reset}\n"
 		if [ "$twoway" == "true" ]; then
-			echo "${m_tab}${green}Installing two way fulfillment workflow.${reset}"
+			echo "${cyan}${m_tab}#####################################################${reset}"
+			echo "${m_tab}${green}Installing two way fulfillment workflow...${reset}"
 			install_twoway
 		else
+			echo -e "${cyan}${m_tab}#####################################################${reset}\n"
 			echo "${m_tab}${green}Please select installation method.${reset}"
 		fi
 
