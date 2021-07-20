@@ -349,6 +349,7 @@ pre_check () {
 	paste "${this_script_path}/.plg.proc" "${this_script_path}/.plg.ver.proc" > "${this_script_path}/.plg.act.proc"
 
 	if grep -q "woocommerce-advanced-shipment-tracking" "${this_script_path}/.plg.act.proc"; then
+		# AST Plugin version
 		ast_ver=$(< "${this_script_path}/.plg.act.proc" grep "woocommerce-advanced-shipment-tracking" | $m_awk '{print $2}')
 	else
 		ast_ver=false
@@ -360,15 +361,28 @@ pre_check () {
 	# Bash Version
 	bash_ver="${BASH_VERSINFO:-0}"
 
+	# Wordpress Version
+	w_ver=$(grep -q "generator" < <($m_curl -s -X GET -H "Content-Type:text/xml;charset=UTF-8" "https://$api_endpoint/feed/") | $m_perl -pe '($_)=/([0-9]+([.][0-9]+)+)/')
+
 	echo -e "\n${green}*${reset} ${magenta}System Status:${reset}"
 	echo "${cyan}${m_tab}#####################################################${reset}"
 
 	{ # Start redirection to file
 
-	if [ "${woo_ver%%.*}" -ge 5 ]; then
-		echo "${green}WooCommerce_Version: $woo_ver ✓${reset}"
-	else
-		echo "${yellow}WooCommerce_Version: $woo_ver x${reset}"
+	if [[ -n $woo_ver ]]; then
+		if [ "${woo_ver%%.*}" -ge 5 ]; then
+			echo "${green}WooCommerce_Version: $woo_ver ✓${reset}"
+		else
+			echo "${yellow}WooCommerce_Version: $woo_ver x${reset}"
+		fi
+	fi
+
+	if [[ -n $w_ver ]]; then
+		if [ "${w_ver%%.*}" -ge 5 ]; then
+			echo "${green}Wordpress_Version: $w_ver ✓${reset}"
+		else
+			echo "${yellow}Wordpress_Version: $w_ver x${reset}"
+		fi
 	fi
 
 	if [ "$ast_ver" != "false" ]; then
