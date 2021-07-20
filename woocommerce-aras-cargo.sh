@@ -363,7 +363,7 @@ pre_check () {
 	bash_ver="${BASH_VERSINFO:-0}"
 
 	# Wordpress Version
-	w_ver=$(grep -q "generator" < <($m_curl -s -X GET -H "Content-Type:text/xml;charset=UTF-8" "https://$api_endpoint/feed/") | $m_perl -pe '($_)=/([0-9]+([.][0-9]+)+)/')
+	w_ver=$(grep "generator" < <($m_curl -s -X GET -H "Content-Type:text/xml;charset=UTF-8" "https://$api_endpoint/feed/") | $m_perl -pe '($_)=/([0-9]+([.][0-9]+)+)/')
 
 	echo -e "\n${green}*${reset} ${magenta}System Status:${reset}"
 	echo "${cyan}${m_tab}#####################################################${reset}"
