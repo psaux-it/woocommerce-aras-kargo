@@ -554,7 +554,7 @@ install_twoway () {
 		elif [ -w "$absolute_child_path/functions.php" ]; then
 			if [ -s "$absolute_child_path/functions.php" ]; then
 				# Take backup of user functions.php first
-				cp "$absolute_child_path/functions.php" "$absolute_child_path/functions.php.wo-aras.backup.$$" ||
+				cp "$absolute_child_path/functions.php" "$absolute_child_path/functions.php.wo-aras-backup-$(date +%d-%m-%Y)" ||
 				{
 				echo -e "\n${red}*${reset} ${red}Two way fulfillment workflow installation aborted: ${reset}";
 				echo "${cyan}${m_tab}#####################################################${reset}";
