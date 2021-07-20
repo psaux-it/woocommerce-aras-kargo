@@ -184,7 +184,6 @@ fi
 
 # Listen exit signals to destroy temporary files
 clean_up () {
-	# An extra check for securing rm command with ':?'
 	rm -rf ${my_tmp:?} "${this_script_path:?}"/*.en "${this_script_path:?}"/{*proc*,.*proc} "${this_script_path:?}"/{*json*,.*json} "${this_script_path:?}"/aras_request.php "${this_script_path:?}"/.lvn*
 }
 trap clean_up EXIT HUP INT QUIT TERM
@@ -343,6 +342,8 @@ pre_check () {
 	esac
 
 	# Check AST Plugin
+	# TODO: Quickly written.
+	# { Get AST plugin and version in one request, use variable instead of redirection to file & reduce file operations }
 	$m_curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/system_status" -u "$api_key":"$api_secret" -H "Content-Type: application/json" | $m_jq -r '[.active_plugins[].plugin]' | tr -d '[],"' | $m_awk -F/ '{print $2}' | $m_awk -F. '{print $1}' | $m_sed '/^[[:space:]]*$/d' > "${this_script_path}"/.plg.proc
 	$m_curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/system_status" -u "$api_key":"$api_secret" -H "Content-Type: application/json" | $m_jq -r '[.active_plugins[].version]' | tr -d '[],"' | $m_sed '/^[[:space:]]*$/d' | $m_awk '{$1=$1};1' > "${this_script_path}"/.plg.ver.proc
 
@@ -538,7 +539,7 @@ install_twoway () {
 				{
 				echo -e "\n${red}*${reset} ${red}Installation aborted, as file cannot modified: ${reset}";
 				echo "${cyan}${m_tab}#####################################################${reset}";
-				echo "${m_tab}${red}$absolute_child_path/functions.php${reset}";
+				echo -e "${m_tab}${red}$absolute_child_path/functions.php${reset}\n";
 				echo "$(timestamp): Installation aborted, as file cannot modified: $absolute_child_path/functions.php" >> "${error_log}";
 				exit 1;
 				}
@@ -557,26 +558,23 @@ install_twoway () {
 				{
 				echo -e "\n${red}*${reset} ${red}Two way fulfillment workflow installation aborted: ${reset}";
 				echo "${cyan}${m_tab}#####################################################${reset}";
-				echo "${m_tab}${red}Cannot take backup of $absolute_child_path/functions.php${reset}";
+				echo -e "${m_tab}${red}Cannot take backup of $absolute_child_path/functions.php${reset}\n";
 				echo "$(timestamp): Two way fulfillment workflow installation aborted: Cannot take backup of $absolute_child_path/functions.php" >> "${error_log}";
 				exit 1;
 				}
 
-				if grep -q "woocommerce-aras-cargo-integration" "$absolute_child_path/functions.php"; then
-					two_way_installed=1
-				elif [ $(< "$absolute_child_path/functions.php" $m_sed '1q') == "<?php" ]; then
-					< "$this_script_path/custom-order-status-package/functions.php" $m_sed "1 s/.*/ /" >> "$absolute_child_path/functions.php"
-				else
-					# We cannot go further where is the shebang?
-					# Remove backup first
-					rm -f "$absolute_child_path/functions.php.wo-aras.backup.$$" ||
-					{
-					echo "cannot take backup $absolute_child_path/functions.php";
-					echo "$(timestamp): cannot take backup $absolute_child_path/functions.php" >> "${error_log}";
-					}
+				if ! grep -q "woocommerce-aras-cargo-integration" "$absolute_child_path/functions.php"; then
+					if [ $(< "$absolute_child_path/functions.php" $m_sed '1q') == "<?php" ]; then
+						< "$this_script_path/custom-order-status-package/functions.php" $m_sed "1 s/.*/ /" >> "$absolute_child_path/functions.php"
+					else
+						echo -e "\n${red}*${reset} ${red}Two way fulfillment workflow installation aborted: ${reset}"
+						echo "${cyan}${m_tab}#####################################################${reset}"
+						echo "${m_tab}${red}Cannot recognise your child theme function.php, expected php shebang at line 1${reset}"
+						echo -e "${magenta}$absolute_child_path/functions.php${reset}\n"
+						echo "$(timestamp): Cannot recognise your child theme function.php, expected php shebang at line 1 $absolute_child_path/functions.php" >> "${error_log}"
+						exit 1
+					fi
 				fi
-			else
-				cat "$this_script_path/custom-order-status-package/functions.php" > "$absolute_child_path/functions.php"
 			fi
 		else
 			echo -e "\n${red}*${reset} ${red}Installation aborted, as file not writeable: ${reset}"
