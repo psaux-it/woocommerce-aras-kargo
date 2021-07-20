@@ -331,6 +331,7 @@ check_delivered () {
 
 pre_check () {
 	# Find distro
+	echo -e "\n${green}*${reset} ${green}Checking system requirements.${reset}"
 	running_os="$(grep '^ID=' /etc/os-release | cut -d'=' -f2 | $m_sed -e 's/"//g')"
 	case "${running_os}" in
 		"centos"|"fedora"|"CentOS") o_s=CentOS;;
@@ -340,6 +341,7 @@ pre_check () {
 		"alpine") o_s=Alpine;;
 		*) o_s="${running_os}";;
 	esac
+	echo -ne "${cyan}${m_tab}########                                             [20%]\r${reset}"
 
 	# Check AST Plugin
 	# TODO: Quickly written.
@@ -348,6 +350,7 @@ pre_check () {
 	$m_curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/system_status" -u "$api_key":"$api_secret" -H "Content-Type: application/json" | $m_jq -r '[.active_plugins[].version]' | tr -d '[],"' | $m_sed '/^[[:space:]]*$/d' | $m_awk '{$1=$1};1' > "${this_script_path}"/.plg.ver.proc
 
 	paste "${this_script_path}/.plg.proc" "${this_script_path}/.plg.ver.proc" > "${this_script_path}/.plg.act.proc"
+	echo -ne "${cyan}${m_tab}##################                                   [40%]\r${reset}"
 
 	if grep -q "woocommerce-advanced-shipment-tracking" "${this_script_path}/.plg.act.proc"; then
 		# AST Plugin version
@@ -358,12 +361,16 @@ pre_check () {
 
 	# WooCommerce version
 	woo_ver=$($m_curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/system_status" -u "$api_key":"$api_secret" -H "Content-Type: application/json" | $m_jq -r '[.environment.version]|join(" ")')
+	echo -ne "${cyan}${m_tab}##########################################           [85%]\r${reset}"
 
 	# Bash Version
 	bash_ver="${BASH_VERSINFO:-0}"
 
 	# Wordpress Version
 	w_ver=$(grep "generator" < <($m_curl -s -X GET -H "Content-Type:text/xml;charset=UTF-8" "https://$api_endpoint/feed/") | $m_perl -pe '($_)=/([0-9]+([.][0-9]+)+)/')
+	echo -ne "${cyan}${m_tab}#####################################################[100%]\r${reset}"
+	echo -ne '\n'
+	echo -e "${m_tab}${green}Done${reset}"
 
 	echo -e "\n${green}*${reset} ${magenta}System Status:${reset}"
 	echo "${cyan}${m_tab}#####################################################${reset}"
