@@ -246,7 +246,6 @@ if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 	m_tab_3=' '
 fi
 
-
 # Prevent errors cause by uncompleted downloads
 # Detect to make sure the entire script is avilable, fail if the script is missing contents
 if [ "$(tail -n 1 "${0}" | head -n 1 | cut -c 1-7)" != "exit \$?" ]; then
@@ -279,7 +278,6 @@ if [[ -n $w_in ]]; then
 	fi
 	exit 1
 fi
-
 
 twoway_pretty_error () {
 	echo -e "\n${red}*${reset} ${red}Two way fulfillment workflow installation aborted: ${reset}"
