@@ -290,7 +290,6 @@ twoway_pretty_error () {
 	exit 1
 }
 
-
 validate_twoway () {
 	# Collect missing files if exist
 	declare -a missing_files=()
@@ -393,7 +392,7 @@ pre_check () {
 
 	} > "${this_script_path}/.msg.proc" # End redirection to file
 
-	column -t -s ' ' <<< "$(< "${this_script_path}/.msg.proc" sed 's/^/ /')"
+	column -t -s ' ' <<< "$(< "${this_script_path}/.msg.proc" $m_sed 's/^/ /')"
 
 	if [ "$ast_ver" == "false" ]; then
 		exit 1
@@ -410,13 +409,13 @@ find_child_path () {
 		theme_name=$(curl -s -X GET -u "$api_key":"$api_secret" -H "Content-Type: application/json" "https://$api_endpoint/wp-json/wc/v3/system_status" | $m_jq -r '[.theme.name]|join(" ")')
 		theme_name="${theme_name//[^[:alnum:]]/}"
 		theme_name="${theme_name,,}"
-		for i in "$theme_path"/themes/*; do
+		for i in "${theme_path:?}"/themes/*; do
 			if [ -d "$i" ]; then
 				j="$i"
 				i="${i##*/}"
 				i="${i//[^[:alnum:]]/}"
 				i="${i,,}"
-				if grep -q "${theme_name}" <<< "${i}"; then
+				if grep -q "${theme_name:?}" <<< "${i}"; then
 					absolute_child_path="${j}"
 					break
 				fi
@@ -424,15 +423,16 @@ find_child_path () {
 		done
 
 		# Check child theme path found or not
-		if [[ ! -n $absolute_child_path ]]; then
+		if [[ -z $absolute_child_path ]]; then
 			echo -e "\n${red}*${reset} ${red}Could not get child theme path${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			echo "${m_tab}${red}Expected in $theme_path/themes/${reset}"
 			echo "$(timestamp): Could not found child theme path: Expected in $theme_path/themes/" >> "${error_log}"
 			exit 1
 		else
-			echo -e "\n${green}*${reset} ${green}Please validate child theme path.${reset}"
+			echo -e "\n${green}*${reset} ${green}ATTENTION: Please validate child theme path.${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
+			echo "${m_tab}${yellow}If you are unsure, without checking  ${red}!!!DON'T CONTINUE!!!${reset}"
 			echo "${m_tab}${magenta}$absolute_child_path${reset}"
 			while true; do
 				echo -e "\n${cyan}${m_tab}#####################################################${reset}"
@@ -446,13 +446,13 @@ find_child_path () {
 			done
 
 			declare -a my_paths=("$absolute_child_path/woocommerce"
-								 "$absolute_child_path/woocommerce/emails"
-								 "$absolute_child_path/woocommerce/templates"
-								 "$absolute_child_path/woocommerce/templates/emails"
-								 "$absolute_child_path/woocommerce/templates/emails/plain")
+					     "$absolute_child_path/woocommerce/emails"
+					     "$absolute_child_path/woocommerce/templates"
+					     "$absolute_child_path/woocommerce/templates/emails"
+					     "$absolute_child_path/woocommerce/templates/emails/plain")
 			declare -a my_files=("$absolute_child_path/woocommerce/emails/class-wc-delivered-status-order.php"
-								 "$absolute_child_path/woocommerce/templates/emails/wc-customer-delivered-status-order.php"
-								 "$absolute_child_path/woocommerce/templates/emails/plain/wc-customer-delivered-status-order.php")
+					     "$absolute_child_path/woocommerce/templates/emails/wc-customer-delivered-status-order.php"
+					     "$absolute_child_path/woocommerce/templates/emails/plain/wc-customer-delivered-status-order.php")
 		fi
 	else
 		echo -e "\n${red}*${reset} ${red}You have no activated child theme${reset}"
