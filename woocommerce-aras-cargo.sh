@@ -505,7 +505,8 @@ find_child_path () {
 					     "$absolute_child_path/woocommerce/templates/emails/plain")
 			declare -a my_files=("$absolute_child_path/woocommerce/emails/class-wc-delivered-status-order.php"
 					     "$absolute_child_path/woocommerce/templates/emails/wc-customer-delivered-status-order.php"
-					     "$absolute_child_path/woocommerce/templates/emails/plain/wc-customer-delivered-status-order.php")
+					     "$absolute_child_path/woocommerce/templates/emails/plain/wc-customer-delivered-status-order.php"
+					     "$absolute_child_path/woocommerce/aras-woo-delivered.php")
 		fi
 	else
 		echo -e "\n${red}*${reset} ${red}You have no activated child theme${reset}"
@@ -524,8 +525,8 @@ uninstall_twoway () {
 		if [[ -n "$get_delivered" ]]; then # Do we have delivered orders?
 			if [ "${get_delivered}" != "[]" ]; then # Check for null
 				if grep -q "${my_string}" "$absolute_child_path/functions.php"; then
-					# Unhook woocommerce order status completed_notification temporarly
-					sed -i -e '/\'"$my_string"'/{ r '"$this_script_path/custom-order-status-package/action-unhook-email.php"'' -e 'b R' -e '}' -e 'b' -e ':R {n ; b R' -e '}' "$absolute_child_path/functions.php" >/dev/null 2>&1 ||
+					# Unhook woocommerce order status completed notification temporarly
+					sed -i -e '/\'"$my_string"'/{ r '"$this_script_path/custom-order-status-package/action-unhook-email.php"'' -e 'b R' -e '}' -e 'b' -e ':R {n ; b R' -e '}' "$absolute_child_path/woocommerce/aras-woo-delivered.php" >/dev/null 2>&1 ||
 					{
 					echo -e "\n${red}*${reset} ${red}Two way fulfillment unistallation aborted: ${reset}";
 					echo "${cyan}${m_tab}#####################################################${reset}";
@@ -582,6 +583,11 @@ uninstall_twoway () {
 
 
 simple_uninstall_twoway () {
+	# Take back modifications from functions.php
+	if grep -qw "${my_string}" "$absolute_child_path/functions.php"; then
+		sed -i "/${my_string}/,/${my_string}/d" "$absolute_child_path/functions.php"
+	fi
+
 	# Remove installed files from child theme
 	declare -a installed_files=()
 	for i in "${my_files[@]}"
@@ -595,11 +601,6 @@ simple_uninstall_twoway () {
 	do
 		rm -f "$i"
 	done
-
-	# Take back modifications from functions.php
-	if grep -qw "${my_string}" "$absolute_child_path/functions.php"; then
-		sed -i "/${my_string}/,/${my_string}/d" "$absolute_child_path/functions.php"
-	fi
 }
 
 # (processing --> shipped --> delivered) twoway fulfillment workflow setup
@@ -656,7 +657,7 @@ install_twoway () {
 		elif [ -w "$absolute_child_path/functions.php" ]; then
 			if [ -s "$absolute_child_path/functions.php" ]; then
 				# Take backup of user functions.php first
-				cp "$absolute_child_path/functions.php" "$absolute_child_path/functions.php.wo-aras-backup-$(date +%d-%m-%Y)" ||
+				cp "$absolute_child_path/functions.php" "$absolute_child_path/functions.php.wo-aras-backup-$$-$(date +%d-%m-%Y)" ||
 				{
 				echo -e "\n${red}*${reset} ${red}Two way fulfillment workflow installation aborted: ${reset}";
 				echo "${cyan}${m_tab}#####################################################${reset}";
@@ -665,7 +666,7 @@ install_twoway () {
 				exit 1;
 				}
 
-				if ! grep -q "woocommerce-aras-cargo-integration" "$absolute_child_path/functions.php"; then
+				if ! grep -q "${my_string}" "$absolute_child_path/functions.php"; then
 					if [ $(< "$absolute_child_path/functions.php" $m_sed '1q') == "<?php" ]; then
 						< "$this_script_path/custom-order-status-package/functions.php" $m_sed "1 s/.*/ /" >> "$absolute_child_path/functions.php"
 					else
@@ -713,6 +714,9 @@ install_twoway () {
 					elif grep -qw "emails/plain" <<< "${i}"; then
 						cp "$this_script_path/custom-order-status-package/wc-customer-delivered-status-order.php" "${i%/*}/" &&
 						chown -R "$USER_OWNER":"$GROUP_OWNER" "${i%/*}/" || twoway_pretty_error
+					elif grep -qw "aras-woo-delivered.php" <<< "${i}"; then
+						cp "$this_script_path/custom-order-status-package/aras-woo-delivered.php" "${i%/*}/" &&
+						chown -R "$USER_OWNER":"$GROUP_OWNER" "${i%/*}/" || twoway_pretty_error
 					else
 						cp "$this_script_path/custom-order-status-package/wc-customer-delivered-status-order.php" "${i%/*}/" &&
 						chown -R "$USER_OWNER":"$GROUP_OWNER" "${i%/*}/" || twoway_pretty_error
@@ -743,10 +747,37 @@ install_twoway () {
 		echo "$(timestamp): Missing file(s) $(validate_twoway)" >> "${error_log}"
 		exit 1;
 	else
+		# Time to enable functions.php modifications
+		$m_sed -i '/aras_woo_include_once/c include_once( get_stylesheet_directory() .'"'/woocommerce/aras-woo-delivered.php'"'); //aras_woo_enabled' "${absolute_child_path}/functions.php"
+
+		echo -e "\n${green}*${reset} ${green}Two way fulfillment workflow is now enabled.${reset}"
+		echo "${cyan}${m_tab}#####################################################${reset}"
+		echo "${m_tab}${yellow}Please check your website working correctly and able to login admin panel.${reset}"
+		echo "${m_tab}${yellow}Check 'delivered' order status registered and 'delivered' email template exist under woo commerce emails tab${reset}"
+		echo "${m_tab}${yellow}If your website or admin panel is broken don't panic.${reset}"
+		echo "${m_tab}${yellow}First try to restart your web server apache,nginx or php-fpm${reset}"
+		echo "${m_tab}${yellow}If still not working please select r for starting recovery process${reset}"
+		echo "${m_tab}${green}If everything on the way CONGRATS select c for continue the setup${reset}"
+
+		# Anything broken? Let check website healt and if encountered any errors revert modifications
+		while true
+		do
+			echo "${m_tab}${cyan}#####################################################${reset}"
+			read -r -n 1 -p "${m_tab}${BC}r for recovery and quit setup, c for continue${EC} " cs < /dev/tty
+			echo ""
+			case "${cs}" in
+				[Rr]* ) sed '/aras_woo_enabled/c \/\/aras_woo_include_once( get_stylesheet_directory() .'"'/woocommerce/aras-woo-delivered.php'"');' "${absolute_child_path}/functions.php";
+					echo -e "\n${yellow}Two way fulfillment workflow installation aborted, recovery process completed.${reset}";
+					echo "$(timestamp): Two way fulfillment workflow installation aborted, recovery process completed." >> "${error_log}";
+					exit 1;;
+				[Cc]* ) touch "${this_script_path}/.two.way.enb"; break;;
+			* ) echo -e "\n${m_tab}${magenta}Please answer r or c${reset}"; echo "${cyan}${m_tab}#####################################################${reset}";;
+			esac
+		done
+
 		echo -e "\n${green}*${reset} ${green}Two way fulfillment workflow installation: ${reset}"
 		echo "${cyan}${m_tab}#####################################################${reset}"
 		echo "${m_tab}${green}Installation completed${reset}"
-		echo "${m_tab}${green}Please check your website working correctly.${reset}"
 		echo "$(timestamp): Two way fulfillment workflow installation completed" >> "${error_log}"
 	fi
 }
