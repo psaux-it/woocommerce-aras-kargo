@@ -771,7 +771,7 @@ install_twoway () {
 			read -r -n 1 -p "${m_tab}${BC}r for recovery and quit setup, c for continue${EC} " cs < /dev/tty
 			echo ""
 			case "${cs}" in
-				[Rr]* ) sed '/aras_woo_enabled/c \/\/aras_woo_include_once( get_stylesheet_directory() .'"'/woocommerce/aras-woo-delivered.php'"');' "${absolute_child_path}/functions.php";
+				[Rr]* ) $m_sed -i '/aras_woo_enabled/c \/\/aras_woo_include_once( get_stylesheet_directory() .'"'/woocommerce/aras-woo-delivered.php'"');' "${absolute_child_path}/functions.php";
 					echo -e "\n${yellow}Two way fulfillment workflow installation aborted, recovery process completed.${reset}";
 					echo "$(timestamp): Two way fulfillment workflow installation aborted, recovery process completed." >> "${error_log}";
 					exit 1;;
