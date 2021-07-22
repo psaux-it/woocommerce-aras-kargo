@@ -522,7 +522,7 @@ uninstall_twoway () {
 	if [ -e "${this_script_path}/.two.way.enb" ]; then # Check twoway installation completed
 		get_delivered=$($m_curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/orders?status=delivered" -u "$api_key":"$api_secret" -H "Content-Type: application/json") # Get data
 		if [[ -n "$get_delivered" ]]; then # Do we have delivered orders?
-			if [ "${get_delivered}" != "[]" ]; then # Check null data
+			if [ "${get_delivered}" != "[]" ]; then # Check for null
 				if grep -q "${my_string}" "$absolute_child_path/functions.php"; then
 					# Unhook woocommerce order status completed_notification temporarly
 					sed -i -e '/\'"$my_string"'/{ r '"$this_script_path/custom-order-status-package/action-unhook-email.php"'' -e 'b R' -e '}' -e 'b' -e ':R {n ; b R' -e '}' "$absolute_child_path/functions.php" >/dev/null 2>&1 ||
@@ -533,6 +533,32 @@ uninstall_twoway () {
 					echo "$(timestamp): Could not unhook woocommerce order status completed notification" >> "${error_log}";
 					exit 1;
 					}
+
+					# Get ids to array
+					readarray -t delivered_ids < <($m_curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/orders?status=delivered" -u "$api_key":"$api_secret" -H "Content-Type: application/json" | $m_jq -r '.[]|[.id]|join(" ")')
+
+					# Update orders status to completed
+					for id in "${delivered_ids[@]}"
+					do
+						if curl -s -X PUT "https://$api_endpoint/wp-json/wc/v3/orders/$id" --fail \
+							-u "$api_key":"$api_secret" \
+							-H "Content-Type: application/json" \
+							-d '{
+							"status": "completed"
+							}'
+						else
+
+							echo -e "\n${red}*${reset} ${red}Two way fulfillment unistallation aborted: ${reset}"
+							echo "${m_tab}${cyan}#####################################################${reset}"
+							echo "${red}*${reset} ${red}Cannot update order:$id status 'delivered --> completed'${reset}"
+							echo -e "${red}*${reset} ${red}Wrong Order ID caused by corrupt data or wocommerce endpoint error${reset}\n"
+							echo "$(timestamp): Cannot update order:$id status 'delivered --> completed'. Wrong Order ID caused by corrupt data or WooCommerce endpoint error" >> "${error_log}"
+							exit 1
+						fi
+					done
+
+					# Lastly remove files and function.php modifications
+					simple_uninstall_twoway
 				else
 					echo -e "\n${red}*${reset} ${red}Two way fulfillment unistallation aborted: ${reset}"
 					echo "${cyan}${m_tab}#####################################################${reset}"
@@ -541,30 +567,6 @@ uninstall_twoway () {
 					exit 1
 				fi
 
-				# Get ids to array
-				readarray -t delivered_ids < <($m_curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/orders?status=delivered" -u "$api_key":"$api_secret" -H "Content-Type: application/json" | $m_jq -r '.[]|[.id]|join(" ")')
-
-				# Update orders status to completed
-				for id in "${delivered_ids[@]}"
-				do
-					if curl -s -X PUT "https://$api_endpoint/wp-json/wc/v3/orders/$id" --fail \
-						-u "$api_key":"$api_secret" \
-						-H "Content-Type: application/json" \
-						-d '{
-						"status": "completed"
-						}'
-					else
-						echo -e "\n${red}*${reset} ${red}Two way fulfillment unistallation aborted: ${reset}"
-						echo "${m_tab}${cyan}#####################################################${reset}"
-						echo "${red}*${reset} ${red}Cannot update orders status 'delivered --> completed'${reset}"
-						echo -e "${red}*${reset} ${red}Wrong Order ID caused by corrupt data or wocommerce endpoint error${reset}\n"
-						echo "$(timestamp): Cannot update orders status 'delivered --> completed'. Wrong Order ID caused by corrupt data or WooCommerce endpoint error" >> "${error_log}"
-						exit 1
-					fi
-				done
-
-				# Lastly remove files and mods
-				simple_uninstall_twoway
 			else
                                 # There is no any order which flagged as delivered so remove files and mods directly
                                 simple_uninstall_twoway
