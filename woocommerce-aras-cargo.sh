@@ -315,18 +315,18 @@ check_delivered () {
 		echo "${m_tab}${yellow}You already have 'delivered' custom order status${reset}"
 		echo "${m_tab}${yellow}If you are doing the initial setup for the first time, ${red}!!!DON'T CONTINUE!!!${reset}"
 		echo -e "${m_tab}${yellow}If you have integrated 'delivered' custom order status via this script before, ${green}IT'S OK TO CONTINUE${reset}\n"
-	fi
 
-	while true; do
-		echo "${cyan}${m_tab}#####################################################${reset}"
-		read -r -n 1 -p "${m_tab}${BC}Do you want to continue setup? --> (Y)es | (N)o${EC} " yn < /dev/tty
-		echo ""
-			case "${yn}" in
-				[Yy]* ) break;;
-				[Nn]* ) exit 1;;
-				* ) echo -e "\n${m_tab}${magenta}Please answer yes or no.${reset}";;
-			esac
-	done
+		while true; do
+			echo "${cyan}${m_tab}#####################################################${reset}"
+			read -r -n 1 -p "${m_tab}${BC}Do you want to continue setup? --> (Y)es | (N)o${EC} " yn < /dev/tty
+			echo ""
+				case "${yn}" in
+					[Yy]* ) break;;
+					[Nn]* ) exit 1;;
+					* ) echo -e "\n${m_tab}${magenta}Please answer yes or no.${reset}";;
+				esac
+		done
+	fi
 }
 
 pre_check () {
@@ -497,16 +497,6 @@ find_child_path () {
 					* ) echo -e "\n${m_tab}${magenta}Please answer yes or no.${reset}";;
 				esac
 			done
-
-			declare -a my_paths=("$absolute_child_path/woocommerce"
-					     "$absolute_child_path/woocommerce/emails"
-					     "$absolute_child_path/woocommerce/templates"
-					     "$absolute_child_path/woocommerce/templates/emails"
-					     "$absolute_child_path/woocommerce/templates/emails/plain")
-			declare -a my_files=("$absolute_child_path/woocommerce/emails/class-wc-delivered-status-order.php"
-					     "$absolute_child_path/woocommerce/templates/emails/wc-customer-delivered-status-order.php"
-					     "$absolute_child_path/woocommerce/templates/emails/plain/wc-customer-delivered-status-order.php"
-					     "$absolute_child_path/woocommerce/aras-woo-delivered.php")
 		fi
 	else
 		echo -e "\n${red}*${reset} ${red}You have no activated child theme${reset}"
@@ -518,8 +508,44 @@ find_child_path () {
 	fi
 }
 
+array_vars () {
+	declare -a my_paths
+	declare -a my_files
+	my_paths=("$absolute_child_path/woocommerce"
+		  "$absolute_child_path/woocommerce/emails"
+		  "$absolute_child_path/woocommerce/templates"
+		  "$absolute_child_path/woocommerce/templates/emails"
+		  "$absolute_child_path/woocommerce/templates/emails/plain")
+	my_files=("$absolute_child_path/woocommerce/emails/class-wc-delivered-status-order.php"
+		  "$absolute_child_path/woocommerce/templates/emails/wc-customer-delivered-status-order.php"
+		  "$absolute_child_path/woocommerce/templates/emails/plain/wc-customer-delivered-status-order.php"
+		  "$absolute_child_path/woocommerce/aras-woo-delivered.php")
+}
+
+simple_uninstall_twoway () {
+	# Take back modifications from functions.php
+	if grep -qw "${my_string}" "$absolute_child_path/functions.php"; then
+		sed -i "/${my_string}/,/${my_string}/d" "$absolute_child_path/functions.php"
+	fi
+
+	# Remove installed files from child theme
+	declare -a installed_files=()
+	for i in "${my_files[@]}"
+	do
+		if grep -qw "${my_string}" "$i"; then
+			installed_files+=("$i")
+		fi
+	done
+
+	for i in "${installed_files[@]}"
+	do
+		rm -f "$i"
+	done
+}
+
 uninstall_twoway () {
 	find_child_path
+	array_vars
 	if [ -e "${this_script_path}/.two.way.enb" ]; then # Check twoway installation completed
 		get_delivered=$($m_curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/orders?status=delivered" -u "$api_key":"$api_secret" -H "Content-Type: application/json") # Get data
 		if [[ -n "$get_delivered" ]]; then # Do we have delivered orders?
@@ -580,32 +606,11 @@ uninstall_twoway () {
 	fi
 }
 
-
-simple_uninstall_twoway () {
-	# Take back modifications from functions.php
-	if grep -qw "${my_string}" "$absolute_child_path/functions.php"; then
-		sed -i "/${my_string}/,/${my_string}/d" "$absolute_child_path/functions.php"
-	fi
-
-	# Remove installed files from child theme
-	declare -a installed_files=()
-	for i in "${my_files[@]}"
-	do
-		if grep -qw "${my_string}" "$i"; then
-			installed_files+=("$i")
-		fi
-	done
-
-	for i in "${installed_files[@]}"
-	do
-		rm -f "$i"
-	done
-}
-
 # (processing --> shipped --> delivered) twoway fulfillment workflow setup
 install_twoway () {
 	check_delivered
 	find_child_path
+	array_vars
 	# Get ownership operations
 	if [ -f "$absolute_child_path/functions.php" ]; then
 		if [ -r "$absolute_child_path/functions.php" ]; then
@@ -656,7 +661,8 @@ install_twoway () {
 		elif [ -w "$absolute_child_path/functions.php" ]; then
 			if [ -s "$absolute_child_path/functions.php" ]; then
 				# Take backup of user functions.php first
-				cp "$absolute_child_path/functions.php" "$absolute_child_path/functions.php.wo-aras-backup-$$-$(date +%d-%m-%Y)" ||
+				cp "$absolute_child_path/functions.php" "$absolute_child_path/functions.php.wo-aras-backup-$$-$(date +%d-%m-%Y)" &&
+				chown "$USER_OWNER":"$GROUP_OWNER" "$absolute_child_path/functions.php.wo-aras-backup-$$-$(date +%d-%m-%Y)" ||
 				{
 				echo -e "\n${red}*${reset} ${red}Two way fulfillment workflow installation aborted: ${reset}";
 				echo "${cyan}${m_tab}#####################################################${reset}";
