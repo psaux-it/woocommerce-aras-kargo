@@ -343,9 +343,7 @@ pre_check () {
 	esac
 	echo -ne "${cyan}${m_tab}########                                             [20%]\r${reset}"
 
-	# Check AST Plugin
-	# TODO: Quickly written.
-	# { Get AST plugin and version in one request, use variable instead of redirection to file & reduce file operations }
+	# AST Plugin version
 	$m_curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/system_status" -u "$api_key":"$api_secret" -H "Content-Type: application/json" | $m_jq -r '[.active_plugins[].plugin]' | tr -d '[],"' | $m_awk -F/ '{print $2}' | $m_awk -F. '{print $1}' | $m_sed '/^[[:space:]]*$/d' > "${this_script_path}"/.plg.proc
 	$m_curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/system_status" -u "$api_key":"$api_secret" -H "Content-Type: application/json" | $m_jq -r '[.active_plugins[].version]' | tr -d '[],"' | $m_sed '/^[[:space:]]*$/d' | $m_awk '{$1=$1};1' > "${this_script_path}"/.plg.ver.proc
 
@@ -368,6 +366,15 @@ pre_check () {
 
 	# Wordpress Version
 	w_ver=$(grep "generator" < <($m_curl -s -X GET -H "Content-Type:text/xml;charset=UTF-8" "https://$api_endpoint/feed/") | $m_perl -pe '($_)=/([0-9]+([.][0-9]+)+)/')
+
+	# awk Version
+	gnu_awk=$(awk -Wv | grep -w "GNU Awk")
+	gnu_awk_v=$(echo "${gnu_awk}" | awk '{print $3}' | tr -d ,)
+
+	# sed Version
+	gnu_sed=$(sed --version | grep -w "(GNU sed)")
+	gnu_sed_v=$(echo "${gnu_sed}" | awk '{print $4}')
+
 	echo -ne "${cyan}${m_tab}#####################################################[100%]\r${reset}"
 	echo -ne '\n'
 	echo -e "${m_tab}${green}Done${reset}"
@@ -380,8 +387,11 @@ pre_check () {
 	if [[ -n $woo_ver ]]; then
 		if [ "${woo_ver%%.*}" -ge 5 ]; then
 			echo "${green}WooCommerce_Version: $woo_ver ✓${reset}"
-		else
+		elif [ "${woo_ver%%.*}" -ge 4 ]; then
 			echo "${yellow}WooCommerce_Version: $woo_ver x${reset}"
+		else
+			echo "${red}WooCommerce_Version: $woo_ver x${reset}"
+			woo_old=1
 		fi
 	fi
 
@@ -407,6 +417,28 @@ pre_check () {
 		echo "${yellow}Bash_Version: $bash_ver x${reset}"
 	fi
 
+	if [[ -n $gnu_awk ]]; then
+		if [ "${gnu_awk_v%%.*}" -ge 5 ]; then
+			echo "${green}GNU_Awk_Version: $gnu_awk_v ✓${reset}"
+		else
+			echo "${yellow}GNU_Awk_Version: $gnu_awk_v x${reset}"
+		fi
+	else
+		echo "${red}GNU_Awk: NOT GNU x${reset}"
+		awk_not_gnu=1
+	fi
+
+	if [[ -n $gnu_sed ]]; then
+		if [ "${gnu_sed_v%%.*}" -ge 4 ]; then
+			echo "${green}GNU_Sed_Version: $gnu_sed_v ✓${reset}"
+		else
+			echo "${yellow}GNU_Sed_Version: $gnu_sed_v x${reset}"
+		fi
+	else
+		echo "${red}GNU_Sed: NOT GNU x${reset}"
+		sed_not_gnu=1
+	fi
+
 	echo "${green}Operating_System: $o_s ✓${reset}"
 	echo "${green}Dependencies: Ok ✓${reset}"
 
@@ -414,7 +446,8 @@ pre_check () {
 
 	column -t -s ' ' <<< "$(< "${this_script_path}/.msg.proc" $m_sed 's/^/ /')"
 
-	if [ "$ast_ver" == "false" ]; then
+	# Quit
+	if [[ -n $awk_not_gnu || -n $sed_not_gnu || -n $woo_old || "$ast_ver" == "false" ]]; then
 		exit 1
 	fi
 }
@@ -485,9 +518,69 @@ find_child_path () {
 }
 
 uninstall_twoway () {
-#	find_child_path
+	find_child_path
+	if [ -e "${this_script_path}/.two.way.enb" ]; then # Check twoway installation completed
+		get_delivered=$($m_curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/orders?status=delivered" -u "$api_key":"$api_secret" -H "Content-Type: application/json") # Get data
+		if [[ -n "$get_delivered" ]]; then # Do we have delivered orders?
+			if [ "${get_delivered}" != "[]" ]; then # Check null data
+				if grep -q "${my_string}" "$absolute_child_path/functions.php"; then
+					# Unhook woocommerce order status completed_notification temporarly
+					sed -i -e '/\'"$my_string"'/{ r '"$this_script_path/custom-order-status-package/action-unhook-email.php"'' -e 'b R' -e '}' -e 'b' -e ':R {n ; b R' -e '}' "$absolute_child_path/functions.php" >/dev/null 2>&1 ||
+					{
+					echo -e "\n${red}*${reset} ${red}Two way fulfillment unistallation aborted: ${reset}";
+					echo "${cyan}${m_tab}#####################################################${reset}";
+					echo -e "${m_tab}${red}Could not unhook woocommerce order status completed notification${reset}\n";
+					echo "$(timestamp): Could not unhook woocommerce order status completed notification" >> "${error_log}";
+					exit 1;
+					}
+				else
+					echo -e "\n${red}*${reset} ${red}Two way fulfillment unistallation aborted: ${reset}"
+					echo "${cyan}${m_tab}#####################################################${reset}"
+					echo -e "${m_tab}${red}Expected string not found in function.php. Did you manually modified file after installation?${reset}\n"
+					echo "$(timestamp): Expected string not found in function.php. Did you manually modified functions.php after installation? $absolute_child_path/functions.php" >> "${error_log}"
+					exit 1
+				fi
+
+				# Get ids to array
+				readarray -t delivered_ids < <($m_curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/orders?status=delivered" -u "$api_key":"$api_secret" -H "Content-Type: application/json" | $m_jq -r '.[]|[.id]|join(" ")')
+
+				# Update orders status to completed
+				for id in "${delivered_ids[@]}"
+				do
+					if curl -s -X PUT "https://$api_endpoint/wp-json/wc/v3/orders/$id" --fail \
+						-u "$api_key":"$api_secret" \
+						-H "Content-Type: application/json" \
+						-d '{
+						"status": "completed"
+						}'
+					else
+						echo -e "\n${red}*${reset} ${red}Two way fulfillment unistallation aborted: ${reset}"
+						echo "${m_tab}${cyan}#####################################################${reset}"
+						echo "${red}*${reset} ${red}Cannot update orders status 'delivered --> completed'${reset}"
+						echo -e "${red}*${reset} ${red}Wrong Order ID caused by corrupt data or wocommerce endpoint error${reset}\n"
+						echo "$(timestamp): Cannot update orders status 'delivered --> completed'. Wrong Order ID caused by corrupt data or WooCommerce endpoint error" >> "${error_log}"
+						exit 1
+					fi
+				done
+
+				# Lastly remove files and mods
+				simple_uninstall_twoway
+			else
+                                # There is no any order which flagged as delivered so remove files and mods directly
+                                simple_uninstall_twoway
+			fi
+		fi
+	else
+		echo -e "\n${red}*${reset} ${red}Two way fulfillment unistallation aborted: ${reset}"
+		echo "${cyan}${m_tab}#####################################################${reset}"
+		echo -e "${m_tab}${red}Couldn't find twoway fulfillment installation${reset}\n"
+		echo "$(timestamp): Couldn't find twoway fulfillment installation" >> "${error_log}"
+	fi
+}
+
+
+simple_uninstall_twoway () {
 	# Remove installed files from child theme
-	# We don't remove any folder we created before!
 	declare -a installed_files=()
 	for i in "${my_files[@]}"
 	do
