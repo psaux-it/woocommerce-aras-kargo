@@ -541,13 +541,12 @@ uninstall_twoway () {
 					# Update orders status to completed
 					for id in "${delivered_ids[@]}"
 					do
-						if curl -s -X PUT "https://$api_endpoint/wp-json/wc/v3/orders/$id" --fail \
+						if ! $m_curl -s -X PUT "https://$api_endpoint/wp-json/wc/v3/orders/$id" --fail \
 							-u "$api_key":"$api_secret" \
 							-H "Content-Type: application/json" \
 							-d '{
 							"status": "completed"
-							}'
-						else
+							}'; then
 
 							echo -e "\n${red}*${reset} ${red}Two way fulfillment unistallation aborted: ${reset}"
 							echo "${m_tab}${cyan}#####################################################${reset}"
