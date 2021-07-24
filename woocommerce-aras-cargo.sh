@@ -497,6 +497,17 @@ find_child_path () {
 					* ) echo -e "\n${m_tab}${magenta}Please answer yes or no.${reset}";;
 				esac
 			done
+
+			# After user approval assign files and paths to array
+			my_paths=("$absolute_child_path/woocommerce"
+				  "$absolute_child_path/woocommerce/emails"
+				  "$absolute_child_path/woocommerce/templates"
+				  "$absolute_child_path/woocommerce/templates/emails"
+				  "$absolute_child_path/woocommerce/templates/emails/plain")
+			my_files=("$absolute_child_path/woocommerce/emails/class-wc-delivered-status-order.php"
+				  "$absolute_child_path/woocommerce/templates/emails/wc-customer-delivered-status-order.php"
+				  "$absolute_child_path/woocommerce/templates/emails/plain/wc-customer-delivered-status-order.php"
+				  "$absolute_child_path/woocommerce/aras-woo-delivered.php")
 		fi
 	else
 		echo -e "\n${red}*${reset} ${red}You have no activated child theme${reset}"
@@ -506,20 +517,6 @@ find_child_path () {
 		echo "$(timestamp): You have no activated child theme. Without child theme we cannot implement two way fulfillment workflow" >> "${error_log}"
 		exit 1
 	fi
-}
-
-array_vars () {
-	declare -a my_paths
-	declare -a my_files
-	my_paths=("$absolute_child_path/woocommerce"
-		  "$absolute_child_path/woocommerce/emails"
-		  "$absolute_child_path/woocommerce/templates"
-		  "$absolute_child_path/woocommerce/templates/emails"
-		  "$absolute_child_path/woocommerce/templates/emails/plain")
-	my_files=("$absolute_child_path/woocommerce/emails/class-wc-delivered-status-order.php"
-		  "$absolute_child_path/woocommerce/templates/emails/wc-customer-delivered-status-order.php"
-		  "$absolute_child_path/woocommerce/templates/emails/plain/wc-customer-delivered-status-order.php"
-		  "$absolute_child_path/woocommerce/aras-woo-delivered.php")
 }
 
 simple_uninstall_twoway () {
@@ -545,7 +542,6 @@ simple_uninstall_twoway () {
 
 uninstall_twoway () {
 	find_child_path
-	array_vars
 	if [ -e "${this_script_path}/.two.way.enb" ]; then # Check twoway installation completed
 		get_delivered=$($m_curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/orders?status=delivered" -u "$api_key":"$api_secret" -H "Content-Type: application/json") # Get data
 		if [[ -n "$get_delivered" ]]; then # Do we have delivered orders?
@@ -610,7 +606,6 @@ uninstall_twoway () {
 install_twoway () {
 	check_delivered
 	find_child_path
-	array_vars
 	# Get ownership operations
 	if [ -f "$absolute_child_path/functions.php" ]; then
 		if [ -r "$absolute_child_path/functions.php" ]; then
