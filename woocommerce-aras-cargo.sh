@@ -68,7 +68,7 @@ mail_subject_err="ERROR: WooCommerce - ARAS Cargo Integration Error"
 # =====================================================================
 
 # Set PATHS to prevent cron errors.
-# We will also add explicit paths for specific binaries.
+# We will also add explicit paths for specific binaries later.
 export PATH="${PATH}:/sbin:/usr/sbin:/usr/local/bin:/usr/local/sbin"
 uniquepath () {
 	local path=""
