@@ -579,64 +579,72 @@ simple_uninstall_twoway () {
 }
 
 uninstall_twoway () {
-	find_child_path
-	if [ -e "${this_script_path}/.two.way.enb" ]; then # Check twoway installation
-		get_delivered=$($m_curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/orders?status=delivered" -u "$api_key":"$api_secret" -H "Content-Type: application/json") # Get data
-		if [[ -n "$get_delivered" ]]; then # Any data
-			if [ "${get_delivered}" != "[]" ]; then # Check for null data
-				if grep -q "${my_string}" "$absolute_child_path/functions.php"; then # Lastly, check the file is not modified 
-					# Unhook woocommerce order status completed notification temporarly
-					sed -i -e '/\'"$my_string"'/{ r '"$this_script_path/custom-order-status-package/action-unhook-email.php"'' -e 'b R' -e '}' -e 'b' -e ':R {n ; b R' -e '}' "$absolute_child_path/woocommerce/aras-woo-delivered.php" >/dev/null 2>&1 ||
-					{
-					echo -e "\n${red}*${reset} ${red}Two way fulfillment unistallation aborted: ${reset}";
-					echo "${cyan}${m_tab}#####################################################${reset}";
-					echo -e "${m_tab}${red}Could not unhook woocommerce order status completed notification${reset}\n";
-					echo "$(timestamp): Could not unhook woocommerce order status completed notification" >> "${error_log}";
-					exit 1;
-					}
+	if [[ -e "${this_script_path}/.woo.aras.enb" && -e "${this_script_path}/.woo.aras.set" ]]; then # Check default installation is completed
+		find_child_path
+		if [ -e "${this_script_path}/.two.way.enb" ]; then # Check twoway installation
+			get_delivered=$($m_curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/orders?status=delivered" -u "$api_key":"$api_secret" -H "Content-Type: application/json") # Get data
+			if [[ -n "$get_delivered" ]]; then # Any data
+				if [ "${get_delivered}" != "[]" ]; then # Check for null data
+					if grep -q "${my_string}" "$absolute_child_path/functions.php"; then # Lastly, check the file is not modified 
+						# Unhook woocommerce order status completed notification temporarly
+						sed -i -e '/\'"$my_string"'/{ r '"$this_script_path/custom-order-status-package/action-unhook-email.php"'' -e 'b R' -e '}' -e 'b' -e ':R {n ; b R' -e '}' "$absolute_child_path/woocommerce/aras-woo-delivered.php" >/dev/null 2>&1 ||
+						{
+						echo -e "\n${red}*${reset} ${red}Two way fulfillment unistallation aborted: ${reset}";
+						echo "${cyan}${m_tab}#####################################################${reset}";
+						echo -e "${m_tab}${red}Could not unhook woocommerce order status completed notification${reset}\n";
+						echo "$(timestamp): Could not unhook woocommerce order status completed notification" >> "${error_log}";
+						exit 1;
+						}
 
-					# Get ids to array --> need bash_ver => 4
-					readarray -t delivered_ids < <($m_curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/orders?status=delivered" -u "$api_key":"$api_secret" -H "Content-Type: application/json" | $m_jq -r '.[]|[.id]|join(" ")')
+						# Get ids to array --> need bash_ver => 4
+						readarray -t delivered_ids < <($m_curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/orders?status=delivered" -u "$api_key":"$api_secret" -H "Content-Type: application/json" | $m_jq -r '.[]|[.id]|join(" ")')
 
-					# Update orders status to completed
-					for id in "${delivered_ids[@]}"
-					do
-						if ! $m_curl -s -X PUT "https://$api_endpoint/wp-json/wc/v3/orders/$id" --fail \
-							-u "$api_key":"$api_secret" \
-							-H "Content-Type: application/json" \
-							-d '{
-							"status": "completed"
-							}'; then
+						# Update orders status to completed
+						for id in "${delivered_ids[@]}"
+						do
+							if ! $m_curl -s -X PUT "https://$api_endpoint/wp-json/wc/v3/orders/$id" --fail \
+								-u "$api_key":"$api_secret" \
+								-H "Content-Type: application/json" \
+								-d '{
+								"status": "completed"
+								}'; then
 
-							echo -e "\n${red}*${reset} ${red}Two way fulfillment unistallation aborted: ${reset}"
-							echo "${m_tab}${cyan}#####################################################${reset}"
-							echo "${red}*${reset} ${red}Cannot update order:$id status 'delivered --> completed'${reset}"
-							echo -e "${red}*${reset} ${red}Wrong Order ID caused by corrupt data or wocommerce endpoint error${reset}\n"
-							echo "$(timestamp): Cannot update order:$id status 'delivered --> completed'. Wrong Order ID caused by corrupt data or WooCommerce endpoint error" >> "${error_log}"
-							exit 1
-						fi
-					done
+								echo -e "\n${red}*${reset} ${red}Two way fulfillment unistallation aborted: ${reset}"
+								echo "${m_tab}${cyan}#####################################################${reset}"
+								echo "${red}*${reset} ${red}Cannot update order:$id status 'delivered --> completed'${reset}"
+								echo -e "${red}*${reset} ${red}Wrong Order ID caused by corrupt data or wocommerce endpoint error${reset}\n"
+								echo "$(timestamp): Cannot update order:$id status 'delivered --> completed'. Wrong Order ID caused by corrupt data or WooCommerce endpoint error" >> "${error_log}"
+								exit 1
+							fi
+						done
 
-					# Lastly remove files and function.php modifications
-					simple_uninstall_twoway
+						# Lastly remove files and function.php modifications
+						simple_uninstall_twoway
+					else
+						echo -e "\n${red}*${reset} ${red}Two way fulfillment unistallation aborted: ${reset}"
+						echo "${cyan}${m_tab}#####################################################${reset}"
+						echo -e "${m_tab}${red}Expected string not found in function.php. Did you manually modified file after installation?${reset}\n"
+						echo "$(timestamp): Expected string not found in function.php. Did you manually modified functions.php after installation? $absolute_child_path/functions.php" >> "${error_log}"
+						exit 1
+					fi
+
 				else
-					echo -e "\n${red}*${reset} ${red}Two way fulfillment unistallation aborted: ${reset}"
-					echo "${cyan}${m_tab}#####################################################${reset}"
-					echo -e "${m_tab}${red}Expected string not found in function.php. Did you manually modified file after installation?${reset}\n"
-					echo "$(timestamp): Expected string not found in function.php. Did you manually modified functions.php after installation? $absolute_child_path/functions.php" >> "${error_log}"
-					exit 1
+                                	# There is no any order which flagged as delivered so remove files and mods directly
+                                	simple_uninstall_twoway
 				fi
-
-			else
-                                # There is no any order which flagged as delivered so remove files and mods directly
-                                simple_uninstall_twoway
 			fi
+		else
+			echo -e "\n${red}*${reset} ${red}Two way fulfillment unistallation aborted: ${reset}"
+			echo "${cyan}${m_tab}#####################################################${reset}"
+			echo -e "${m_tab}${red}Couldn't find twoway fulfillment installation${reset}\n"
+			echo "$(timestamp): Couldn't find twoway fulfillment installation" >> "${error_log}"
 		fi
 	else
 		echo -e "\n${red}*${reset} ${red}Two way fulfillment unistallation aborted: ${reset}"
 		echo "${cyan}${m_tab}#####################################################${reset}"
-		echo -e "${m_tab}${red}Couldn't find twoway fulfillment installation${reset}\n"
-		echo "$(timestamp): Couldn't find twoway fulfillment installation" >> "${error_log}"
+		echo -e "${m_tab}${red}Couldn't find default installation${reset}\n"
+		echo "$(timestamp): Two way fulfillment unistallation aborted: Couldn't find default installation" >> "${error_log}"
+		exit 1
 	fi
 }
 
@@ -1029,7 +1037,36 @@ help () {
 }
 
 twoway_enable () {
-	touch "${this_script_path}/.two.way.enb"
+	if [[ -e "${this_script_path}/.woo.aras.enb" && -e "${this_script_path}/.woo.aras.set" ]]; then
+		find_child_path
+	fi
+
+	exist=true
+	for i in "${my_files[@]}"
+	do
+		if [ ! -e "$i" ]; then
+			exist=false
+			break
+		fi
+	done
+
+	if $exist; then
+		if [ ! -e "${this_script_path}/.two.way.enb" ]]; then
+			touch "${this_script_path}/.two.way.enb"
+		else
+			echo -e "\n${green}*${reset} ${red}Two way fulfillment workflow has been already enabled: ${reset}"
+			echo -e "${cyan}${m_tab}#####################################################${reset}\n"
+			echo "$(timestamp): Two way fulfillment workflow has been already enabled:" >> "${access_log}"
+			exit 0
+		fi
+	else
+		echo -e "\n${red}*${reset} ${red}Cannot enable two way fulfillment workflow: ${reset}"
+		echo "${cyan}${m_tab}#####################################################${reset}"
+		echo "${m_tab}${red}Couldn't found necessary files, please check your setup${reset}"
+		echo -e "${m_tab}${red}Follow the guideline 'Two Way Fulfillment Manual Setup' on github${reset}\n"
+		echo "$(timestamp): Cannot enable two way fulfillment workflow: couldn't found necessary files, please check your setup" >> "${error_log}"
+		exit 1
+	fi
 }
 
 # Accept only one argument
