@@ -816,7 +816,7 @@ install_twoway () {
 					echo -e "\n${yellow}Two way fulfillment workflow installation aborted, recovery process completed.${reset}";
 					echo "$(timestamp): Two way fulfillment workflow installation aborted, recovery process completed." >> "${error_log}";
 					exit 1;;
-				[Cc]* ) touch "${this_script_path}/.two.way.enb"; break;;
+				[Cc]* ) touch "${this_script_path}/.two.way.enb"; chattr +i "${this_script_path}/.two.way.enb" >/dev/null 2>&1; break;;
 			* ) echo -e "\n${m_tab}${magenta}Please answer r or c${reset}"; echo "${cyan}${m_tab}#####################################################${reset}";;
 			esac
 		done
@@ -936,15 +936,22 @@ uninstall () {
 on_fly_disable () {
 	touch "${this_script_path}/.woo.aras.set"
 	touch "${this_script_path}/.woo.aras.enb"
-	if [ "$twoway" == "true" ]; then
-		touch "${this_script_path}/.two.way.enb"
-	fi
+	chattr +i "${this_script_path}/.woo.aras.set" >/dev/null 2>&1
+	chattr +i "${this_script_path}/.woo.aras.enb" >/dev/null 2>&1
 }
 
 # Pre-setup operations
 on_fly_enable () {
 		# Remove lock files (hard-reset) to re-start fresh setup
+		# Remove IMMUTABLE bit
+		for i in "${this_script_path:?}"/.*lck
+		do
+			chattr -i "$i" >/dev/null 2>&1
+		done
 		rm -rf "${this_script_path:?}"/.*lck >/dev/null 2>&1
+
+		chattr -i "${this_script_path}/.woo.aras.set" >/dev/null 2>&1
+		chattr -i "${this_script_path}/.woo.aras.enb" >/dev/null 2>&1
 		rm -f "${this_script_path:?}/.woo.aras.set" >/dev/null 2>&1
 		rm -f "${this_script_path:?}/.woo.aras.enb" >/dev/null 2>&1
 
@@ -2292,6 +2299,7 @@ if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 		echo -e "\n${green}*${reset} ${green}Please set auto update preference${reset}"
 		echo "${cyan}${m_tab}#####################################################${reset}"
 
+		# Auto upgrade cronjob
 		while true
 		do
 			read -r -n 1 -p "${m_tab}${BC}Script automatically update itself? --> (Y)es | (N)o${EC} " yn < /dev/tty
@@ -2303,7 +2311,14 @@ if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 			esac
 		done
 
+		# Add IMMUTABLE to critical files
+		for i in "${this_script_path:?}"/.*lck
+		do
+			chattr +i "$i" >/dev/null 2>&1
+		done
+
 		echo -e "\n${green}*${reset} ${green}Default setup completed.${reset}"
+		# Forward to twoway installation
 		if [ "$twoway" == "true" ]; then
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			echo "${m_tab}${green}Installing two way fulfillment workflow...${reset}"
@@ -2313,6 +2328,7 @@ if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 			echo "${m_tab}${green}Please select installation method.${reset}"
 		fi
 
+		# Forward to installation
 		while true
 		do
 			echo "${m_tab}${cyan}#####################################################${reset}"
