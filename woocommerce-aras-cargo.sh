@@ -289,7 +289,7 @@ twoway_pretty_error () {
 
 validate_twoway () {
 	# Collect missing files if exist
-	declare -a missing_files=()
+	declare -a missing_files=() # This acts as local variable!
 	for i in "${my_files[@]}"
 	do
 		if ! grep -qw "${my_string}" "$i"; then
@@ -521,32 +521,70 @@ find_child_path () {
 
 simple_uninstall_twoway () {
 	# Take back modifications from functions.php
-	if grep -qw "${my_string}" "$absolute_child_path/functions.php"; then
-		sed -i "/${my_string}/,/${my_string}/d" "$absolute_child_path/functions.php"
+	if [ -w "$absolute_child_path/functions.php" ]; then
+		if grep -qw "${my_string}" "$absolute_child_path/functions.php"; then
+			$m_sed -i "/${my_string}/,/${my_string}/d" "$absolute_child_path/functions.php"
+		else
+			echo -e "\n${red}*${reset} ${red}Two way fulfillment unistallation aborted: ${reset}"
+			echo "${cyan}${m_tab}#####################################################${reset}"
+			echo -e "${m_tab}${red}Expected string not found in function.php. Did you manually modified file after installation?${reset}\n"
+			echo "$(timestamp): Expected string not found in function.php. Did you manually modified functions.php after installation? $absolute_child_path/functions.php" >> "${error_log}"
+			exit 1
+		fi
+	else
+		echo -e "\n${red}*${reset} ${red}Twoway fulfillment uninstallation aborted, as file not writeable: ${reset}"
+		echo "${cyan}${m_tab}#####################################################${reset}"
+		echo "${m_tab}${red}$absolute_child_path/functions.php${reset}"
+		echo -e "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}\n"
+		echo "$(timestamp): Twoway fulfillment uninstallation aborted, as file not writeable: $absolute_child_path/functions.php" >> "${error_log}"
+		exit 1
 	fi
 
 	# Remove installed files from child theme
-	declare -a installed_files=()
+	declare -a installed_files=() # This acts as local variable! You can use 'local' also.
 	for i in "${my_files[@]}"
 	do
-		if grep -qw "${my_string}" "$i"; then
-			installed_files+=("$i")
+		if [ -w "$i" ]; then
+			if grep -qw "${my_string}" "$i"; then
+				installed_files+=("$i")
+			else
+				echo -e "\n${red}*${reset} ${red}Two way fulfillment unistallation aborted: ${reset}"
+				echo "${cyan}${m_tab}#####################################################${reset}"
+				echo -e "${m_tab}${red}Expected string not found in $i. Did you manually modified file after installation?${reset}\n"
+				echo "$(timestamp): Expected string not found in $i. Did you manually modified $i after installation?" >> "${error_log}"
+				exit 1
+			fi
+		else
+			echo -e "\n${red}*${reset} ${red}Twoway fulfillment uninstallation aborted, as file not writeable: ${reset}"
+			echo "${cyan}${m_tab}#####################################################${reset}"
+			echo "${m_tab}${red}$i${reset}"
+			echo -e "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}\n"
+			echo "$(timestamp): Twoway fulfillment uninstallation aborted, as file not writeable: $i" >> "${error_log}"
+			exit 1
 		fi
 	done
 
 	for i in "${installed_files[@]}"
 	do
-		rm -f "$i"
+		if [ grep -qw "wp-content/themes" "$i" ]; then
+			rm -f "$i"
+		else
+			echo -e "\n${red}*${reset} ${red}Two way fulfillment unistallation aborted: ${reset}"
+			echo "${cyan}${m_tab}#####################################################${reset}"
+			echo -e "${m_tab}${red}Incorrect path, $i is not the expected path to remove files${reset}\n"
+			echo "$(timestamp): Incorrect path, $i is not the expected path to remove files$" >> "${error_log}"
+			exit 1
+		fi
 	done
 }
 
 uninstall_twoway () {
 	find_child_path
-	if [ -e "${this_script_path}/.two.way.enb" ]; then # Check twoway installation completed
+	if [ -e "${this_script_path}/.two.way.enb" ]; then # Check twoway installation
 		get_delivered=$($m_curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/orders?status=delivered" -u "$api_key":"$api_secret" -H "Content-Type: application/json") # Get data
-		if [[ -n "$get_delivered" ]]; then # Do we have delivered orders?
-			if [ "${get_delivered}" != "[]" ]; then # Check for null
-				if grep -q "${my_string}" "$absolute_child_path/functions.php"; then
+		if [[ -n "$get_delivered" ]]; then # Any data
+			if [ "${get_delivered}" != "[]" ]; then # Check for null data
+				if grep -q "${my_string}" "$absolute_child_path/functions.php"; then # Lastly, check the file is not modified 
 					# Unhook woocommerce order status completed notification temporarly
 					sed -i -e '/\'"$my_string"'/{ r '"$this_script_path/custom-order-status-package/action-unhook-email.php"'' -e 'b R' -e '}' -e 'b' -e ':R {n ; b R' -e '}' "$absolute_child_path/woocommerce/aras-woo-delivered.php" >/dev/null 2>&1 ||
 					{
@@ -557,7 +595,7 @@ uninstall_twoway () {
 					exit 1;
 					}
 
-					# Get ids to array
+					# Get ids to array --> need bash_ver => 4
 					readarray -t delivered_ids < <($m_curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/orders?status=delivered" -u "$api_key":"$api_secret" -H "Content-Type: application/json" | $m_jq -r '.[]|[.id]|join(" ")')
 
 					# Update orders status to completed
@@ -993,6 +1031,10 @@ twoway_enable () {
 	touch "${this_script_path}/.two.way.enb"
 }
 
+twoway_disable () {
+	rm -f "${this_script_path:?}/.two.way.enb"
+}
+
 # Accept only one argument
 [[ ${#} -gt 1 ]] && { help; exit 1; }
 
@@ -1221,25 +1263,31 @@ upgrade () {
 
 while :; do
 	case "${1}" in
-	-e|--twoway-enable ) twoway_enable
-			   exit
-			   ;;
-	-u|--upgrade       ) upgrade
-			   exit
-			   ;;
-	-r|--uninstall     ) uninstall
-			   exit
-			   ;;
-	-d|--dependencies  ) dependencies
-			   exit
-			   ;;
-	-v|--version       ) version
-			   exit
-			   ;;
-	-h|--help          ) help
-			   exit
-			   ;;
-	*                  ) break;;
+	-e|--twoway-enable    ) twoway_enable
+				exit
+				;;
+	-f|--twoway-disable   ) twoway_disable
+				exit
+				;;
+	-s|--twoway-uninstall ) twoway_uninstall
+				exit
+				;;
+	-u|--upgrade          ) upgrade
+				exit
+				;;
+	-r|--uninstall        ) uninstall
+				exit
+				;;
+	-d|--dependencies     ) dependencies
+				exit
+				;;
+	-v|--version          ) version
+				exit
+				;;
+	-h|--help             ) help
+				exit
+				;;
+	*                     ) break;;
 	esac
 	shift
 done
