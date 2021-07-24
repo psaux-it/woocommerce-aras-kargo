@@ -822,16 +822,16 @@ install_twoway () {
 
 # Dialog box for twoway fulfillment workflow setup
 my_whip_tail () {
-	if (whiptail --title "Two-Way Fulfillment Setup" --yesno "Do you want to auto implement two-way (processing->shipped->delivered) fulfillment workflow? If you choose 'NO' script will configure itself for default oneway (processing->completed) setup. Please keep in mind that If you decided to implement twoway workflow be sure you don't have any woocommerce custom order statuses installed before. Script will add custom 'delivered' order status to woocommerce order statuses." 10 110);then
+	if (whiptail --title "Two-Way Fulfillment Setup" --yesno "Do you want to auto implement two-way (processing->shipped->delivered) fulfillment workflow? If you choose 'NO' script will configure itself for default oneway (processing->completed) setup. Please keep in mind that If you decided to implement twoway workflow be sure you execute this script on webserver where woocommerce runs and don't have any woocommerce custom order statuses installed before. Script will add custom 'delivered' order status to woocommerce fulfillment workflow." 10 110); then
 		twoway=true
 	else
 		twoway=false
 	fi
 }
 
-# Uninstall bundles like crons, systemd services, logrotate, logs
+# Uninstall bundles like cron jobs, systemd services, logrotate, logs
+# This function not removes twoway two way fulfillment workflow.
 uninstall () {
-	#uninstall_twoway
 	if [[ -s "${cron_dir}/${cron_filename}" ]]; then
 		if [[ -w "${cron_dir}/${cron_filename}" ]]; then
 			rm -f  "${cron_dir}/${cron_filename}"
