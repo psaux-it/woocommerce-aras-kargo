@@ -1017,22 +1017,19 @@ on_fly_enable () {
 help () {
 	echo -e "\n${m_tab}${cyan}# WOOCOMMERCE - ARAS CARGO INTEGRATION HELP"
 	echo -e "${m_tab}# ---------------------------------------------------------------------"
-	echo -e "${m_tab}#${m_tab}--setup         |-s      hard reset and re-starts setup"
-	echo -e "${m_tab}#${m_tab}--twoway-enable |-e      enable twoway fulfillment workflow (for manual implementations)"
-	echo -e "${m_tab}#${m_tab}--uninstall     |-r      removes install bundles aka cron,systemd,logrotate,logs"
-	echo -e "${m_tab}#${m_tab}--upgrade       |-u      upgrade script to latest version automatically"
-	echo -e "${m_tab}#${m_tab}--dependencies  |-d      display necessary dependencies"
-	echo -e "${m_tab}#${m_tab}--version       |-v      display script version"
-	echo -e "${m_tab}#${m_tab}--help          |-h      display help"
+	echo -e "${m_tab}#${m_tab}--setup            |-s      hard reset and re-starts setup"
+	echo -e "${m_tab}#${m_tab}--twoway-enable    |-e      enable twoway fulfillment workflow (for manual implementations)"
+	echo -e "${m_tab}#${m_tab}--twoway-uninstall |-t      uninstall twoway fulfillment workflow completely"
+	echo -e "${m_tab}#${m_tab}--uninstall        |-r      removes install bundles aka cron jobs, systemd services, logrotate, logs"
+	echo -e "${m_tab}#${m_tab}--upgrade          |-u      upgrade script to latest version"
+	echo -e "${m_tab}#${m_tab}--dependencies     |-d      display necessary dependencies"
+	echo -e "${m_tab}#${m_tab}--version          |-v      display script info"
+	echo -e "${m_tab}#${m_tab}--help             |-h      display help"
 	echo -e "${m_tab}# ---------------------------------------------------------------------${reset}\n"
 }
 
 twoway_enable () {
 	touch "${this_script_path}/.two.way.enb"
-}
-
-twoway_disable () {
-	rm -f "${this_script_path:?}/.two.way.enb"
 }
 
 # Accept only one argument
@@ -1266,10 +1263,7 @@ while :; do
 	-e|--twoway-enable    ) twoway_enable
 				exit
 				;;
-	-f|--twoway-disable   ) twoway_disable
-				exit
-				;;
-	-s|--twoway-uninstall ) twoway_uninstall
+	-t|--twoway-uninstall ) twoway_uninstall
 				exit
 				;;
 	-u|--upgrade          ) upgrade
