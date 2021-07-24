@@ -576,6 +576,9 @@ simple_uninstall_twoway () {
 			exit 1
 		fi
 	done
+
+	chattr -i "${this_script_path}/.two.way.enb"
+	rm -f "${this_script_path}/.two.way.enb"
 }
 
 uninstall_twoway () {
@@ -1060,6 +1063,7 @@ twoway_enable () {
 	if $exist; then
 		if [ ! -e "${this_script_path}/.two.way.enb" ]]; then
 			touch "${this_script_path}/.two.way.enb"
+			chattr +i "${this_script_path}/.two.way.enb"
 		else
 			echo -e "\n${green}*${reset} ${red}Two way fulfillment workflow has been already enabled: ${reset}"
 			echo -e "${cyan}${m_tab}#####################################################${reset}\n"
