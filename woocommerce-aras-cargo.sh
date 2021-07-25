@@ -578,7 +578,7 @@ simple_uninstall_twoway () {
 	done
 
 	chattr -i "${this_script_path}/.two.way.enb"
-	rm -f "${this_script_path}/.two.way.enb"
+	rm -f "${this_script_path:?}/.two.way.enb"
 }
 
 uninstall_twoway () {
@@ -1027,7 +1027,7 @@ on_fly_enable () {
 		if [ "$reply" == "q" ]; then
 			echo
 			exit 0
-		else
+		elif [ ! -f "${this_script_path}/.two.way.enb" ]; then
 			my_whip_tail
 		fi
 }
@@ -2323,10 +2323,15 @@ if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 
 		echo -e "\n${green}*${reset} ${green}Default setup completed.${reset}"
 		# Forward to twoway installation
-		if [ "$twoway" == "true" ]; then
-			echo "${cyan}${m_tab}#####################################################${reset}"
-			echo "${m_tab}${green}Installing two way fulfillment workflow...${reset}"
-			install_twoway
+		if [[ -n "$twoway" ]]; then
+			if [ "$twoway" == "true" ]; then
+				echo "${cyan}${m_tab}#####################################################${reset}"
+				echo "${m_tab}${green}Installing two way fulfillment workflow...${reset}"
+				install_twoway
+			else
+				echo -e "${cyan}${m_tab}#####################################################${reset}\n"
+				echo "${m_tab}${green}Please select installation method.${reset}"
+			fi
 		else
 			echo -e "${cyan}${m_tab}#####################################################${reset}\n"
 			echo "${m_tab}${green}Please select installation method.${reset}"
