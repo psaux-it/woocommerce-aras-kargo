@@ -842,10 +842,10 @@ my_whip_tail () {
 
 # Uninstall bundles like cron jobs, systemd services, logrotate, logs
 # This function not removes twoway two way fulfillment workflow.
-uninstall () {
+hard_reset () {
 	if [[ -s "${cron_dir}/${cron_filename}" ]]; then
 		if [[ -w "${cron_dir}/${cron_filename}" ]]; then
-			rm -f  "${cron_dir}/${cron_filename}"
+			rm -f  "${cron_dir:?}/${cron_filename:?}"
 			echo -e "\n${green}*${reset} ${yellow}Main cron job uninstalled:${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			echo "${yellow}${m_tab}${cron_dir}/${cron_filename}${reset}"
@@ -861,7 +861,7 @@ uninstall () {
 
 	if [[ -s "${cron_dir}/${cron_filename_update}" ]]; then
 		if [[ -w "${cron_dir}/${cron_filename_update}" ]]; then
-			rm -f  "${cron_dir}/${cron_filename_update}"
+			rm -f  "${cron_dir:?}/${cron_filename_update:?}"
 			echo -e "\n${green}*${reset} ${yellow}Updater cron job uninstalled:${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			echo "${yellow}${m_tab}${cron_dir}/${cron_filename_update}${reset}"
@@ -881,7 +881,7 @@ uninstall () {
 			systemctl disable "${timer_filename}" >/dev/null 2>&1
 			systemctl stop "${timer_filename}" >/dev/null 2>&1
 			systemctl daemon-reload >/dev/null 2>&1
-			rm -rf  "${systemd_dir:?}/${service_filename}" "${systemd_dir:?}/${timer_filename}"  >/dev/null 2>&1
+			rm -rf  "${systemd_dir:?}/${service_filename:?}" "${systemd_dir:?}/${timer_filename:?}"  >/dev/null 2>&1
 			echo -e "\n${green}*${reset} ${yellow}Systemd unit uninstalled: services stopped:${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			echo "${yellow}${m_tab}${systemd_dir}/${service_filename}${reset}"
@@ -898,7 +898,7 @@ uninstall () {
 
 	if [[ -s "${logrotate_dir}/${logrotate_filename}" ]]; then
 		if [[ -w "${logrotate_dir}/${logrotate_filename}" ]]; then
-			rm -f "${logrotate_dir}/${logrotate_filename}"
+			rm -f "${logrotate_dir:?}/${logrotate_filename:?}"
 			echo -e "\n${green}*${reset} ${yellow}Logrotate removed:${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			echo -e "${yellow}${m_tab}${logrotate_dir}/${logrotate_filename}${reset}\n"
@@ -935,6 +935,38 @@ uninstall () {
 	fi
 }
 
+un_install () {
+	# Remove twoway fulfillment workflow
+	if [ -e "${this_script_path}/.two.way.enb" ]; then
+		uninstall_twoway
+	fi
+
+	# Removes install bundles aka cron jobs, systemd services, logrotate, logs
+	if [[ -e "${cron_dir}/${cron_filename}" ||
+		-e "${systemd_dir}/${service_filename}" ||
+		-e "${logrotate_dir}/${logrotate_filename}" ||
+		-e "${error_log}" ||
+		-e "${access_log}" ||
+		-e "${systemd_dir}/${timer_filename}" ||
+		-e "${cron_dir}/${cron_filename_update}" ]]; then
+		hard_reset
+	fi
+
+	# Remove immutable bit & lock files
+	for i in "${this_script_path:?}"/.*lck
+	do
+		if [ -w "$i" ]; then
+			chattr -i "$i" >/dev/null 2>&1
+		fi
+	done
+	rm -rf "${this_script_path:?}"/.*lck >/dev/null 2>&1
+
+	chattr -i "${this_script_path}/.woo.aras.set" >/dev/null 2>&1
+	chattr -i "${this_script_path}/.woo.aras.enb" >/dev/null 2>&1
+	rm -f "${this_script_path:?}/.woo.aras.set" >/dev/null 2>&1
+	rm -f "${this_script_path:?}/.woo.aras.enb" >/dev/null 2>&1
+}
+
 # Disable setup after successful installation
 on_fly_disable () {
 	touch "${this_script_path}/.woo.aras.set"
@@ -967,7 +999,7 @@ on_fly_enable () {
 			-e "${systemd_dir}/${timer_filename}" ||
 			-e "${cron_dir}/${cron_filename_update}" ]]; then
 
-			echo -e "\n${green}*${reset} ${green}Found absolute files from old installation..${reset}"
+			echo -e "\n${green}*${reset} ${green}Found absolute files, hard resetting for fresh installation: ${reset}"
 			echo -ne "${cyan}${m_tab}########                                             [20%]\r${reset}"
 			sleep 1
 			echo -ne "${cyan}${m_tab}##################                                   [40%]\r${reset}"
@@ -979,7 +1011,7 @@ on_fly_enable () {
 			echo -ne "${cyan}${m_tab}#####################################################[100%]\r${reset}"
 			echo -ne '\n'
 
-			uninstall
+			hard_reset
 		fi
 
 		# WELCOME ASCII
@@ -1029,16 +1061,18 @@ on_fly_enable () {
 			exit 0
 		elif [ ! -f "${this_script_path}/.two.way.enb" ]; then
 			my_whip_tail
+		else
+			echo -e "\n${yellow}*${reset} ${yellow}Two way fulfillment workflow already installed: ${reset}"
+			echo "${cyan}${m_tab}#####################################################${reset}"
 		fi
 }
 
 help () {
 	echo -e "\n${m_tab}${cyan}# WOOCOMMERCE - ARAS CARGO INTEGRATION HELP"
 	echo -e "${m_tab}# ---------------------------------------------------------------------"
-	echo -e "${m_tab}#${m_tab}--setup            |-s      hard reset and re-starts setup"
+	echo -e "${m_tab}#${m_tab}--setup            |-s      hard reset & re-starts setup"
 	echo -e "${m_tab}#${m_tab}--twoway-enable    |-e      enable twoway fulfillment workflow (for manual implementations)"
-	echo -e "${m_tab}#${m_tab}--twoway-uninstall |-t      uninstall twoway fulfillment workflow completely"
-	echo -e "${m_tab}#${m_tab}--uninstall        |-r      removes install bundles aka cron jobs, systemd services, logrotate, logs"
+	echo -e "${m_tab}#${m_tab}--uninstall        |-r      removes twoway & install bundles aka cron jobs, systemd services, logrotate, logs"
 	echo -e "${m_tab}#${m_tab}--upgrade          |-u      upgrade script to latest version"
 	echo -e "${m_tab}#${m_tab}--dependencies     |-d      display necessary dependencies"
 	echo -e "${m_tab}#${m_tab}--version          |-v      display script info"
@@ -1311,13 +1345,10 @@ while :; do
 	-e|--twoway-enable    ) twoway_enable
 				exit
 				;;
-	-t|--twoway-uninstall ) twoway_uninstall
-				exit
-				;;
 	-u|--upgrade          ) upgrade
 				exit
 				;;
-	-r|--uninstall        ) uninstall
+	-r|--uninstall        ) un_install
 				exit
 				;;
 	-d|--dependencies     ) dependencies
