@@ -566,7 +566,7 @@ simple_uninstall_twoway () {
 
 	for i in "${installed_files[@]}"
 	do
-		if [ grep -qw "wp-content/themes" "$i" ]; then
+		if grep -qw "wp-content/themes" "$i"; then
 			rm -f "$i"
 		else
 			echo -e "\n${red}*${reset} ${red}Two way fulfillment unistallation aborted: ${reset}"
