@@ -583,6 +583,10 @@ simple_uninstall_twoway () {
 
 uninstall_twoway () {
 	if [[ -e "${this_script_path}/.woo.aras.enb" && -e "${this_script_path}/.woo.aras.set" ]]; then # Check default installation is completed
+		api_key=$(< "$this_script_path/.key.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
+		api_secret=$(< "$this_script_path/.secret.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
+		api_endpoint=$(< "$this_script_path/.end.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
+
 		find_child_path
 		if [ -e "${this_script_path}/.two.way.enb" ]; then # Check twoway installation
 			get_delivered=$($m_curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/orders?status=delivered" -u "$api_key":"$api_secret" -H "Content-Type: application/json") # Get data
@@ -590,7 +594,9 @@ uninstall_twoway () {
 				if [ "${get_delivered}" != "[]" ]; then # Check for null data
 					if grep -q "${my_string}" "$absolute_child_path/functions.php"; then # Lastly, check the file is not modified 
 						# Unhook woocommerce order status completed notification temporarly
-						sed -i -e '/\'"$my_string"'/{ r '"$this_script_path/custom-order-status-package/action-unhook-email.php"'' -e 'b R' -e '}' -e 'b' -e ':R {n ; b R' -e '}' "$absolute_child_path/woocommerce/aras-woo-delivered.php" >/dev/null 2>&1 ||
+						sed -i -e '/\'"$my_string"'/{ r '"$this_script_path/custom-order-status-package/action-unhook-email.php"'' -e 'b R' -e '}' -e 'b' -e ':R {n ; b R' -e '}' "$absolute_child_path/woocommerce/aras-woo-delivered.php" >/dev/null 2>&1 &&
+						# Call page to take effects function.php modifications
+						$m_curl -s -X GET "https://$api_endpoint/ >/dev/null 2>&1 ||
 						{
 						echo -e "\n${red}*${reset} ${red}Two way fulfillment unistallation aborted: ${reset}";
 						echo "${cyan}${m_tab}#####################################################${reset}";
