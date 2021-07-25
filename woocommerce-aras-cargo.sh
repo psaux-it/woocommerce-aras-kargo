@@ -966,9 +966,7 @@ un_install () {
 	# Remove immutable bit & lock files
 	for i in "${this_script_path:?}"/.*lck
 	do
-		if [ -w "$i" ]; then
-			chattr -i "$i" >/dev/null 2>&1
-		fi
+		chattr -i "$i" >/dev/null 2>&1
 	done
 	rm -rf "${this_script_path:?}"/.*lck >/dev/null 2>&1
 
@@ -1064,6 +1062,11 @@ on_fly_enable () {
 		# STEP 4
 		echo "${cyan}${m_tab}#####################################################${reset}"
 		echo "${green}4${reset}${m_tab_3}${red}**${reset}${yellow} Create some test orders, If you haven't any yet${reset} ${red}**${reset}"
+		echo -e "${cyan}${m_tab}#####################################################${reset}\n"
+
+		# STEP 5
+		echo "${cyan}${m_tab}#####################################################${reset}"
+		echo "${green}5${reset}${m_tab_3}${red}**${reset}${yellow} Note your wordpress child theme absolute path${reset} ${red}**${reset}"
 		echo -e "${cyan}${m_tab}#####################################################${reset}\n"
 
 		read -n 1 -s -r -p "${green}> When ready press any key to continue setup, q for quit${reset}" reply < /dev/tty; echo
