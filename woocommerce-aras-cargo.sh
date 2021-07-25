@@ -616,7 +616,7 @@ uninstall_twoway () {
 						# Update orders status to completed
 						for id in "${delivered_ids[@]}"
 						do
-							if ! $m_curl -s -X PUT "https://$api_endpoint/wp-json/wc/v3/orders/$id" --fail \
+							if ! $m_curl -s -o /dev/null -X PUT "https://$api_endpoint/wp-json/wc/v3/orders/$id" --fail \
 								-u "$api_key":"$api_secret" \
 								-H "Content-Type: application/json" \
 								-d '{
