@@ -1111,13 +1111,14 @@ twoway_enable () {
 	for i in "${my_files[@]}"
 	do
 		if [ ! -e "$i" ]; then
+			missing_t="$i"
 			exist=false
 			break
 		fi
 	done
 
 	if $exist; then
-		if [ ! -e "${this_script_path}/.two.way.enb" ]]; then
+		if [ ! -e "${this_script_path}/.two.way.enb" ]; then
 			touch "${this_script_path}/.two.way.enb"
 			chattr +i "${this_script_path}/.two.way.enb"
 			echo -e "\n${green}*${reset} ${red}Two way fulfillment workflow enabled successfully: ${reset}"
@@ -1132,9 +1133,10 @@ twoway_enable () {
 	else
 		echo -e "\n${red}*${reset} ${red}Cannot enable two way fulfillment workflow: ${reset}"
 		echo "${cyan}${m_tab}#####################################################${reset}"
-		echo "${m_tab}${red}Couldn't found necessary files, please check your setup${reset}"
+		echo "${m_tab}${red}Couldn't find necessary files, please check your setup${reset}"
+		echo "${m_tab}${magenta}$missing_t${reset}"
 		echo -e "${m_tab}${red}Follow the guideline 'Two Way Fulfillment Manual Setup' on github${reset}\n"
-		echo "$(timestamp): Cannot enable two way fulfillment workflow: couldn't found necessary files, please check your setup" >> "${error_log}"
+		echo "$(timestamp): Cannot enable two way fulfillment workflow: couldn't find necessary files, please check your setup" >> "${error_log}"
 		exit 1
 	fi
 }
