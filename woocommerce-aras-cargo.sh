@@ -596,7 +596,7 @@ uninstall_twoway () {
 						# Unhook woocommerce order status completed notification temporarly
 						sed -i -e '/\'"$my_string"'/{ r '"$this_script_path/custom-order-status-package/action-unhook-email.php"'' -e 'b R' -e '}' -e 'b' -e ':R {n ; b R' -e '}' "$absolute_child_path/woocommerce/aras-woo-delivered.php" >/dev/null 2>&1 &&
 						# Call page to take effects function.php modifications
-						$m_curl -s -X GET "https://$api_endpoint/ >/dev/null 2>&1 ||
+						$m_curl -s -X GET "https://$api_endpoint/" >/dev/null 2>&1 ||
 						{
 						echo -e "\n${red}*${reset} ${red}Two way fulfillment unistallation aborted: ${reset}";
 						echo "${cyan}${m_tab}#####################################################${reset}";
