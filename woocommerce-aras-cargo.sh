@@ -599,7 +599,7 @@ uninstall_twoway () {
 			get_delivered=$($m_curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/orders?status=delivered" -u "$api_key":"$api_secret" -H "Content-Type: application/json") # Get data
 			if [[ -n "$get_delivered" ]]; then # Any data
 				if [ "${get_delivered}" != "[]" ]; then # Check for null data
-					if grep -q "${my_string}" "$absolute_child_path/functions.php"; then # Lastly, check the file is not modified 
+					if grep -q "${my_string}" "$absolute_child_path/functions.php"; then # Lastly, check the file is not modified
 						# Unhook woocommerce order status completed notification temporarly
 						sed -i -e '/\'"$my_string"'/{ r '"$this_script_path/custom-order-status-package/action-unhook-email.php"'' -e 'b R' -e '}' -e 'b' -e ':R {n ; b R' -e '}' "$absolute_child_path/woocommerce/aras-woo-delivered.php" >/dev/null 2>&1 &&
 						# Call page to take effects function.php modifications
@@ -1097,6 +1097,7 @@ help () {
 }
 
 twoway_enable () {
+	# Get absolte path of child theme
 	if [[ -e "${this_script_path}/.woo.aras.enb" && -e "${this_script_path}/.woo.aras.set" ]]; then
 		find_child_path
 	else
@@ -1107,6 +1108,14 @@ twoway_enable () {
 		exit 1
 	fi
 
+	# Check function.php modifications completed
+	if grep -q "${my_string}" "$absolute_child_path/functions.php"; then
+		functions_mod="applied"
+	else
+		functions_mod="not_applied"
+	fi
+
+	# Check necessary files installed
 	exist=true
 	for i in "${my_files[@]}"
 	do
@@ -1119,11 +1128,21 @@ twoway_enable () {
 
 	if $exist; then
 		if [ ! -e "${this_script_path}/.two.way.enb" ]; then
-			touch "${this_script_path}/.two.way.enb"
-			chattr +i "${this_script_path}/.two.way.enb"
-			echo -e "\n${green}*${reset} ${red}Two way fulfillment workflow enabled successfully: ${reset}"
-			echo -e "${cyan}${m_tab}#####################################################${reset}\n"
-			echo "$(timestamp): Two way fulfillment workflow manually enabled successfully" >> "${access_log}"
+			if [ "$functions_mod" == "applied" ]; then
+				touch "${this_script_path}/.two.way.enb"
+				chattr +i "${this_script_path}/.two.way.enb"
+				echo -e "\n${green}*${reset} ${red}Two way fulfillment workflow enabled successfully: ${reset}"
+				echo -e "${cyan}${m_tab}#####################################################${reset}\n"
+				echo "$(timestamp): Two way fulfillment workflow manually enabled successfully" >> "${access_log}"
+			else
+				echo -e "\n${red}*${reset} ${red}Cannot enable two way fulfillment workflow: ${reset}"
+				echo "${cyan}${m_tab}#####################################################${reset}"
+				echo "${m_tab}${red}Couldn't find necessary modifications in:${reset}"
+				echo "${m_tab}${magenta}$absolute_child_path/functions.php${reset}"
+				echo -e "${m_tab}${red}Follow the guideline 'Two Way Fulfillment Manual Setup' on github${reset}\n"
+				echo "$(timestamp): Cannot enable two way fulfillment workflow: Couldn't find necessary modifications in $absolute_child_path/functions.php" >> "${error_log}"
+				exit 1
+			fi
 		else
 			echo -e "\n${green}*${reset} ${red}Two way fulfillment workflow has been already enabled: ${reset}"
 			echo -e "${cyan}${m_tab}#####################################################${reset}\n"
