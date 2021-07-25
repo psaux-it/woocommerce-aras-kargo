@@ -453,6 +453,12 @@ pre_check () {
 }
 
 find_child_path () {
+	if [[ -z "$api_key" || -z "$api_secret" || -z "$api_endpoint" ]]; then
+		api_key=$(< "$this_script_path/.key.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
+		api_secret=$(< "$this_script_path/.secret.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
+		api_endpoint=$(< "$this_script_path/.end.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
+	fi
+
 	# Get active child theme info
 	theme_child=$(curl -s -X GET -u "$api_key":"$api_secret" -H "Content-Type: application/json" "https://$api_endpoint/wp-json/wc/v3/system_status" | $m_jq -r '[.theme.is_child_theme]|join(" ")')
 
@@ -588,10 +594,6 @@ simple_uninstall_twoway () {
 
 uninstall_twoway () {
 	if [[ -e "${this_script_path}/.woo.aras.enb" && -e "${this_script_path}/.woo.aras.set" ]]; then # Check default installation is completed
-		api_key=$(< "$this_script_path/.key.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
-		api_secret=$(< "$this_script_path/.secret.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
-		api_endpoint=$(< "$this_script_path/.end.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
-
 		find_child_path
 		if [ -e "${this_script_path}/.two.way.enb" ]; then # Check twoway installation
 			get_delivered=$($m_curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/orders?status=delivered" -u "$api_key":"$api_secret" -H "Content-Type: application/json") # Get data
@@ -1097,6 +1099,12 @@ help () {
 twoway_enable () {
 	if [[ -e "${this_script_path}/.woo.aras.enb" && -e "${this_script_path}/.woo.aras.set" ]]; then
 		find_child_path
+	else
+		echo -e "\n${red}*${reset} ${red}Two way fulfillment cannot enable: ${reset}"
+		echo "${cyan}${m_tab}#####################################################${reset}"
+		echo -e "${m_tab}${red}Couldn't find default installation${reset}\n"
+		echo "$(timestamp): Two way fulfillment cannot enabled: Couldn't find default installation" >> "${error_log}"
+		exit 1
 	fi
 
 	exist=true
@@ -1112,6 +1120,9 @@ twoway_enable () {
 		if [ ! -e "${this_script_path}/.two.way.enb" ]]; then
 			touch "${this_script_path}/.two.way.enb"
 			chattr +i "${this_script_path}/.two.way.enb"
+			echo -e "\n${green}*${reset} ${red}Two way fulfillment workflow enabled successfully: ${reset}"
+			echo -e "${cyan}${m_tab}#####################################################${reset}\n"
+			echo "$(timestamp): Two way fulfillment workflow manually enabled successfully" >> "${access_log}"
 		else
 			echo -e "\n${green}*${reset} ${red}Two way fulfillment workflow has been already enabled: ${reset}"
 			echo -e "${cyan}${m_tab}#####################################################${reset}\n"
