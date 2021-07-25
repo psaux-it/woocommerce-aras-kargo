@@ -566,7 +566,7 @@ simple_uninstall_twoway () {
 
 	for i in "${installed_files[@]}"
 	do
-		if grep -qw "wp-content/themes" "$i"; then
+		if grep -qw "wp-content/themes" <<< "$i"; then
 			rm -f "$i"
 		else
 			echo -e "\n${red}*${reset} ${red}Two way fulfillment unistallation aborted: ${reset}"
@@ -579,6 +579,11 @@ simple_uninstall_twoway () {
 
 	chattr -i "${this_script_path}/.two.way.enb"
 	rm -f "${this_script_path:?}/.two.way.enb"
+
+	echo -e "\n${green}*${reset} ${green}Two way fulfillment unistallation: ${reset}"
+	echo "${cyan}${m_tab}#####################################################${reset}"
+	echo -e "${m_tab}${green}Uninstallation completed. Please check your website for functionality${reset}\n"
+	echo "$(timestamp): Two way fulfillment unistallation: Uninstallation completed." >> "${success_log}"
 }
 
 uninstall_twoway () {
@@ -803,7 +808,7 @@ install_twoway () {
 		exit 1;
 	else
 		# Time to enable functions.php modifications
-		$m_sed -i '/aras_woo_include_once/c include_once( get_stylesheet_directory() .'"'/woocommerce/aras-woo-delivered.php'"'); //aras_woo_enabled' "${absolute_child_path}/functions.php"
+		$m_sed -i '/aras_woo_include/c include( get_stylesheet_directory() .'"'/woocommerce/aras-woo-delivered.php'"'); //aras_woo_enabled' "${absolute_child_path}/functions.php"
 
 		echo -e "\n${green}*${reset} ${green}Two way fulfillment workflow is now enabled.${reset}"
 		echo "${cyan}${m_tab}#####################################################${reset}"
@@ -821,7 +826,7 @@ install_twoway () {
 			read -r -n 1 -p "${m_tab}${BC}r for recovery and quit setup, c for continue${EC} " cs < /dev/tty
 			echo ""
 			case "${cs}" in
-				[Rr]* ) $m_sed -i '/aras_woo_enabled/c \/\/aras_woo_include_once( get_stylesheet_directory() .'"'/woocommerce/aras-woo-delivered.php'"');' "${absolute_child_path}/functions.php";
+				[Rr]* ) $m_sed -i '/aras_woo_enabled/c \/\/aras_woo_include( get_stylesheet_directory() .'"'/woocommerce/aras-woo-delivered.php'"');' "${absolute_child_path}/functions.php";
 					echo -e "\n${yellow}Two way fulfillment workflow installation aborted, recovery process completed.${reset}";
 					echo "$(timestamp): Two way fulfillment workflow installation aborted, recovery process completed." >> "${error_log}";
 					exit 1;;
