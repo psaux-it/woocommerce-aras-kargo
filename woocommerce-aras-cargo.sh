@@ -188,6 +188,9 @@ clean_up () {
 }
 trap clean_up EXIT HUP INT QUIT TERM
 
+# Catch ctrl+c
+trap "exit" INT
+
 # Global variables
 user="$(whoami)"
 cron_dir="/etc/cron.d"
@@ -976,6 +979,7 @@ un_install () {
 	chattr -i "${this_script_path}/.woo.aras.enb" >/dev/null 2>&1
 	rm -f "${this_script_path:?}/.woo.aras.set" >/dev/null 2>&1
 	rm -f "${this_script_path:?}/.woo.aras.enb" >/dev/null 2>&1
+	rm -rf "${this_script_path:?}/tmp" >/dev/null 2>&1
 }
 
 # Disable setup after successful installation
@@ -1131,7 +1135,7 @@ twoway_enable () {
 			if [ "$functions_mod" == "applied" ]; then
 				touch "${this_script_path}/.two.way.enb"
 				chattr +i "${this_script_path}/.two.way.enb"
-				echo -e "\n${green}*${reset} ${red}Two way fulfillment workflow enabled successfully: ${reset}"
+				echo -e "\n${green}*${reset} ${green}Two way fulfillment workflow enabled successfully: ${reset}"
 				echo -e "${cyan}${m_tab}#####################################################${reset}\n"
 				echo "$(timestamp): Two way fulfillment workflow manually enabled successfully" >> "${access_log}"
 			else
@@ -1144,7 +1148,7 @@ twoway_enable () {
 				exit 1
 			fi
 		else
-			echo -e "\n${green}*${reset} ${red}Two way fulfillment workflow has been already enabled: ${reset}"
+			echo -e "\n${green}*${reset} ${green}Two way fulfillment workflow has been already enabled: ${reset}"
 			echo -e "${cyan}${m_tab}#####################################################${reset}\n"
 			echo "$(timestamp): Two way fulfillment workflow has been already enabled:" >> "${access_log}"
 			exit 0
