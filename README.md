@@ -1,4 +1,5 @@
 [![Build Status](https://travis-ci.com/hsntgm/woocommerce-aras-kargo.svg?token=pex9yoGqJVyVQgXxYi7X&branch=main)](https://travis-ci.com/github/hsntgm/woocommerce-aras-kargo)
+<a style="display: inline-block; padding: 2px 9px; background-color: #FFECD9; border: 1px solid #FFE2C4; border-radius: 3px; font-size: 14px; color: inherit;" href="bitcoin:3DKBvhQJes1VVWVLWBAQfsPPKeJiPYra4j"><img src="https://user-images.githubusercontent.com/25556606/126988135-53e00cc5-a4c2-4ab5-8fa0-a623f16c13cc.png" style="margin-right: .5em; vertical-align: -4px; border: none; box-shadow: none;">3DKBvhQJes1VVWVLWBAQfsPPKeJiPYra4j</a>
 
 # WooCommerce - Aras Cargo Integration
 ## Pluginless pure linux server side bash script solution #root
