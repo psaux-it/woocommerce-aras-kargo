@@ -28,6 +28,22 @@ In default workflow if the cargo on the way (tracking number generated on ARAS e
 
 If you are implementing two way workflow 'processing -> shipped -> delivered' we need to do some extra stuff that explained below.
 
+## Two way workflow installation (Optional)
+![twoway_fulfillment](https://user-images.githubusercontent.com/25556606/126962984-d0c6a0e5-e22c-45f4-ba04-500c0f30e405.png)
+Script will ask you for auto implementation during the setup. You can choose auto installation or you can go with manual implementation. Manual implementation explained below. In both cases there are 3 prerequisites:
+
+### Prerequisites
+- 1-You need a child theme activated (all modifications will apply to child theme - we will never touch core files)
+- 2-Execute script on application server (webserver where your wordpress/woocommerce currently runs on)
+- 3-Be sure you work with default woocommerce fulfillment workflow (e.g don't have any 'delivered' custom order status which has been already implemented before)
+
+If you go with auto implementation script will find your absolute child theme path and will ask your approval for modifications. If child theme path is wrong please DON'T CONTINUE and go with manual implementation.
+
+### Manual Implementation
+You can find necessary files in ```custom-order-status-package```
+I assume you child theme absolute path is ```/var/www/html/wp-content/themes/my-child```
+
+
 ## Will mess up anything?
 No! At least if you don't modify source code blindly. If you have a pre-prod env. test it before production.
 Also interactive setup will ask you to validate some parsed data. If you don't validate the data -installation part will be skipped.
