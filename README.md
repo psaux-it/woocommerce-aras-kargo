@@ -14,7 +14,7 @@ The aim of this bash script solution is effortlessly integrate WooCommerce and A
 > generated on the ARAS Cargo end (via SOAP). Attachs cargo information 
 > (tracking number, track link etc.) to order completed/shipped e-mail with the
 > help of AST plugin (REST) and notify customer. If you implemented
-> two way fulfillment workflow, script goes one layer up and updates order status 'shipped'
+> two-way fulfillment workflow, script goes one layer up and updates order status 'shipped'
 > to 'delivered' and notify customer via second mail. Simply you don't need to add cargo 
 > tracking number manually and update order status via WooCommerce orders dashboard.
 > The aim of script is automating the process fully.
@@ -26,9 +26,9 @@ In default workflow if the cargo on the way (tracking number generated on ARAS e
 
 ![mermaid-diagram-20210714032102](https://user-images.githubusercontent.com/25556606/125541613-e1232826-72ad-4555-98cc-5e1b79c8e352.png)
 
-If you are implementing two way workflow 'processing -> shipped -> delivered' we need to do some extra stuff that explained below.
+If you are implementing two-way workflow 'processing -> shipped -> delivered' we need to do some extra stuff that explained below.
 
-## Two way workflow installation (Optional)
+## Two-way workflow installation (Optional)
 ![twoway_fulfillment](https://user-images.githubusercontent.com/25556606/126962984-d0c6a0e5-e22c-45f4-ba04-500c0f30e405.png)
 Script will ask you for auto implementation during the setup. You can choose auto installation or you can go with manual implementation. Manual implementation explained below. In both cases there are 3 prerequisites:
 
@@ -72,7 +72,8 @@ include( get_stylesheet_directory() .'/woocommerce/aras-woo-delivered.php');
 // woocommerce-aras-cargo-integration
 ```
 
-Check your website working correctly and able to login admin panel. Check 'delivered' order status registered(via orders dashboard) and 'delivered' email template exist under woocommerce setup emails tab. Adjust 'delivered' mail template such as subject, body as you wish. 
+Check your website working correctly and able to login admin panel. Check 'delivered' order status registered(via orders dashboard) and 'delivered' email template exist under woocommerce setup emails tab. Adjust 'delivered' mail template such as subject, body as you wish.
+---
 
 Configure AST plugin as shown in the picture and ENABLE --> Rename the "Completed" Order status label to "Shipped"
 ![ast](https://user-images.githubusercontent.com/25556606/126977656-7ab827aa-4551-470f-a833-9b0975cfddef.png)
@@ -86,7 +87,7 @@ sudo ./woocommerce-aras-cargo.sh --twoway-enable
 ## Will mess up anything?
 No! At least if you don't modify source code blindly. If you have a pre-prod env. test it before production.
 Also interactive setup will ask you to validate some parsed data. If you don't validate the data -installation part will be skipped.
-While auto implementing two way fulfillment workflow we just use child theme so we never ever touch any core files of wordpress or woocommerce directly.
+While auto implementing two-way fulfillment workflow we just use child theme so we never ever touch any core files of wordpress or woocommerce directly.
 
 ![setup5](https://user-images.githubusercontent.com/25556606/124501159-baf95700-ddc9-11eb-81ce-84c5b9117639.png)
 
@@ -98,7 +99,7 @@ Critical part such as success mails, fronted&admin side custom order status labe
 
 ## Features
 - Interactive easy setup
-- Two way fulfillment workflow with custom order status package
+- Two-way fulfillment workflow with custom order status package
 - Encryped sensetive data (REST,SOAP credentials) also never seen on bash history
 - Powerful error handling for various checks like SOAP and REST API connections
 - Auto installation methods via cron, systemd
@@ -153,7 +154,7 @@ So it is enough to set one time. For mail notification you need working mail ser
 - mail_subject_err
 
 ## Usage
-- If you go with two way fulfillment workflow (with custom order status package) be sure your setup is working
+- If you go with two-way fulfillment workflow (with custom order status package) be sure your setup is working
 - Get necessary credentials from ARAS commercial user control panel (https://esasweb.araskargo.com.tr/) (choose JSON fromat)
 ![araskargo-11](https://user-images.githubusercontent.com/25556606/125905483-99941283-cd59-4ac5-b9ea-afc54132dc7b.png)
 - Enable and setup WooCommerce REST API, get credentials (only support REST API v3)
