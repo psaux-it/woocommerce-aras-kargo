@@ -44,26 +44,26 @@ If you go with auto implementation script will find your absolute child theme pa
 You can find necessary files in ```custom-order-status-package```
 I assume you child theme absolute path is ```/var/www/html/wp-content/themes/my-child```
 
-```mkdir /var/www/html/wp-content/themes/my-child/woocommerce
-mkdir /var/www/html/wp-content/themes/my-child/woocommerce/emails
-mkdir /var/www/html/wp-content/themes/my-child/woocommerce/templates
-mkdir /var/www/html/wp-content/themes/my-child/woocommerce/templates/emails
-mkdir /var/www/html/wp-content/themes/my-child/woocommerce/templates/emails/plain```
+```mkdir /var/www/html/wp-content/themes/my-child/woocommerce```
+```mkdir /var/www/html/wp-content/themes/my-child/woocommerce/emails```
+```mkdir /var/www/html/wp-content/themes/my-child/woocommerce/templates```
+```mkdir /var/www/html/wp-content/themes/my-child/woocommerce/templates/emails```
+```mkdir /var/www/html/wp-content/themes/my-child/woocommerce/templates/emails/plain```
 
-```cp custom-order-status-package/aras-woo-delivered.php /var/www/html/wp-content/themes/my-child/woocommerce/
-cp custom-order-status-package/class-wc-delivered-status-order.php /var/www/html/wp-content/themes/my-child/woocommerce/emails/
-cp custom-order-status-package/wc-customer-delivered-status-order.php /var/www/html/wp-content/themes/my-child/woocommerce/templates/emails/
-cp custom-order-status-package/wc-customer-delivered-status-order.php /var/www/html/wp-content/themes/my-child/woocommerce/templates/emails/plain/```
+```cp custom-order-status-package/aras-woo-delivered.php /var/www/html/wp-content/themes/my-child/woocommerce/```
+```cp custom-order-status-package/class-wc-delivered-status-order.php /var/www/html/wp-content/themes/my-child/woocommerce/emails/```
+```cp custom-order-status-package/wc-customer-delivered-status-order.php /var/www/html/wp-content/themes/my-child/woocommerce/templates/emails/```
+```cp custom-order-status-package/wc-customer-delivered-status-order.php /var/www/html/wp-content/themes/my-child/woocommerce/templates/emails/plain/```
 
 ```chown -R your_webserver_user_name:your_webserver_user_name /var/www/html/wp-content/themes/my-child/woocommerce```
 
 Add below code to your child theme's function.php
 ```/var/www/html/wp-content/themes/my-child/functions.php```
 
-```<?php
-// woocommerce-aras-cargo-integration
-include( get_stylesheet_directory() .'/woocommerce/aras-woo-delivered.php');
-// woocommerce-aras-cargo-integration```
+```<?php```
+```// woocommerce-aras-cargo-integration```
+```include( get_stylesheet_directory() .'/woocommerce/aras-woo-delivered.php');```
+```// woocommerce-aras-cargo-integration```
 
 ## Will mess up anything?
 No! At least if you don't modify source code blindly. If you have a pre-prod env. test it before production.
