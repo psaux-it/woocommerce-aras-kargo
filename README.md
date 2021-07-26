@@ -73,6 +73,7 @@ include( get_stylesheet_directory() .'/woocommerce/aras-woo-delivered.php');
 ```
 
 Check your website working correctly and able to login admin panel. Check 'delivered' order status registered(via orders dashboard) and 'delivered' email template exist under woocommerce setup emails tab. Adjust 'delivered' mail template such as subject, body as you wish.
+
 ---
 
 Configure AST plugin as shown in the picture and ENABLE --> Rename the "Completed" Order status label to "Shipped"
