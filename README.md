@@ -38,6 +38,7 @@ Script will ask you for auto implementation during the setup. You can choose aut
 - 3-Be sure you work with default woocommerce fulfillment workflow (e.g don't have any 'delivered' custom order status which has been already implemented before)
 
 If you go with auto implementation script will find your absolute child theme path and will ask your approval for modifications. If child theme path is wrong please DON'T CONTINUE and go with manual implementation.
+
 ![child_theme](https://user-images.githubusercontent.com/25556606/126969002-c6346955-feaa-4ad1-adff-3cde1217fe13.png)
 
 ### Manual Implementation
@@ -62,7 +63,7 @@ cp custom-order-status-package/wc-customer-delivered-status-order.php /var/www/h
 chown -R your_webserver_user:your_webserver_group /var/www/html/wp-content/themes/my-child/woocommerce
 ```
 
-Add below code to your child theme's function.php ```/var/www/html/wp-content/themes/my-child/functions.php```
+Add below code to your child theme's functions.php ```/var/www/html/wp-content/themes/my-child/functions.php```
 
 ```
 <?php
@@ -71,7 +72,11 @@ include( get_stylesheet_directory() .'/woocommerce/aras-woo-delivered.php');
 // woocommerce-aras-cargo-integration
 ```
 
-Check functionality of your website and admin panel.
+Check your website working correctly and able to login admin panel. Check 'delivered' order status registered(via orders dashboard) and 'delivered' email template exist under woocommerce setup emails tab. If everything seems ok lastly enable workflow via;
+
+```
+sudo ./woocommerce-aras-cargo.sh --twoway-enable
+```
 
 ## Will mess up anything?
 No! At least if you don't modify source code blindly. If you have a pre-prod env. test it before production.
