@@ -1,6 +1,10 @@
 [![Build Status](https://travis-ci.com/hsntgm/woocommerce-aras-kargo.svg?token=pex9yoGqJVyVQgXxYi7X&branch=main)](https://travis-ci.com/github/hsntgm/woocommerce-aras-kargo)
 
+---
+
 <a href="https://commerce.coinbase.com/checkout/68aa76a7-a8e5-4de0-9e7c-29f9457e6802" target="_blank"><img src="https://user-images.githubusercontent.com/25556606/127000632-0bd49ce4-9eda-4b58-b3ac-9a9de9a809b2.png" alt="Buy Me A Coffee"></a>
+
+---
 
 # WooCommerce - Aras Cargo Integration
 ## Pluginless pure linux server side bash script solution #root
