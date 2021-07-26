@@ -105,6 +105,18 @@ timestamp () {
         date +"%Y-%m-%d %T"
 }
 
+# My style
+green=$(tput setaf 2)
+red=$(tput setaf 1)
+reset=$(tput sgr0)
+cyan=$(tput setaf 6)
+magenta=$(tput setaf 5)
+yellow=$(tput setaf 3)
+BC=$'\e[32m'
+EC=$'\e[0m'
+m_tab='  '
+m_tab_3=' '
+
 # Check dependencies
 # =====================================================================
 declare -a dependencies=("curl" "iconv" "openssl" "jq" "php" "perl" "awk" "sed" "pstree" "stat" "mail" "whiptail")
@@ -115,9 +127,9 @@ do
 		echo "${cyan}${m_tab}#####################################################${reset}"
 		if [ "$i" == "mail" ]; then
 			echo "${yellow}${m_tab}You need running mail server with 'mail' command.${reset}"
-			echo "${yellow}${m_tab}'mail' command is part of mailutils package in linux.${reset}"
+			echo -e "${yellow}${m_tab}'mail' command is part of mailutils package in linux.${reset}\n"
 		else
-			echo "${yellow}${m_tab}If binary not in your PATH: add PATH to ~/.bash_profile, ~/.bashrc or profile.${reset}"
+			echo -e "${yellow}${m_tab}If binary not in your PATH: add PATH to ~/.bash_profile, ~/.bashrc or profile.${reset}\n"
 		fi
 
 		echo "$(timestamp): $i not found." >> "${error_log}"
@@ -134,8 +146,9 @@ if ! command -v logrotate > /dev/null 2>&1; then
 fi
 
 if ! perl -e 'use Text::Fuzzy;' >/dev/null 2>&1; then
-	echo -e "\n${red}*${reset} Text::Fuzzy PERL module not found.${reset}"
-	echo "${yellow}${m_tab}Use distro repo or CPAN (https://metacpan.org/pod/Text::Fuzzy) to install${reset}"
+	echo -e "\n${red}*${reset} ${red}Text::Fuzzy PERL module not found.${reset}"
+	echo "${cyan}${m_tab}#####################################################${reset}"
+	echo -e "${yellow}${m_tab}Use distro repo or CPAN (https://metacpan.org/pod/Text::Fuzzy) to install${reset}\n"
 	echo "$(timestamp): Text::Fuzzy PERL module not found." >> "${error_log}"
 	exit 1
 fi
@@ -233,20 +246,6 @@ fi
 # Magic of shell parameter expansion
 FROM_SYSTEMD="0"
 RUNNING_FROM_SYSTEMD="${RUNNING_FROM_SYSTEMD:=$FROM_SYSTEMD}"
-
-# My colors
-if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
-	green=$(tput setaf 2)
-	red=$(tput setaf 1)
-	reset=$(tput sgr0)
-	cyan=$(tput setaf 6)
-	magenta=$(tput setaf 5)
-	yellow=$(tput setaf 3)
-	BC=$'\e[32m'
-	EC=$'\e[0m'
-	m_tab='  '
-	m_tab_3=' '
-fi
 
 # Prevent errors cause by uncompleted downloads
 # Detect to make sure the entire script is avilable, fail if the script is missing contents
