@@ -41,30 +41,37 @@ If you go with auto implementation script will find your absolute child theme pa
 ![child_theme](https://user-images.githubusercontent.com/25556606/126969002-c6346955-feaa-4ad1-adff-3cde1217fe13.png)
 
 ### Manual Implementation
-You can find necessary files in ```custom-order-status-package```
-I assume you child theme absolute path is ```/var/www/html/wp-content/themes/my-child```
+You can find necessary files in ```custom-order-status-package``` I assume you child theme absolute path is ```/var/www/html/wp-content/themes/my-child```
 
-```mkdir /var/www/html/wp-content/themes/my-child/woocommerce
+```
+mkdir /var/www/html/wp-content/themes/my-child/woocommerce
 mkdir /var/www/html/wp-content/themes/my-child/woocommerce/emails
 mkdir /var/www/html/wp-content/themes/my-child/woocommerce/templates
 mkdir /var/www/html/wp-content/themes/my-child/woocommerce/templates/emails
-mkdir /var/www/html/wp-content/themes/my-child/woocommerce/templates/emails/plain```
+mkdir /var/www/html/wp-content/themes/my-child/woocommerce/templates/emails/plain
+```
 
-```cp custom-order-status-package/aras-woo-delivered.php /var/www/html/wp-content/themes/my-child/woocommerce/
+```
+cp custom-order-status-package/aras-woo-delivered.php /var/www/html/wp-content/themes/my-child/woocommerce/
 cp custom-order-status-package/class-wc-delivered-status-order.php /var/www/html/wp-content/themes/my-child/woocommerce/emails/
 cp custom-order-status-package/wc-customer-delivered-status-order.php /var/www/html/wp-content/themes/my-child/woocommerce/templates/emails/
 cp custom-order-status-package/wc-customer-delivered-status-order.php /var/www/html/wp-content/themes/my-child/woocommerce/templates/emails/plain/
+```
 
-chown -R your_webserver_user:your_webserver_group /var/www/html/wp-content/themes/my-child/woocommerce```
+```
+chown -R your_webserver_user:your_webserver_group /var/www/html/wp-content/themes/my-child/woocommerce
+```
 
-Add below code to your child theme's function.php
+Add below code to your child theme's function.php ```/var/www/html/wp-content/themes/my-child/functions.php```
 
-```/var/www/html/wp-content/themes/my-child/functions.php
-
+```
 <?php
 // woocommerce-aras-cargo-integration
 include( get_stylesheet_directory() .'/woocommerce/aras-woo-delivered.php');
-// woocommerce-aras-cargo-integration```
+// woocommerce-aras-cargo-integration
+```
+
+Check functionality of your website and admin panel.
 
 ## Will mess up anything?
 No! At least if you don't modify source code blindly. If you have a pre-prod env. test it before production.
