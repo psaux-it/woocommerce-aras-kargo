@@ -2069,6 +2069,33 @@ EOF
 $m_curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/orders?status=processing&per_page=100" -u "$api_key":"$api_secret" -H "Content-Type: application/json" |
 	$m_jq -r '.[]|[.id,.shipping.first_name,.shipping.last_name]|join(" ")' > "$this_script_path/wc.proc"
 
+# Two-way workflow, extract tracking number from data we previosly marked as shipped
+# Last 5 day !
+if [ -e "${this_script_path}/.two.way.enb" ];
+	grep "SHIPPED" "${access_log}" | $m_awk '{print $1,$6,$8}' | tr = ' ' | $m_awk '{print $1,$3,$5}' | $m_sed "s|^|$(date +"%T,%d-%b-%Y") |" | $m_awk '{print $3,$4,$1,$2}' |
+	$m_awk '
+	BEGIN{
+  		num=split("jan,feb,mar,apr,may,jun,jul,aug,sep,oct,nov,dec",month,",")
+		for(i=1;i<=12;i++){
+		a[month[i]]=i
+		}
+	}
+	{
+	split($(NF-1),array,"[:,-]")
+	split($(NF),array1,"[:,-]")
+	val=mktime(array[6]" "a[tolower(array[5])]" "array[4]" "array[1]" "array[2]" "array[3])
+	val1=mktime(array1[6]" "a[tolower(array1[5])]" "array1[4]" "array1[1]" "array1[2]" "array1[3])
+	delta=val>=val1?val-val1:val1-val
+	hrs = int(delta/3600)
+	min = int((delta - hrs*3600)/60)
+	sec = delta - (hrs*3600 + min*60)
+	printf "%s\t%02d:%02d:%02d\n", $0, hrs, min, sec
+	hrs=min=sec=delta=""
+	}
+	' |
+	$m_awk '{print $1,$2,$5}' | tr : ' ' | $m_awk '{print $1,$2,$3/24}' | tr . ' ' | $m_awk '{print $3,$2,$1}' | $m_awk '(NR>0) && ($1 < 6 )' | cut -f2- -d ' ' > "$this_script_path/wc.proc.del"
+fi
+
 # Make SOAP request to ARAS web service to get shipment DATA in JSON format
 # We will request last 10 day data as setted before
 #==========================================================================
@@ -2158,8 +2185,13 @@ fi
 # Modify ARAS SOAP json response to make easily parsable with jq
 < "${this_script_path}/aras.json" $m_sed 's/^[^[]*://g' | $m_awk 'BEGIN{OFS=FS="]"};{$NF="";print $0}' > "${this_script_path}/aras.json.mod" || { echo 'cannot modify aras.json'; exit 1; }
 
-# Parse ARAS JSON data with jq to get necessary data --> status, recipient{name,surname}, tracking number
+# Parse ARAS JSON data with jq to get necessary data --> status, recipient{name,surname}, tracking number(undelivered)
 < "${this_script_path}/aras.json.mod" $m_jq -r '.[]|[.DURUM_KODU,.KARGO_TAKIP_NO,.ALICI]|join(" ")' | $m_sed '/^6/d' | cut -f2- -d ' ' > "${this_script_path}/aras.proc"
+
+# Two-way workflow, get cargo tracking numbers which delivered
+if [ -e "${this_script_path}/.two.way.enb" ];
+	< "${this_script_path}/aras.json.mod" $m_jq -r '.[]|[.DURUM_KODU,.KARGO_TAKIP_NO,.ALICI]|join(" ")' | $m_sed '/^6/!d' | cut -f2- -d ' ' | awk '{print $1}' > "${this_script_path}/aras.proc.del"
+fi
 
 # For perfect matching with order id and tracking number we are normalizing the data.
 # Translate customer info to 'en' & transform text to lowercase & remove whitespaces
@@ -2458,7 +2490,7 @@ if [ -e "${this_script_path}/.woo.aras.enb" ]; then
 				send_mail_suc <<- EOF
 				<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd"><html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"/></head><body><table id="v1template_container" style="background-color: #ffffff; border: 1px solid #dedede; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1); border-radius: 3px;" border="0" width="600" cellspacing="0" cellpadding="0"><tbody><tr><td align="center" valign="top"><table id="v1template_header" style="background-color: #567d46; color: #ffffff; border-bottom: 0; font-weight: bold; line-height: 100%; vertical-align: middle; font-family: 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif; border-radius: 3px 3px 0 0;" border="0" width="100%" cellspacing="0" cellpadding="0"><tbody><tr><td id="v1header_wrapper" style="padding: 36px 48px; display: block;"><h2 style="font-family: 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif; font-size: 30px; font-weight: 300; line-height: 150%; margin: 0px; text-shadow: #78976b 0px 1px 0px; color: #ffffff; background-color: inherit; text-align: center;">Aras Kargo Otomatik Güncelleme: $id - $order_number</h2></td></tr></tbody></table></td></tr><tr><td align="center" valign="top"><table id="v1template_body" border="0" width="600" cellspacing="0" cellpadding="0"><tbody><tr><td id="v1body_content" style="background-color: #ffffff;" valign="top"><table border="0" width="100%" cellspacing="0" cellpadding="20"><tbody><tr><td style="padding: 48px 48px 32px;" valign="top"><div id="v1body_content_inner" style="color: #636363; font-family: 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif; font-size: 14px; line-height: 150%; text-align: left;"><p style="margin: 0 0 16px;">Merhaba $company_name, $c_name siparişi kargoya verildi ve sipariş durumu tamamlandı olarak güncellendi: Müşteriye kargo takip kodunu da içeren bir bilgilendirme maili gönderildi.</p><h2 style="color: #567d46; display: block; font-family: 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif; font-size: 18px; font-weight: bold; line-height: 130%; margin: 0 0 18px; text-align: left;"><a class="v1link" style="font-weight: normal; text-decoration: underline; color: #567d46;" href="#" target="_blank" rel="noreferrer">[Sipariş #$id]</a> ($t_date)</h2><div style="margin-bottom: 40px;"><table class="v1td" style="color: #636363; border: 1px solid #e5e5e5; vertical-align: middle; width: 100%; font-family: 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif;" border="1" cellspacing="0" cellpadding="6"><thead><tr><th class="v1td" style="color: #636363; border: 1px solid #e5e5e5; vertical-align: middle; padding: 12px; text-align: left;">KARGO</th><th class="v1td" style="color: #636363; border: 1px solid #e5e5e5; vertical-align: middle; padding: 12px; text-align: left;">İSİM</th><th class="v1td" style="color: #636363; border: 1px solid #e5e5e5; vertical-align: middle; padding: 12px; text-align: left;">TAKİP KODU</th></tr></thead><tbody><tr class="v1order_item"><td class="v1td" style="color: #636363; border: 1px solid #e5e5e5; padding: 12px; text-align: left; vertical-align: middle; font-family: 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif; word-wrap: break-word;">ARAS KARGO</td><td class="v1td" style="color: #636363; border: 1px solid #e5e5e5; padding: 12px; text-align: left; vertical-align: middle; font-family: 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif;">$c_name</td><td class="v1td" style="color: #636363; border: 1px solid #e5e5e5; padding: 12px; text-align: left; vertical-align: middle; font-family: 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif;">$track</td></tr></tbody></table></div></div></td></tr></tbody></table></td></tr></tbody></table></td></tr></tbody></table></body></html>
 				EOF
-				echo "$(timestamp): ORDER UPDATED: Order_Id=$id Order_Number=$order_number Aras_Tracking_Number=$track Customer_Info=$c_name" >> "${access_log}"
+				echo "$(date +"%T,%d-%b-%Y"): ORDER MARKED AS SHIPPED: Order_Id=$id Order_Number=$order_number Aras_Tracking_Number=$track Customer_Info=$c_name" >> "${access_log}"
 				if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 					echo "${green}*${reset} ${green}ORDER UPDATED: Order_Id=$id Order_Number=$order_number Aras_Tracking_Number=$track Customer_Info=$c_name${reset}"
 				fi
