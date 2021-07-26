@@ -155,11 +155,12 @@ So it is enough to set one time. For mail notification you need working mail ser
 - mail_subject_err
 
 ## Usage
-- If you go with two-way fulfillment workflow (with custom order status package) be sure your setup is working
+- If you go with manual two-way fulfillment workflow installation that explained before, be sure your setup is working
+- If you go with auto two-way fulfillment workflow installation, note your wordpress child theme absolute path for your confirmation during setup
 - Get necessary credentials from ARAS commercial user control panel (https://esasweb.araskargo.com.tr/) (choose JSON fromat)
 ![araskargo-11](https://user-images.githubusercontent.com/25556606/125905483-99941283-cd59-4ac5-b9ea-afc54132dc7b.png)
 - Enable and setup WooCommerce REST API, get credentials (only support REST API v3)
-- Adjust user defined settings as mentioned before
+- Adjust user defined settings such as mail_to, company_name as mentioned before
 - Clear wordpress cache for some security checks
 - Be sure you have some data both on woocommerce and ARAS for validations (if not create test orders)
 - Clone repo ```git clone https://github.com/hsntgm/woocommerce-aras-kargo.git``` (Never manually copy/paste script)
