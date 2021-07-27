@@ -2071,7 +2071,11 @@ $m_curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/orders?status=processing&
 
 # Two-way workflow, extract tracking number from data we previosly marked as shipped
 # Last 5 day !
-if [ -e "${this_script_path}/.two.way.enb" ];
+if [ -e "${this_script_path}/.two.way.enb" ]; then
+	declare -A check_status_del
+	declare -A check_status_del_new
+
+	# Parse script access log to get shipped order data
 	grep "SHIPPED" "${access_log}" | $m_awk '{print $1,$6,$8}' | tr = ' ' | $m_awk '{print $1,$3,$5}' | $m_sed "s|^|$(date +"%T,%d-%b-%Y") |" | $m_awk '{print $3,$4,$1,$2}' |
 	$m_awk '
 	BEGIN{
@@ -2094,6 +2098,35 @@ if [ -e "${this_script_path}/.two.way.enb" ];
 	}
 	' |
 	$m_awk '{print $1,$2,$5}' | tr : ' ' | $m_awk '{print $1,$2,$3/24}' | tr . ' ' | $m_awk '{print $3,$2,$1}' | $m_awk '(NR>0) && ($1 < 6 )' | cut -f2- -d ' ' > "$this_script_path/wc.proc.del"
+
+	# Verify columns of file
+	if [ -s "$this_script_path/wc.proc.del" ]; then
+		good_del=true
+		while read -ra fields
+		do
+			if [[ ! (${fields[0]} =~ ^[+-]?[[:digit:]]+$ && ${fields[1]} =~ ^[+-]?[[:digit:]]+$ ) ]]; then
+				good_del=false
+				break
+			fi
+		done < "$this_script_path/wc.proc.del"
+		if $good_del; then
+			while read -r track id; do
+				check_status_del[$track]=$id
+			done < "$this_script_path/wc.proc.del"
+		fi
+	fi
+
+	# Validate that orders are only in shipped/completed status
+	if [[ "${#check_status_del[@]}" -gt 0 ]; then
+		for i in "${!check_status_del[@]}"
+		do
+			check_status_del_new[$i]=$($m_curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/orders/${check_status_del[$i]}" -u "$api_key":"$api_secret" -H "Content-Type: application/json" | $m_jq -r '[.status]|join(" ")')
+			echo "${i}" "${check_status_del_new[$i]}" >> "$this_script_path/wc.proc.del.tmp1"
+			echo "${i}" "${check_status_del[$i]}" >> "$this_script_path/wc.proc.del.tmp"
+		done
+
+		$m_awk 'FNR==NR{a[$1]=$2;next}{print $0,a[$1]?a[$1]:"NA"}' "$this_script_path/wc.proc.del.tmp1" "$this_script_path/wc.proc.del.tmp" | $m_sed '/completed/!d' > "$this_script_path/wc.proc.del"
+	fi
 fi
 
 # Make SOAP request to ARAS web service to get shipment DATA in JSON format
@@ -2189,7 +2222,7 @@ fi
 < "${this_script_path}/aras.json.mod" $m_jq -r '.[]|[.DURUM_KODU,.KARGO_TAKIP_NO,.ALICI]|join(" ")' | $m_sed '/^6/d' | cut -f2- -d ' ' > "${this_script_path}/aras.proc"
 
 # Two-way workflow, get cargo tracking numbers which delivered
-if [ -e "${this_script_path}/.two.way.enb" ];
+if [ -e "${this_script_path}/.two.way.enb" ]; then
 	< "${this_script_path}/aras.json.mod" $m_jq -r '.[]|[.DURUM_KODU,.KARGO_TAKIP_NO,.ALICI]|join(" ")' | $m_sed '/^6/!d' | cut -f2- -d ' ' | awk '{print $1}' > "${this_script_path}/aras.proc.del"
 fi
 
@@ -2204,6 +2237,21 @@ iconv -f utf8 -t ascii//TRANSLIT < "${this_script_path}/wc.proc" | tr '[:upper:]
 # Perl Text::Fuzzy module is very fast in my tests.
 # You can try Text::Levenshtein - Text::Levenshtein::XS if you interested in speed test (need some coding)
 # =============================================================================================
+
+# Two-way workflow
+if [ -e "${this_script_path}/.two.way.enb" ]; then
+	if [[ -s "${this_script_path}"/aras.proc.del && -s "${this_script_path}"/wc.proc.del ]]; then
+		mapfile -t two_way_arr < "${this_script_path}"/aras.proc.del
+		for i in "${two_way_arr[@]}"
+		do
+			if grep -qw "$i" "${this_script_path}"/wc.proc.del; then
+				echo -e "$(grep "$i" "${this_script_path}"/wc.proc.del | $m_awk '{print $2}')\n" >> "${my_tmp_del}"
+			fi
+		done
+
+		echo "$(< "${my_tmp_del}" $m_sed '/^[[:blank:]]*$/ d' | $m_awk '!seen[$0]++')" > "${my_tmp_del}"
+	fi
+fi
 
 # Verify data integrity (check fields only contains digits, letters && existence of data (eliminate null,whitespace)
 # If only data valid then read file into associative array (array length will not effected by null data)
