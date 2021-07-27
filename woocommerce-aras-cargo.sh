@@ -2075,29 +2075,31 @@ if [ -e "${this_script_path}/.two.way.enb" ]; then
 	declare -A check_status_del
 	declare -A check_status_del_new
 
-	# Parse script access log to get shipped order data
-	grep "SHIPPED" "${access_log}" | $m_awk '{print $1,$6,$8}' | tr = ' ' | $m_awk '{print $1,$3,$5}' | $m_sed "s|^|$(date +"%T,%d-%b-%Y") |" | $m_awk '{print $3,$4,$1,$2}' |
-	$m_awk '
-	BEGIN{
-  		num=split("jan,feb,mar,apr,may,jun,jul,aug,sep,oct,nov,dec",month,",")
-		for(i=1;i<=12;i++){
-		a[month[i]]=i
+	# Parse access log to get shipped order data
+	if [ -e "${access_log}" ]; then
+		grep "SHIPPED" "${access_log}" | $m_awk '{print $1,$6,$8}' | tr = ' ' | $m_awk '{print $1,$3,$5}' | $m_sed "s|^|$(date +"%T,%d-%b-%Y") |" | $m_awk '{print $3,$4,$1,$2}' |
+		$m_awk '
+		BEGIN{
+  			num=split("jan,feb,mar,apr,may,jun,jul,aug,sep,oct,nov,dec",month,",")
+			for(i=1;i<=12;i++){
+			a[month[i]]=i
+			}
 		}
-	}
-	{
-	split($(NF-1),array,"[:,-]")
-	split($(NF),array1,"[:,-]")
-	val=mktime(array[6]" "a[tolower(array[5])]" "array[4]" "array[1]" "array[2]" "array[3])
-	val1=mktime(array1[6]" "a[tolower(array1[5])]" "array1[4]" "array1[1]" "array1[2]" "array1[3])
-	delta=val>=val1?val-val1:val1-val
-	hrs = int(delta/3600)
-	min = int((delta - hrs*3600)/60)
-	sec = delta - (hrs*3600 + min*60)
-	printf "%s\t%02d:%02d:%02d\n", $0, hrs, min, sec
-	hrs=min=sec=delta=""
-	}
-	' |
-	$m_awk '{print $1,$2,$5}' | tr : ' ' | $m_awk '{print $1,$2,$3/24}' | tr . ' ' | $m_awk '{print $3,$2,$1}' | $m_awk '(NR>0) && ($1 < 6 )' | cut -f2- -d ' ' > "$this_script_path/wc.proc.del"
+		{
+		split($(NF-1),array,"[:,-]")
+		split($(NF),array1,"[:,-]")
+		val=mktime(array[6]" "a[tolower(array[5])]" "array[4]" "array[1]" "array[2]" "array[3])
+		val1=mktime(array1[6]" "a[tolower(array1[5])]" "array1[4]" "array1[1]" "array1[2]" "array1[3])
+		delta=val>=val1?val-val1:val1-val
+		hrs = int(delta/3600)
+		min = int((delta - hrs*3600)/60)
+		sec = delta - (hrs*3600 + min*60)
+		printf "%s\t%02d:%02d:%02d\n", $0, hrs, min, sec
+		hrs=min=sec=delta=""
+		}
+		' |
+		$m_awk '{print $1,$2,$5}' | tr : ' ' | $m_awk '{print $1,$2,$3/24}' | tr . ' ' | $m_awk '{print $3,$2,$1}' | $m_awk '(NR>0) && ($1 < 6 )' | cut -f2- -d ' ' > "$this_script_path/wc.proc.del"
+	fi
 
 	# Verify columns of file
 	if [ -s "$this_script_path/wc.proc.del" ]; then
@@ -2118,14 +2120,29 @@ if [ -e "${this_script_path}/.two.way.enb" ]; then
 
 	# Validate that orders are only in shipped/completed status
 	if [[ "${#check_status_del[@]}" -gt 0 ]]; then
-		for i in "${!check_status_del[@]}"
-		do
-			check_status_del_new[$i]=$($m_curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/orders/${check_status_del[$i]}" -u "$api_key":"$api_secret" -H "Content-Type: application/json" | $m_jq -r '[.status]|join(" ")')
-			echo "${i}" "${check_status_del_new[$i]}" >> "$this_script_path/wc.proc.del.tmp1"
-			echo "${i}" "${check_status_del[$i]}" >> "$this_script_path/wc.proc.del.tmp"
-		done
-
-		$m_awk 'FNR==NR{a[$1]=$2;next}{print $0,a[$1]?a[$1]:"NA"}' "$this_script_path/wc.proc.del.tmp1" "$this_script_path/wc.proc.del.tmp" | $m_sed '/completed/!d' > "$this_script_path/wc.proc.del"
+		if ! [[ -e "$this_script_path/wc.proc.del.tmp1" && -e "$this_script_path/wc.proc.del.tmp" ]]; then # These are always appended file and trap(cleanup) can fail, linux is mystery
+			for i in "${!check_status_del[@]}"
+			do
+				check_status_del_new[$i]=$($m_curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/orders/${check_status_del[$i]}" -u "$api_key":"$api_secret" -H "Content-Type: application/json" | $m_jq -r '[.status]|join(" ")')
+				echo "${i}" "${check_status_del_new[$i]}" >> "$this_script_path/wc.proc.del.tmp1"
+				echo "${i}" "${check_status_del[$i]}" >> "$this_script_path/wc.proc.del.tmp"
+			done
+			$m_awk 'FNR==NR{a[$1]=$2;next}{print $0,a[$1]?a[$1]:"NA"}' "$this_script_path/wc.proc.del.tmp1" "$this_script_path/wc.proc.del.tmp" | $m_sed '/completed/!d' > "$this_script_path/wc.proc.del"
+		elif [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
+			echo -e "\n${red}*${reset}${red} Removing temporary file failed by trap.${reset}"
+			echo "${cyan}${m_tab}#####################################################${reset}"
+			echo "${m_tab}${red}File $this_script_path/wc.proc.del.tmp{1} is still exist."
+			echo -e "${m_tab}${red}Trap couldn't catch signal to remove file on previous run${reset}\n"
+			echo "$(timestamp): Trap cannot catch signal to remove file $this_script_path/wc.proc.del.tmp{1} on previous run" >> "${error_log}"
+			exit 1
+		elif [ $send_mail_err -eq 1 ]; then
+			send_mail_err <<< "Trap couldn't catch signal to remove file $this_script_path/wc.proc.del.tmp{1} on previous run. Stopped.."
+			echo "$(timestamp): Trap couldn't catch signal to remove file $this_script_path/wc.proc.del.tmp{1} on previous run" >> "${error_log}"
+			exit 1
+		else
+			echo "$(timestamp): Trap couldn't catch signal to remove file $this_script_path/wc.proc.del.tmp{1} on previous run" >> "${error_log}"
+			exit 1
+		fi
 	fi
 fi
 
@@ -2216,20 +2233,28 @@ elif grep -q "error_75546475052" "$this_script_path/aras.json"; then
 fi
 
 # Modify ARAS SOAP json response to make easily parsable with jq
-< "${this_script_path}/aras.json" $m_sed 's/^[^[]*://g' | $m_awk 'BEGIN{OFS=FS="]"};{$NF="";print $0}' > "${this_script_path}/aras.json.mod" || { echo 'cannot modify aras.json'; exit 1; }
+if [ -s "${this_script_path}/aras.json" ]; then
+	< "${this_script_path}/aras.json" $m_sed 's/^[^[]*://g' | $m_awk 'BEGIN{OFS=FS="]"};{$NF="";print $0}' > "${this_script_path}/aras.json.mod" || { echo 'cannot modify aras.json'; exit 1; }
+fi
 
 # Parse ARAS JSON data with jq to get necessary data --> status, recipient{name,surname}, tracking number(undelivered)
-< "${this_script_path}/aras.json.mod" $m_jq -r '.[]|[.DURUM_KODU,.KARGO_TAKIP_NO,.ALICI]|join(" ")' | $m_sed '/^6/d' | cut -f2- -d ' ' > "${this_script_path}/aras.proc"
+if [ -s "${this_script_path}/aras.json.mod" ]; then
+	< "${this_script_path}/aras.json.mod" $m_jq -r '.[]|[.DURUM_KODU,.KARGO_TAKIP_NO,.ALICI]|join(" ")' | $m_sed '/^6/d' | cut -f2- -d ' ' > "${this_script_path}/aras.proc"
+fi
 
 # Two-way workflow, get cargo tracking numbers which delivered
 if [ -e "${this_script_path}/.two.way.enb" ]; then
-	< "${this_script_path}/aras.json.mod" $m_jq -r '.[]|[.DURUM_KODU,.KARGO_TAKIP_NO,.ALICI]|join(" ")' | $m_sed '/^6/!d' | cut -f2- -d ' ' | awk '{print $1}' > "${this_script_path}/aras.proc.del"
+	if [ -s "${this_script_path}/aras.json.mod" ]; then
+		< "${this_script_path}/aras.json.mod" $m_jq -r '.[]|[.DURUM_KODU,.KARGO_TAKIP_NO,.ALICI]|join(" ")' | $m_sed '/^6/!d' | cut -f2- -d ' ' | $m_awk '{print $1}' > "${this_script_path}/aras.proc.del"
+	fi
 fi
 
 # For perfect matching with order id and tracking number we are normalizing the data.
 # Translate customer info to 'en' & transform text to lowercase & remove whitespaces
-iconv -f utf8 -t ascii//TRANSLIT < "${this_script_path}/aras.proc" | tr '[:upper:]' '[:lower:]' | $m_awk '{s=$1;gsub($1 FS,x);$1=$1;print s FS $0}' OFS= > "${this_script_path}/aras.proc.en"
-iconv -f utf8 -t ascii//TRANSLIT < "${this_script_path}/wc.proc" | tr '[:upper:]' '[:lower:]' | $m_awk '{s=$1;gsub($1 FS,x);$1=$1;print s FS $0}' OFS= > "${this_script_path}/wc.proc.en"
+if [[ -s "${this_script_path}/aras.proc" && -s "${this_script_path}/wc.proc" ]]; then
+	iconv -f utf8 -t ascii//TRANSLIT < "${this_script_path}/aras.proc" | tr '[:upper:]' '[:lower:]' | $m_awk '{s=$1;gsub($1 FS,x);$1=$1;print s FS $0}' OFS= > "${this_script_path}/aras.proc.en"
+	iconv -f utf8 -t ascii//TRANSLIT < "${this_script_path}/wc.proc" | tr '[:upper:]' '[:lower:]' | $m_awk '{s=$1;gsub($1 FS,x);$1=$1;print s FS $0}' OFS= > "${this_script_path}/wc.proc.en"
+fi
 
 # MAIN STRING MATCHING LOGIC
 # Approximate string matching up to 3 characters.
