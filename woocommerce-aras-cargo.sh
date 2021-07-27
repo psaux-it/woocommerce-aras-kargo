@@ -2117,7 +2117,7 @@ if [ -e "${this_script_path}/.two.way.enb" ]; then
 	fi
 
 	# Validate that orders are only in shipped/completed status
-	if [[ "${#check_status_del[@]}" -gt 0 ]; then
+	if [[ "${#check_status_del[@]}" -gt 0 ]]; then
 		for i in "${!check_status_del[@]}"
 		do
 			check_status_del_new[$i]=$($m_curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/orders/${check_status_del[$i]}" -u "$api_key":"$api_secret" -H "Content-Type: application/json" | $m_jq -r '[.status]|join(" ")')
