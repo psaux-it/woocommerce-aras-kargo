@@ -2047,8 +2047,23 @@ EOF
 
 # Get WC order's ID (processing status) & WC customer info
 # As of 2021 max 100 orders fetchable with one query
-$m_curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/orders?status=processing&per_page=100" -u "$api_key":"$api_secret" -H "Content-Type: application/json" |
+if $m_curl -s -X GET --fail "https://$api_endpoint/wp-json/wc/v3/orders?status=processing&per_page=100" -u "$api_key":"$api_secret" -H "Content-Type: application/json"; then
+	$m_curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/orders?status=processing&per_page=100" -u "$api_key":"$api_secret" -H "Content-Type: application/json" |
 	$m_jq -r '.[]|[.id,.shipping.first_name,.shipping.last_name]|join(" ")' > "$this_script_path/wc.proc"
+elif [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
+	echo -e "\n${red}*${reset}${red} WooCommerce REST API Connection Error${reset}"
+	echo "${cyan}${m_tab}#####################################################${reset}"
+	echo -e "${m_tab}${red}This can be temporary connection error${reset}\n"
+	echo "$(timestamp): WooCommerce REST API connection error, this can be temporary connection error" >> "${error_log}"
+	exit 1
+elif [ $send_mail_err -eq 1 ]; then
+	send_mail_err <<< "WooCommerce REST API connection error, this can be temporary connection error"
+	echo "$(timestamp): WooCommerce REST API connection error, this can be temporary connection error" >> "${error_log}"
+	exit 1
+else
+	echo "$(timestamp): WooCommerce REST API connection error, this can be temporary connection error" >> "${error_log}"
+	exit 1
+fi
 
 # Two-way workflow, extract tracking number from data we previosly marked as shipped
 # Last 5 day !
@@ -2247,15 +2262,28 @@ fi
 # Two-way workflow
 if [ -e "${this_script_path}/.two.way.enb" ]; then
 	if [[ -s "${this_script_path}"/aras.proc.del && -s "${this_script_path}"/wc.proc.del ]]; then
-		mapfile -t two_way_arr < "${this_script_path}"/aras.proc.del
-		for i in "${two_way_arr[@]}"
+		good_aras_del=true
+		while read -ra fields
 		do
-			if grep -qw "$i" "${this_script_path}"/wc.proc.del; then
-				echo -e "$(grep "$i" "${this_script_path}"/wc.proc.del | $m_awk '{print $2}')\n" >> "${my_tmp_del}"
+			if [[ ! ${fields[0]} =~ ^[+-]?[[:digit:]]+$ ]]; then
+				good_aras_del=false
+				break
 			fi
-		done
+		done < "${this_script_path}/aras.proc.del"
 
-		echo "$(< "${my_tmp_del}" $m_sed '/^[[:blank:]]*$/ d' | $m_awk '!seen[$0]++')" > "${my_tmp_del}"
+		if $good_aras_del; then
+			if [ "$($m_awk '{print NF}' "${this_script_path}"/aras.proc.del | sort -nu | tail -n 1)" -eq 1 ]; then
+				mapfile -t two_way_arr < "${this_script_path}"/aras.proc.del
+				for i in "${two_way_arr[@]}"
+				do
+					if grep -qw "$i" "${this_script_path}"/wc.proc.del; then
+						echo -e "$(grep "$i" "${this_script_path}"/wc.proc.del | $m_awk '{print $2}')\n" >> "${my_tmp_del}"
+					fi
+				done
+
+				echo "$(< "${my_tmp_del}" $m_sed '/^[[:blank:]]*$/ d' | $m_awk '!seen[$0]++')" > "${my_tmp_del}"
+			fi
+		fi
 	fi
 fi
 
@@ -2302,7 +2330,7 @@ if [[ "${#aras_array[@]}" -gt 0 && "${#wc_array[@]}" -gt 0 ]]; then # Check leng
 	elif [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 		echo -e "\n${red}*${reset}${red} Removing temporary file failed by trap.${reset}"
 		echo "${cyan}${m_tab}#####################################################${reset}"
-		echo "${m_tab}${red}File ${this_script_path}/.lvn.all.cus is still exist."
+		echo "${m_tab}${red}File ${this_script_path}/.lvn.all.cus is still exist.${reset}"
 		echo "${m_tab}${red}Trap couldn't catch signal to remove file on previous run${reset}"
 		echo -e "${m_tab}${red}Or you disabled trap signal catch in script${reset}\n"
 		echo "$(timestamp): Trap cannot catch signal to remove file ${this_script_path}/.lvn.stn on previous run" >> "${error_log}"
@@ -2328,7 +2356,7 @@ if [ -s "${this_script_path}/.lvn.all.cus" ]; then
 	elif [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 		echo -e "\n${red}*${reset}${red} Removing temporary file failed by trap.${reset}"
 		echo "${cyan}${m_tab}#####################################################${reset}"
-		echo "${m_tab}${red}File ${this_script_path}/.lvn.stn is still exist."
+		echo "${m_tab}${red}File ${this_script_path}/.lvn.stn is still exist.${reset}"
 		echo "${m_tab}${red}Trap couldn't catch signal to remove file on previous run${reset}"
 		echo -e "${m_tab}${red}Or you disabled trap signal catch in script${reset}\n"
 		echo "$(timestamp): Trap couldn't catch signal to remove file ${this_script_path}/.lvn.stn on previous run" >> "${error_log}"
@@ -2357,7 +2385,7 @@ if [ -s "${this_script_path}/.lvn.all.cus" ]; then
 		elif [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 			echo -e "\n${red}*${reset}${red} Removing temporary file failed by trap.${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
-			echo "${m_tab}${red}File ${this_script_path}/.lvn.mytmp2 is still exist."
+			echo "${m_tab}${red}File ${this_script_path}/.lvn.mytmp2 is still exist.${reset}"
 			echo "${m_tab}${red}Trap couldn't catch signal to remove file on previous run${reset}"
 			echo -e "${m_tab}${red}Or you disabled trap signal catch in script${reset}\n"
 			echo "$(timestamp): Trap couldn't catch signal to remove file ${this_script_path}/.lvn.mytmp2 on previous run" >> "${error_log}"
