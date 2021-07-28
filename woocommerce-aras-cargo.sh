@@ -1080,6 +1080,8 @@ help () {
 	echo -e "${m_tab}# ---------------------------------------------------------------------${reset}\n"
 }
 
+# If user manually implemented two-way workflow also need to call this function to activate it
+# sudo ./woocommerce-aras-cargo.sh  --twoway-enable
 twoway_enable () {
 	# Get absolte path of child theme
 	if [[ -e "${this_script_path}/.woo.aras.enb" && -e "${this_script_path}/.woo.aras.set" ]]; then
