@@ -651,7 +651,7 @@ simple_uninstall_twoway () {
 }
 
 uninstall_twoway () {
-	if [[ -e "${this_script_path}/.woo.aras.enb" && -e "${this_script_path}/.woo.aras.set" ]]; then # Check default installation is completed
+	if [[ -e "${this_script_path}/.woo.aras.set" ]]; then # Check default installation is completed
 		find_child_path
 		if [ -e "${this_script_path}/.two.way.enb" ]; then # Check twoway installation
 			get_delivered=$($m_curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/orders?status=delivered" -u "$api_key":"$api_secret" -H "Content-Type: application/json") # Get data
@@ -1208,7 +1208,7 @@ help () {
 # sudo ./woocommerce-aras-cargo.sh  --twoway-enable
 twoway_enable () {
 	# Get absolte path of child theme
-	if [[ -e "${this_script_path}/.woo.aras.enb" && -e "${this_script_path}/.woo.aras.set" ]]; then
+	if [[ -e "${this_script_path}/.woo.aras.set" ]]; then
 		find_child_path
 	else
 		echo -e "\n${red}*${reset} ${red}Two way fulfillment cannot enable: ${reset}"
@@ -1784,7 +1784,7 @@ fi
 # Check uncompleted setup
 if [[ "$1" != "-s" && "$1" != "--setup" ]]; then
 	if [[ "$(ls -1q ${this_script_path}/.*lck 2>/dev/null | wc -l)" -eq 8 ]]; then
-		if [[ ! -e "${this_script_path}/.woo.aras.set" && ! -e "${this_script_path}/.woo.aras.enb" ]]; then
+		if [[ ! -e "${this_script_path}/.woo.aras.set" ]]; then
 			echo -e "\n${yellow}*${reset} ${yellow}The previous installation was not completed.${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			echo "${m_tab}${yellow}We will continue the installation.${reset}"
