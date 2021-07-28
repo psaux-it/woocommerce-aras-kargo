@@ -713,12 +713,13 @@ uninstall_twoway () {
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			echo -e "${m_tab}${red}Couldn't find twoway fulfillment installation${reset}\n"
 			echo "$(timestamp): Couldn't find twoway fulfillment installation" >> "${error_log}"
+			exit 1
 		fi
 	else
 		echo -e "\n${red}*${reset} ${red}Two way fulfillment unistallation aborted: ${reset}"
 		echo "${cyan}${m_tab}#####################################################${reset}"
-		echo -e "${m_tab}${red}Couldn't find default installation${reset}\n"
-		echo "$(timestamp): Two way fulfillment unistallation aborted: Couldn't find default installation" >> "${error_log}"
+		echo -e "${m_tab}${red}Default installation not completed${reset}\n"
+		echo "$(timestamp): Two way fulfillment unistallation aborted: default installation not completed" >> "${error_log}"
 		exit 1
 	fi
 }
@@ -985,8 +986,9 @@ hard_reset () {
 	fi
 
 	if [[ -n $systemd_uninstall && -n $cron_uninstall && -n $cron_uninstall_update && -n $logrotate_uninstall ]]; then
-		echo -e "\n${yellow}*${reset} ${yellow}Nothing found to uninstall.${reset}"
-		echo -e "${cyan}${m_tab}#####################################################${reset}\n"
+		echo -e "\n${yellow}*${reset} ${yellow}Cron, systemd, logrotate not installed.${reset}"
+		echo "${cyan}${m_tab}#####################################################${reset}"
+		echo -e "${m_tab}${yellow}Nothing found to uninstall.${reset}\n"
 	fi
 }
 
@@ -1088,6 +1090,9 @@ un_install () {
 	rm -f "${this_script_path:?}/.woo.aras.set" >/dev/null 2>&1
 	rm -f "${this_script_path:?}/.woo.aras.enb" >/dev/null 2>&1
 	rm -rf "${this_script_path:?}/tmp" >/dev/null 2>&1
+
+	echo -e "\n${green}*${reset} ${green}Uninstallation completed${reset}"
+	echo -e "${cyan}${m_tab}#####################################################${reset}\n"
 }
 
 # Disable setup after successful installation
@@ -1217,8 +1222,8 @@ twoway_enable () {
 	else
 		echo -e "\n${red}*${reset} ${red}Two way fulfillment cannot enable: ${reset}"
 		echo "${cyan}${m_tab}#####################################################${reset}"
-		echo -e "${m_tab}${red}Couldn't find default installation${reset}\n"
-		echo "$(timestamp): Two way fulfillment cannot enabled: Couldn't find default installation" >> "${error_log}"
+		echo -e "${m_tab}${red}Default installation not completed${reset}\n"
+		echo "$(timestamp): Two way fulfillment cannot enabled: default installation not completed" >> "${error_log}"
 		exit 1
 	fi
 
