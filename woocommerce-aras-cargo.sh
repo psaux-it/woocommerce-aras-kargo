@@ -927,24 +927,7 @@ hard_reset () {
 		logrotate_uninstall=0
 	fi
 
-	if [[ -s "${error_log}" || -s "${access_log}" ]]; then
-		if [[ -w "${access_log}" || -w "${error_log}" ]]; then
-			rm -rf "${error_log:?}" "${access_log:?}" >/dev/null 2>&1
-			echo "${green}*${reset} ${yellow}Log files removed:${reset}"
-			echo "${cyan}${m_tab}#####################################################${reset}"
-			echo "${yellow}${m_tab}${error_log}${reset}"
-			echo -e "${yellow}${m_tab}${access_log}${reset}\n"
-		else
-			echo "${red}*${reset} ${red}Logs cannot removed, as files not writable${reset}"
-			echo "${cyan}${m_tab}#####################################################${reset}"
-			echo -e "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}\n"
-			echo "$(timestamp): Uninstallation error: $error_log - $access_log not writeable" >> "${error_log}"
-		fi
-	else
-		log_uninstall=0
-	fi
-
-	if [[ -n $systemd_uninstall && -n $cron_uninstall && -n $cron_uninstall_update && -n $log_uninstall && -n $logrotate_uninstall ]]; then
+	if [[ -n $systemd_uninstall && -n $cron_uninstall && -n $cron_uninstall_update && -n $logrotate_uninstall ]]; then
 		echo -e "\n${yellow}*${reset} ${yellow}Nothing found to uninstall.${reset}"
 		echo -e "${cyan}${m_tab}#####################################################${reset}\n"
 	fi
@@ -960,8 +943,6 @@ un_install () {
 	if [[ -e "${cron_dir}/${cron_filename}" ||
 		-e "${systemd_dir}/${service_filename}" ||
 		-e "${logrotate_dir}/${logrotate_filename}" ||
-		-e "${error_log}" ||
-		-e "${access_log}" ||
 		-e "${systemd_dir}/${timer_filename}" ||
 		-e "${cron_dir}/${cron_filename_update}" ]]; then
 		hard_reset
