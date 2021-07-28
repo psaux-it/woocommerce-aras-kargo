@@ -46,7 +46,7 @@
 script_version="1.0.9"
 # =====================================================================
 
-# EDITABLE VARIABLES
+# USER DEFINED-EDITABLE VARIABLES & FUNCTIONS
 # =====================================================================
 # Logging paths
 error_log="/var/log/woocommerce_aras.err"
@@ -65,23 +65,18 @@ mail_to="order_info@${company_domain}"
 mail_from="From: ${company_name} <aras_woocommerce@${company_domain}>"
 mail_subject_suc="SUCCESS: WooCommerce - ARAS Cargo"
 mail_subject_err="ERROR: WooCommerce - ARAS Cargo Integration Error"
-# =====================================================================
 
-# Set PATHS to prevent cron errors.
-# We will also add explicit paths for specific binaries later.
-export PATH="${PATH}:/sbin:/usr/sbin:/usr/local/bin:/usr/local/sbin"
-uniquepath () {
-	local path=""
-	while read -r; do
-		if [[ ! ${path} =~ (^|:)"${REPLY}"(:|$) ]]; then
-			[ -n "${path}" ] && path="${path}:"
-			path="${path}${REPLY}"
-		fi
-	done < <(echo "${PATH}" | tr ":" "\n")
-
-	[ -n "${path}" ] && [[ ${PATH} =~ /bin ]] && [[ ${PATH} =~ /sbin ]] && export PATH="${path}"
+# Send mail functions
+# If you use sendmail, mutt etc. you can adjust here
+send_mail_err () {
+        mail -s "$mail_subject_err" -a "$mail_from" -a "MIME-Version: 1.0" -a "Content-Type: text/html; charset=UTF-8" "$mail_to"
 }
-uniquepath
+
+send_mail_suc () {
+        mail -s "$mail_subject_suc" -a "$mail_from" -a "MIME-Version: 1.0" -a "Content-Type: text/html; charset=UTF-8" "$mail_to"
+}
+# END
+# =====================================================================
 
 # Set ARAS cargo request date range --> last 10 days
 # Supports Max 30 days.
@@ -89,16 +84,6 @@ uniquepath
 t_date=$(date +%d/%m/%Y)
 e_date=$(date +%d-%m-%Y -d "+1 days")
 s_date=$(date +%d-%m-%Y -d "-10 days")
-
-# Send mail functions
-# If you use sendmail, mutt etc. you can adjust here
-send_mail_err () {
-	mail -s "$mail_subject_err" -a "$mail_from" -a "MIME-Version: 1.0" -a "Content-Type: text/html; charset=UTF-8" "$mail_to"
-}
-
-send_mail_suc () {
-	mail -s "$mail_subject_suc" -a "$mail_from" -a "MIME-Version: 1.0" -a "Content-Type: text/html; charset=UTF-8" "$mail_to"
-}
 
 # Log timestamp
 timestamp () {
@@ -116,6 +101,95 @@ BC=$'\e[32m'
 EC=$'\e[0m'
 m_tab='  '
 m_tab_3=' '
+
+# Determine script run by cron
+TEST_CRON="$(pstree -s $$ | grep -c cron 2>/dev/null)"
+TEST_CRON_2=$([ -z "$TERM" ] || [ "$TERM" = "dumb" ] && echo '1' || echo '0')
+if [ "$TEST_CRON" == "1" ] || [ "$TEST_CRON_2" == "1" ]; then
+	RUNNING_FROM_CRON=1
+else
+	RUNNING_FROM_CRON=0
+fi
+
+# Determine script run by systemd.
+# Use systemd service environment variable if set.
+# Otherwise pass default.
+# Magic of shell parameter expansion
+FROM_SYSTEMD="0"
+RUNNING_FROM_SYSTEMD="${RUNNING_FROM_SYSTEMD:=$FROM_SYSTEMD}"
+
+pid_pretty_error () {
+	if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
+		echo -e "\n${red}*${reset} ${red}FATAL ERROR: ${reset}"
+		echo "${cyan}${m_tab}#####################################################${reset}"
+		echo -e "${m_tab}${red}Cannot create PID${reset}\n"
+		echo "$(timestamp): FATAL ERROR: cannot create PID" >> "${error_log}"
+	elif [ $send_mail_err -eq 1 ]; then
+		send_mail_err <<< "FATAL ERROR: Cannot create PID"
+		echo "$(timestamp): FATAL ERROR: Cannot create PID" >> "${error_log}"
+	else
+		echo "$(timestamp): FATAL ERROR: Cannot create PID" >> "${error_log}"
+	fi
+}
+
+# Create PID before long running process
+# Allow only one instance running at the same time
+# Check how long actual process has been running
+# TODO: imo flock is better alternative
+PIDFILE=/var/run/woocommerce-aras-cargo.pid
+if [ -f "$PIDFILE" ]; then
+	PID="$(< "$PIDFILE")"
+	if ps -p "$PID" > /dev/null 2>&1; then
+		is_running=$(printf "%d" "$(($(ps -p "$PID" -o etimes=) / 60))")
+		if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
+			echo -e "\n${red}*${reset} ${red}The operation cannot be performed at the moment: ${reset}"
+			echo "${cyan}${m_tab}#####################################################${reset}"
+			echo -e "${m_tab}${red}As script already running --> ${magenta}pid=$PID${reset}${red}, please try again later${reset}\n"
+			echo "$(timestamp): The operation cannot be performed at the moment: as script already running --> pid=$PID, please try again later" >> "${error_log}"
+		elif [ $send_mail_err -eq 1 ]; then
+			send_mail_err <<< "The operation cannot be performed at the moment: as script already running --> pid=$PID, please try again later"
+			echo "$(timestamp): The operation cannot be performed at the moment: as script already running --> pid=$PID, please try again later" >> "${error_log}"
+		else
+			echo "$(timestamp): The operation cannot be performed at the moment: as script already running --> pid=$PID, please try again later" >> "${error_log}"
+		fi
+		if [ "$is_running" -gt 30 ]; then
+			if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
+				echo -e "\n${red}*${reset} ${red}Possible hang process found: ${reset}"
+				echo "${cyan}${m_tab}#####################################################${reset}"
+				echo -e "${m_tab}${red}The process pid=$PID has been running for more than 30 minutes.${reset}\n"
+				echo "$(timestamp): Possible hang process found: The process pid=$PID has been running for more than 30 minutes." >> "${error_log}"
+			elif [ $send_mail_err -eq 1 ]; then
+				send_mail_err <<< "Possible hang process found: The process pid=$PID has been running for more than 30 minutes."
+				echo "$(timestamp): Possible hang process found: The process pid=$PID has been running for more than 30 minutes." >> "${error_log}"
+			else
+				echo "$(timestamp): Possible hang process found: The process pid=$PID has been running for more than 30 minutes." >> "${error_log}"
+			fi
+		fi
+		exit 1
+	elif ! echo $$ > "${PIDFILE}"; then
+		pid_pretty_error
+		exit 1
+	fi
+elif ! echo $$ > "${PIDFILE}" ; then
+	pid_pretty_error
+	exit 1
+fi
+
+# Set PATHS to prevent cron errors.
+# We will also add explicit paths for specific binaries later.
+export PATH="${PATH}:/sbin:/usr/sbin:/usr/local/bin:/usr/local/sbin"
+uniquepath () {
+	local path=""
+	while read -r; do
+		if [[ ! ${path} =~ (^|:)"${REPLY}"(:|$) ]]; then
+			[ -n "${path}" ] && path="${path}:"
+			path="${path}${REPLY}"
+		fi
+	done < <(echo "${PATH}" | tr ":" "\n")
+
+	[ -n "${path}" ] && [[ ${PATH} =~ /bin ]] && [[ ${PATH} =~ /sbin ]] && export PATH="${path}"
+}
+uniquepath
 
 # Check dependencies
 # =====================================================================
@@ -200,8 +274,6 @@ clean_up () {
 	rm -rf ${my_tmp:?} "${this_script_path:?}"/*.en "${this_script_path:?}"/{*proc*,.*proc} "${this_script_path:?}"/{*json*,.*json} "${this_script_path:?}"/aras_request.php "${this_script_path:?}"/.lvn*
 }
 trap clean_up EXIT HUP INT QUIT TERM
-
-# Catch ctrl+c
 trap "exit" INT
 
 # Global variables
@@ -230,22 +302,6 @@ sh_output="${this_script_path}/woocommerce-aras-cargo.sh.tmp"
 update_script="woocommerce-aras-update-script.sh"
 my_tmp_folder="${this_script_path}/tmp"
 my_string="woocommerce-aras-cargo-integration"
-
-# Determine script run by cron
-TEST_CRON="$($m_pstree -s $$ | grep -c cron 2>/dev/null)"
-TEST_CRON_2=$([ -z "$TERM" ] || [ "$TERM" = "dumb" ] && echo '1' || echo '0')
-if [ "$TEST_CRON" == "1" ] || [ "$TEST_CRON_2" == "1" ]; then
-	RUNNING_FROM_CRON=1
-else
-	RUNNING_FROM_CRON=0
-fi
-
-# Determine script run by systemd.
-# Use systemd service environment variable if set.
-# Otherwise pass default.
-# Magic of shell parameter expansion
-FROM_SYSTEMD="0"
-RUNNING_FROM_SYSTEMD="${RUNNING_FROM_SYSTEMD:=$FROM_SYSTEMD}"
 
 # Prevent errors cause by uncompleted downloads
 # Detect to make sure the entire script is avilable, fail if the script is missing contents
@@ -2607,4 +2663,5 @@ if [ -e "${this_script_path}/.woo.aras.enb" ]; then
 fi
 
 # And lastly we exit
+rm -f "${PIDFILE:?}"
 exit $?
