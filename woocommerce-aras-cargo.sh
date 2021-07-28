@@ -1029,6 +1029,8 @@ enable () {
 			if [[ -w "${this_script_path}" ]]; then
 				touch "${this_script_path}/.woo.aras.enb" >/dev/null 2>&1
 				chattr +i "${this_script_path}/.woo.aras.enb" >/dev/null 2>&1
+				echo -e "\n${green}*${reset} ${green}Aras-WooCommerce integration enabled.${reset}"
+				echo -e "${cyan}${m_tab}#####################################################${reset}\n"
 			else
 				echo -e "\n${red}*${reset} ${red}Cannot enable Aras-WooCommerce integration: ${reset}"
 				echo "${cyan}${m_tab}#####################################################${reset}"
