@@ -135,6 +135,7 @@ pid_pretty_error () {
 # Create PID before long running process
 # Allow only one instance running at the same time
 # Check how long actual process has been running
+# NOTE: Used custom exit code(80) to prevent triggering trap clean up for running process
 # TODO: imo flock is better alternative
 PIDFILE=/var/run/woocommerce-aras-cargo.pid
 if [ -f "$PIDFILE" ]; then
@@ -165,14 +166,14 @@ if [ -f "$PIDFILE" ]; then
 				echo "$(timestamp): Possible hang process found: The process pid=$PID has been running for more than 30 minutes." >> "${error_log}"
 			fi
 		fi
-		exit 1
+		exit 80
 	elif ! echo $$ > "${PIDFILE}"; then
 		pid_pretty_error
-		exit 1
+		exit 80
 	fi
 elif ! echo $$ > "${PIDFILE}" ; then
 	pid_pretty_error
-	exit 1
+	exit 80
 fi
 
 # Set PATHS to prevent cron errors.
@@ -271,10 +272,9 @@ fi
 
 # Listen exit signals to destroy temporary files
 clean_up () {
-	rm -rf ${my_tmp:?} "${this_script_path:?}"/*.en "${this_script_path:?}"/{*proc*,.*proc} "${this_script_path:?}"/{*json*,.*json} "${this_script_path:?}"/aras_request.php "${this_script_path:?}"/.lvn*
+	rm -rf ${my_tmp:?} ${my_tmp_del:?} ${PIDFILE:?} "${this_script_path:?}"/*.en "${this_script_path:?}"/{*proc*,.*proc} "${this_script_path:?}"/{*json*,.*json} "${this_script_path:?}"/aras_request.php "${this_script_path:?}"/.lvn*
 }
-trap clean_up EXIT HUP INT QUIT TERM
-trap "exit" INT
+trap clean_up 0 1 2 3 6 15
 
 # Global variables
 user="$(whoami)"
@@ -2663,5 +2663,4 @@ if [ -e "${this_script_path}/.woo.aras.enb" ]; then
 fi
 
 # And lastly we exit
-rm -f "${PIDFILE:?}"
 exit $?
