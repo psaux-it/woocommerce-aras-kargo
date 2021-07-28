@@ -989,6 +989,70 @@ hard_reset () {
 	fi
 }
 
+# Instead of uninstall just disable/inactivate script (for urgent cases & debugging purpose)
+disable () {
+	if [[ -e "${this_script_path}/.woo.aras.set" ]]; then
+		if [[ -e "${this_script_path}/.woo.aras.enb" ]]; then
+			if [[ -w "${this_script_path}/.woo.aras.enb" ]]; then
+				chattr -i "${this_script_path}/.woo.aras.enb" >/dev/null 2>&1
+				rm -f "${this_script_path:?}/.woo.aras.enb" >/dev/null 2>&1 &&
+				echo -e "\n${green}*${reset} ${green}Aras-WooCommerce integration disabled.${reset}"
+				echo -e "${cyan}${m_tab}#####################################################${reset}\n"
+			else
+				echo -e "\n${red}*${reset} ${red}Cannot disable Aras-WooCommerce integration: ${reset}"
+				echo "${cyan}${m_tab}#####################################################${reset}"
+				echo "${m_tab}${red}As file not writeable ${this_script_path}/.woo.aras.enb${reset}"
+				echo -e "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}\n"
+				echo "$(timestamp): Cannot disable Aras-WooCommerce integration: as file not writeable ${this_script_path}/.woo.aras.enb" >> "${error_log}"
+				exit 1
+			fi
+		else
+			echo -e "\n${red}*${reset} ${red}Cannot disable Aras-WooCommerce integration: ${reset}"
+			echo "${cyan}${m_tab}#####################################################${reset}"
+			echo "${m_tab}${red}Integration already disabled.${reset}"
+			echo "$(timestamp): Cannot disable Aras-WooCommerce integration: already disabled" >> "${error_log}"
+			exit 1
+		fi
+	else
+		echo -e "\n${red}*${reset} ${red}Cannot disable Aras-WooCommerce integration: ${reset}"
+		echo "${cyan}${m_tab}#####################################################${reset}"
+		echo -e "${m_tab}${red}Default installation not completed${reset}\n"
+		echo "$(timestamp): Cannot disable Aras-WooCommerce integration: default installation not completed" >> "${error_log}"
+		exit 1
+	fi
+}
+
+# Enable/activate script if previously disabled
+enable () {
+	if [[ -e "${this_script_path}/.woo.aras.set" ]]; then
+		if [[ ! -e "${this_script_path}/.woo.aras.enb" ]]; then
+			if [[ -w "${this_script_path}" ]]; then
+				touch "${this_script_path}/.woo.aras.enb" >/dev/null 2>&1
+				chattr +i "${this_script_path}/.woo.aras.enb" >/dev/null 2>&1
+			else
+				echo -e "\n${red}*${reset} ${red}Cannot enable Aras-WooCommerce integration: ${reset}"
+				echo "${cyan}${m_tab}#####################################################${reset}"
+				echo "${m_tab}${red}As file not writeable ${this_script_path}/.woo.aras.enb${reset}"
+				echo -e "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}\n"
+				echo "$(timestamp): Cannot enable Aras-WooCommerce integration: as file not writeable ${this_script_path}/.woo.aras.enb" >> "${error_log}"
+				exit 1
+			fi
+		else
+			echo -e "\n${red}*${reset} ${red}Cannot enable Aras-WooCommerce integration: ${reset}"
+			echo "${cyan}${m_tab}#####################################################${reset}"
+			echo "${m_tab}${red}Integration already enabled.${reset}"
+			echo "$(timestamp): Cannot disable Aras-WooCommerce integration: already enabled " >> "${error_log}"
+			exit 1
+		fi
+	else
+		echo -e "\n${red}*${reset} ${red}Cannot enable Aras-WooCommerce integration: ${reset}"
+		echo "${cyan}${m_tab}#####################################################${reset}"
+		echo -e "${m_tab}${red}Default installation not completed${reset}\n"
+		echo "$(timestamp): Cannot enable Aras-WooCommerce integration: default installation not completed" >> "${error_log}"
+		exit 1
+	fi
+}
+
 un_install () {
 	# Remove twoway fulfillment workflow
 	if [ -e "${this_script_path}/.two.way.enb" ]; then
@@ -1126,11 +1190,13 @@ on_fly_enable () {
 help () {
 	echo -e "\n${m_tab}${cyan}# WOOCOMMERCE - ARAS CARGO INTEGRATION HELP"
 	echo -e "${m_tab}# ---------------------------------------------------------------------"
-	echo -e "${m_tab}#${m_tab}--setup            |-s      hard reset & re-starts setup"
-	echo -e "${m_tab}#${m_tab}--twoway-enable    |-e      enable twoway fulfillment workflow (for manual implementations)"
-	echo -e "${m_tab}#${m_tab}--uninstall        |-r      removes twoway & install bundles aka cron jobs, systemd services, logrotate, logs"
+	echo -e "${m_tab}#${m_tab}--setup            |-s      hard reset and  re-starts setup"
+	echo -e "${m_tab}#${m_tab}--twoway-enable    |-t      enable twoway fulfillment workflow (for manual implementations)"
+	echo -e "${m_tab}#${m_tab}--disable          |-i      disable/inactivate script without uninstallation (for debugging purpose)"
+	echo -e "${m_tab}#${m_tab}--enable           |-a      enable/activate script if previously disabled"
+	echo -e "${m_tab}#${m_tab}--uninstall        |-d      completely remove installed bundles aka twoway, cron jobs, systemd services, logrotate"
 	echo -e "${m_tab}#${m_tab}--upgrade          |-u      upgrade script to latest version"
-	echo -e "${m_tab}#${m_tab}--dependencies     |-d      display necessary dependencies"
+	echo -e "${m_tab}#${m_tab}--dependencies     |-p      display prerequisites & dependencies"
 	echo -e "${m_tab}#${m_tab}--version          |-v      display script info"
 	echo -e "${m_tab}#${m_tab}--help             |-h      display help"
 	echo -e "${m_tab}# ---------------------------------------------------------------------${reset}\n"
@@ -1430,16 +1496,22 @@ upgrade () {
 
 while :; do
 	case "${1}" in
-	-e|--twoway-enable    ) twoway_enable
+	-t|--twoway-enable    ) twoway_enable
+				exit
+				;;
+	-i|--disable          ) disable
+				exit
+				;;
+	-a|--enable	      ) enable
 				exit
 				;;
 	-u|--upgrade          ) upgrade
 				exit
 				;;
-	-r|--uninstall        ) un_install
+	-d|--uninstall        ) un_install
 				exit
 				;;
-	-d|--dependencies     ) dependencies
+	-p|--dependencies     ) dependencies
 				exit
 				;;
 	-v|--version          ) version
