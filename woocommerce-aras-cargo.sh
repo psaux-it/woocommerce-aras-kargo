@@ -266,6 +266,7 @@ fi
 
 # Create tmp folder
 my_tmp=$(mktemp)
+my_tmp_del=$(mktemp)
 if [ ! -d "${this_script_path}/tmp" ]; then
 	mkdir -p "${this_script_path}/tmp"
 fi
