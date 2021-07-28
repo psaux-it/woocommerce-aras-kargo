@@ -1062,13 +1062,18 @@ un_install () {
 		uninstall_twoway
 	fi
 
-	# Removes install bundles aka cron jobs, systemd services, logrotate, logs
+	# Removes install bundles aka cron jobs, systemd services, logrotate
 	if [[ -e "${cron_dir}/${cron_filename}" ||
 		-e "${systemd_dir}/${service_filename}" ||
 		-e "${logrotate_dir}/${logrotate_filename}" ||
 		-e "${systemd_dir}/${timer_filename}" ||
 		-e "${cron_dir}/${cron_filename_update}" ]]; then
 		hard_reset
+	fi
+
+	# Remove logs
+	if [[ -e "${error_log}" || -e "${access_log}" ]]; then
+		rm -rf "${error_log:?}" "${access_log:?}" >/dev/null 2>&1
 	fi
 
 	# Remove immutable bit & lock files
@@ -1112,8 +1117,6 @@ on_fly_enable () {
 		if [[ -e "${cron_dir}/${cron_filename}" ||
 			-e "${systemd_dir}/${service_filename}" ||
 			-e "${logrotate_dir}/${logrotate_filename}" ||
-			-e "${error_log}" ||
-			-e "${access_log}" ||
 			-e "${systemd_dir}/${timer_filename}" ||
 			-e "${cron_dir}/${cron_filename_update}" ]]; then
 
@@ -1197,7 +1200,7 @@ help () {
 	echo -e "${m_tab}#${m_tab}--twoway-enable    |-t      enable twoway fulfillment workflow (for manual implementations)"
 	echo -e "${m_tab}#${m_tab}--disable          |-i      disable/inactivate script without uninstallation (for debugging purpose)"
 	echo -e "${m_tab}#${m_tab}--enable           |-a      enable/activate script if previously disabled"
-	echo -e "${m_tab}#${m_tab}--uninstall        |-d      completely remove installed bundles aka twoway, cron jobs, systemd services, logrotate"
+	echo -e "${m_tab}#${m_tab}--uninstall        |-d      completely remove installed bundles aka twoway, cron jobs, systemd services, logrotate, logs"
 	echo -e "${m_tab}#${m_tab}--upgrade          |-u      upgrade script to latest version"
 	echo -e "${m_tab}#${m_tab}--dependencies     |-p      display prerequisites & dependencies"
 	echo -e "${m_tab}#${m_tab}--version          |-v      display script info"
