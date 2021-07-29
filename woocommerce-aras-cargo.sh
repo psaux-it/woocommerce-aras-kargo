@@ -515,8 +515,9 @@ continue_setup () {
 	while true; do
 		echo -e "\n${yellow}*${reset}${yellow} Two-way fulfillment workflow installation skipped.${reset}"
 		echo "${cyan}${m_tab}#####################################################${reset}"
-		echo "${m_tab}${yellow}You can manually implement two-way fulfillment workflow after default setup completed.${reset}"
-		echo -e "${m_tab}${yellow}Check github for manual implementation instructions after default setup completed${reset}\n"
+		echo "${m_tab}${yellow}You can manually implement two-way fulfillment workflow,${reset}"
+		echo "${m_tab}${yellow}after default setup completed. Please check github${reset}"
+		echo -e "${m_tab}${yellow}for manual implementation instructions.${reset}\n"
 		read -r -n 1 -p "${m_tab}${BC}Do you want to continue default setup (recommended)? --> (Y)es | (N)o${EC} " yn < /dev/tty
 		echo ""
 		case "${yn}" in
@@ -994,7 +995,7 @@ hard_reset () {
 			rm -f "${logrotate_dir:?}/${logrotate_filename:?}" >/dev/null 2>&1
 			echo -e "\n${green}*${reset} ${yellow}Logrotate removed:${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
-			echo -e "${yellow}${m_tab}${logrotate_dir}/${logrotate_filename}${reset}\n"
+			echo "${yellow}${m_tab}${logrotate_dir}/${logrotate_filename}${reset}"
 		else
 			echo -e "\n${red}*${reset} ${red}Logrotate uninstall aborted, as file not writable: ${logrotate_dir}/${logrotate_filename}${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
@@ -1096,6 +1097,10 @@ un_install () {
 	# Remove logs
 	if [[ -e "${error_log}" || -e "${access_log}" ]]; then
 		rm -rf "${error_log:?}" "${access_log:?}" >/dev/null 2>&1
+		echo -e "\n${yellow}*${reset} ${yellow}Logs removed:${reset}"
+		echo "${cyan}${m_tab}#####################################################${reset}"
+		echo "${yellow}${m_tab}${error_log}${reset}"
+		echo -e "${yellow}${m_tab}${access_log}${reset}\n"
 	fi
 
 	# Remove immutable bit & lock files
@@ -1655,15 +1660,15 @@ add_cron () {
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			if [ "$auto_update" -eq 1 ]; then
 				echo "${m_tab}${green}Main cron installed to ${cyan}${cron_dir}/${cron_filename}${reset}${reset}"
-				echo -e "${m_tab}${green}Updater cron installed to ${cyan}${cron_dir}/${cron_filename_update}${reset}${reset}\n"
+				echo "${m_tab}${green}Updater cron installed to ${cyan}${cron_dir}/${cron_filename_update}${reset}${reset}"
 			else
-				echo -e "${m_tab}${green}Main cron installed to ${cyan}${cron_dir}/${cron_filename}${reset}${reset}\n"
+				echo "${m_tab}${green}Main cron installed to ${cyan}${cron_dir}/${cron_filename}${reset}${reset}"
 			fi
 			if [[ -n "$logrotate_installed" ]]; then
 				if [[ "$logrotate_installed" == "asfile" ]]; then
-					echo "${m_tab}${green}Logrotate installed to ${cyan}${logrotate_dir}/${logrotate_filename}${reset}"
+					echo -e "${m_tab}${green}Logrotate installed to ${cyan}${logrotate_dir}/${logrotate_filename}${reset}\n"
 				elif [[ "$logrotate_installed" == "conf" ]]; then
-					echo "${m_tab}${green}Logrotate rules inserted to ${cyan}${logrotate_conf}${reset}"
+					echo -e "${m_tab}${green}Logrotate rules inserted to ${cyan}${logrotate_conf}${reset}\n"
 				fi
 			fi
 			echo "$(timestamp): Installation completed." >> "${access_log}"
@@ -1779,15 +1784,15 @@ add_systemd () {
 			echo "${m_tab}${green}Systemd service timer installed to ${cyan}${systemd_dir}/${timer_filename}${reset}"
 			if [ "$auto_update" -eq 1 ]; then
 				echo "${m_tab}${green}Timer service enabled and started.${reset}"
-				echo -e "${m_tab}${green}Updater cron installed to ${cyan}${cron_dir}/${cron_filename_update}${reset}${reset}\n"
+				echo "${m_tab}${green}Updater cron installed to ${cyan}${cron_dir}/${cron_filename_update}${reset}${reset}"
 			else
-				echo -e "${m_tab}${green}Timer service enabled and started.${reset}\n"
+				echo "${m_tab}${green}Timer service enabled and started.${reset}"
 			fi
 			if [[ -n "$logrotate_installed" ]]; then
 				if [[ "$logrotate_installed" == "asfile" ]]; then
-					echo "${m_tab}${green}Logrotate installed to ${cyan}${logrotate_dir}/${logrotate_filename}${reset}"
+					echo -e "${m_tab}${green}Logrotate installed to ${cyan}${logrotate_dir}/${logrotate_filename}${reset}\n"
 				elif [[ "$logrotate_installed" == "conf" ]]; then
-					echo "${m_tab}${green}Logrotate rules inserted to ${cyan}${logrotate_conf}${reset}"
+					echo -e "${m_tab}${green}Logrotate rules inserted to ${cyan}${logrotate_conf}${reset}\n"
 				fi
 			fi
 			echo "$(timestamp): Installation completed." >> "${access_log}"
