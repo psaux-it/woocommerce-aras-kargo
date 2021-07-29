@@ -10,7 +10,8 @@
 ## Pluginless pure linux server side bash script solution #root
 [![N|Solid](https://www.cyberciti.biz/media/new/category/old/terminal.png)](https://www.psauxit.com) 
 
-The aim of this bash script solution is effortlessly integrate WooCommerce and ARAS cargo with help of AST plugin. Note that this is not a deep integrate solution. Instead of syncing your order with Aras end just listens ARAS for newly created cargo tracking numbers and match them with application (WooCommerce) side customer info. 
+The aim of this bash script solution is effortlessly integrate WooCommerce and ARAS cargo with help of AST plugin. Note that this is not a deep integrate solution. Instead of syncing your order with Aras end just listens ARAS for newly created cargo tracking numbers and match them with application (WooCommerce) side customer info.
+This solution best suits to small-mid size e-commerce businesses. Keep in mind that If you have a large volume e-commerce platform you need deep integration solutions. 
 
 ## What is the actual solution here exactly?
 ![woocommerce](https://user-images.githubusercontent.com/25556606/125707166-aa92a5a3-5655-450c-bc23-c67d8fc5ab10.png)
@@ -99,6 +100,7 @@ Also interactive setup will ask you to validate some parsed data. If you don't v
 While auto implementing two-way fulfillment workflow we just use child theme so we never ever touch any core files of wordpress or woocommerce directly.
 
 ![setup5](https://user-images.githubusercontent.com/25556606/124501159-baf95700-ddc9-11eb-81ce-84c5b9117639.png)
+![woocommerce-aras-help](https://user-images.githubusercontent.com/25556606/127486809-ede139f7-4903-4779-8dbb-06f38f3ea7b4.png)
 
 ## Any drawbacks?
 Partially Yes! If you have multiple order from same customer just ship them all at once. If you partially ship them (multiple tracking number) matching algorithm can fail but not mess up anything. Keep in mind that If you have a large volume e-commerce platform you need deep integration solutions.
