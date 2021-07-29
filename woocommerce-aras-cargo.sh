@@ -20,7 +20,7 @@
 # WOOCOMMERCE - ARAS CARGO INTEGRATION
 # ---------------------------------------------------------------------
 # Written by  : Hasan ÇALIŞIR - hasan.calisir@psauxit.com
-# Version     : 1.0.9
+# Version     : 2.0.1
 # --------------------------------------------------------------------
 # Bash        : 5.1.8
 # WooCommerce : 5.5.1
@@ -43,7 +43,7 @@
 
 # Need for upgrade - DON'T EDIT MANUALLY
 # =====================================================================
-script_version="1.0.9"
+script_version="2.0.1"
 # =====================================================================
 
 # USER DEFINED-EDITABLE VARIABLES & FUNCTIONS
