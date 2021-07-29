@@ -1202,8 +1202,8 @@ help () {
 	echo -e "\n${m_tab}${cyan}# WOOCOMMERCE - ARAS CARGO INTEGRATION HELP"
 	echo -e "${m_tab}# ---------------------------------------------------------------------"
 	echo -e "${m_tab}#${m_tab}--setup            |-s      first time setup (also hard reset and re-starts setup)"
-	echo -e "${m_tab}#${m_tab}--twoway-enable    |-t      enable twoway fulfillment workflow (if you manually implemented)"
-	echo -e "${m_tab}#${m_tab}--twoway-disable   |-t      only disable twoway fulfillment workflow as script will continue to work default one-way"
+	echo -e "${m_tab}#${m_tab}--twoway-enable    |-t      enable twoway fulfillment workflow"
+	echo -e "${m_tab}#${m_tab}--twoway-disable   |-y      only disable twoway fulfillment workflow as script will continue to work default one-way"
 	echo -e "${m_tab}#${m_tab}--disable          |-i      completely disable/inactivate script without uninstallation (for debugging purpose)"
 	echo -e "${m_tab}#${m_tab}--enable           |-a      enable/activate script if previously disabled"
 	echo -e "${m_tab}#${m_tab}--uninstall        |-d      completely remove installed bundles aka twoway, cron jobs, systemd services, logrotate, logs"
@@ -1276,6 +1276,36 @@ twoway_enable () {
 		echo "${m_tab}${magenta}$missing_t${reset}"
 		echo -e "${m_tab}${red}Follow the guideline 'Two Way Fulfillment Manual Setup' on github${reset}\n"
 		echo "$(timestamp): Cannot enable two way fulfillment workflow: couldn't find necessary files, please check your setup" >> "${error_log}"
+		exit 1
+	fi
+}
+
+twoway_disable () {
+	if [[ -e "${this_script_path}/.woo.aras.set" ]]; then
+		if [[ -e "${this_script_path}/.two.way.enb" ]]; then
+			if [[ -w "${this_script_path}/.two.way.enb" ]]; then
+				chattr -i "${this_script_path}/.two.way.enb" >/dev/null 2>&1
+				rm -f "${this_script_path:?}/.two.way.enb" >/dev/null 2>&1
+			else
+				echo -e "\n${red}*${reset} ${red}Cannot disable two-way workflow: ${reset}"
+				echo "${cyan}${m_tab}#####################################################${reset}"
+				echo "${m_tab}${red}As file not writeable ${this_script_path}/.two.way.enb${reset}"
+				echo -e "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}\n"
+				echo "$(timestamp): Cannot disable two-way workflow: as file not writeable ${this_script_path}/.two.way.enb" >> "${error_log}"
+				exit 1
+			fi
+		else
+			echo -e "\n${red}*${reset} ${red}Cannot disable two-way workflow: ${reset}"
+			echo "${cyan}${m_tab}#####################################################${reset}"
+			echo "${m_tab}${red}Two-way workflow already disabled.${reset}"
+			echo "$(timestamp): Cannot disable two-way workflow: already disabled" >> "${error_log}"
+			exit 1
+		fi
+	else
+		echo -e "\n${red}*${reset} ${red}Cannot disable two-way workflow: ${reset}"
+		echo "${cyan}${m_tab}#####################################################${reset}"
+		echo -e "${m_tab}${red}Default installation not completed${reset}\n"
+		echo "$(timestamp): Cannot disable two-way workflow: default installation not completed" >> "${error_log}"
 		exit 1
 	fi
 }
@@ -1509,6 +1539,9 @@ upgrade () {
 while :; do
 	case "${1}" in
 	-t|--twoway-enable    ) twoway_enable
+				exit
+				;;
+	-y|--twoway-disable   ) twoway_disable
 				exit
 				;;
 	-i|--disable          ) disable
