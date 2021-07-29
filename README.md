@@ -100,7 +100,6 @@ Also interactive setup will ask you to validate some parsed data. If you don't v
 While auto implementing two-way fulfillment workflow we just use child theme so we never ever touch any core files of wordpress or woocommerce directly.
 
 ![setup5](https://user-images.githubusercontent.com/25556606/124501159-baf95700-ddc9-11eb-81ce-84c5b9117639.png)
-![woocommerce-aras-help](https://user-images.githubusercontent.com/25556606/127486809-ede139f7-4903-4779-8dbb-06f38f3ea7b4.png)
 
 ## Any drawbacks?
 Partially Yes! If you have multiple order from same customer just ship them all at once. If you partially ship them (multiple tracking number) matching algorithm can fail but not mess up anything. Keep in mind that If you have a large volume e-commerce platform you need deep integration solutions.
@@ -177,4 +176,4 @@ So it is enough to set one time. For mail notification you need working mail ser
 - Copy woocommerce-aras-cargo.sh anywhere you want and execute script as 'root' or with sudo 
 - ```sudo ./woocommerce-aras-cargo.sh --setup```
 
-![help](https://user-images.githubusercontent.com/25556606/124503366-175e7580-ddce-11eb-8e3c-fcd01bde6028.png)
+![woocommerce-aras-help](https://user-images.githubusercontent.com/25556606/127486809-ede139f7-4903-4779-8dbb-06f38f3ea7b4.png)
