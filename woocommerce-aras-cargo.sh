@@ -1017,7 +1017,7 @@ hard_reset () {
 disable () {
 	if [[ -e "${this_script_path}/.woo.aras.set" ]]; then
 		if [[ -e "${this_script_path}/.woo.aras.enb" ]]; then
-			if [[ -w "${this_script_path}/.woo.aras.enb" ]]; then
+			if [[ -w "${this_script_path}" ]]; then
 				chattr -i "${this_script_path}/.woo.aras.enb" >/dev/null 2>&1
 				rm -f "${this_script_path:?}/.woo.aras.enb" >/dev/null 2>&1 &&
 				echo -e "\n${green}*${reset} ${green}Aras-WooCommerce integration disabled.${reset}"
@@ -1025,15 +1025,15 @@ disable () {
 			else
 				echo -e "\n${red}*${reset} ${red}Cannot disable Aras-WooCommerce integration: ${reset}"
 				echo "${cyan}${m_tab}#####################################################${reset}"
-				echo "${m_tab}${red}As file not writeable ${this_script_path}/.woo.aras.enb${reset}"
+				echo "${m_tab}${red}As folder not writeable ${this_script_path}${reset}"
 				echo -e "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}\n"
-				echo "$(timestamp): Cannot disable Aras-WooCommerce integration: as file not writeable ${this_script_path}/.woo.aras.enb" >> "${error_log}"
+				echo "$(timestamp): Cannot disable Aras-WooCommerce integration: as folder not writeable ${this_script_path}" >> "${error_log}"
 				exit 1
 			fi
 		else
 			echo -e "\n${red}*${reset} ${red}Cannot disable Aras-WooCommerce integration: ${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
-			echo "${m_tab}${red}Integration already disabled.${reset}"
+			echo -e "${m_tab}${red}Integration already disabled.${reset}\n"
 			echo "$(timestamp): Cannot disable Aras-WooCommerce integration: already disabled" >> "${error_log}"
 			exit 1
 		fi
@@ -1058,15 +1058,15 @@ enable () {
 			else
 				echo -e "\n${red}*${reset} ${red}Cannot enable Aras-WooCommerce integration: ${reset}"
 				echo "${cyan}${m_tab}#####################################################${reset}"
-				echo "${m_tab}${red}As file not writeable ${this_script_path}/.woo.aras.enb${reset}"
+				echo "${m_tab}${red}As folder not writeable ${this_script_path}${reset}"
 				echo -e "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}\n"
-				echo "$(timestamp): Cannot enable Aras-WooCommerce integration: as file not writeable ${this_script_path}/.woo.aras.enb" >> "${error_log}"
+				echo "$(timestamp): Cannot enable Aras-WooCommerce integration: as folder not writeable ${this_script_path}" >> "${error_log}"
 				exit 1
 			fi
 		else
 			echo -e "\n${red}*${reset} ${red}Cannot enable Aras-WooCommerce integration: ${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
-			echo "${m_tab}${red}Integration already enabled.${reset}"
+			echo -e "${m_tab}${red}Integration already enabled.${reset}\n"
 			echo "$(timestamp): Cannot disable Aras-WooCommerce integration: already enabled " >> "${error_log}"
 			exit 1
 		fi
@@ -1255,7 +1255,11 @@ twoway_enable () {
 
 	# Check function.php modifications completed
 	if grep -q "${my_string}" "$absolute_child_path/functions.php"; then
-		functions_mod="applied"
+		if grep -qw "include( get_stylesheet_directory() .'/woocommerce/aras-woo-delivered.php'); //aras_woo_enabled" "$absolute_child_path/functions.php"; then
+			functions_mod="applied"
+		else
+			functions_mod="not_applied"
+		fi
 	else
 		functions_mod="not_applied"
 	fi
@@ -1284,7 +1288,7 @@ twoway_enable () {
 				echo "${cyan}${m_tab}#####################################################${reset}"
 				echo "${m_tab}${red}Couldn't find necessary modifications in:${reset}"
 				echo "${m_tab}${magenta}$absolute_child_path/functions.php${reset}"
-				echo -e "${m_tab}${red}Follow the guideline 'Two Way Fulfillment Manual Setup' on github${reset}\n"
+				echo -e "${m_tab}${red}Follow the guideline 'Two-way workflow installation' on github${reset}\n"
 				echo "$(timestamp): Cannot enable two way fulfillment workflow: Couldn't find necessary modifications in $absolute_child_path/functions.php" >> "${error_log}"
 				exit 1
 			fi
@@ -1300,7 +1304,7 @@ twoway_enable () {
 		echo "${m_tab}${red}Couldn't find necessary files, please check your setup${reset}"
 		echo "${m_tab}${magenta}$missing_t${reset}"
 		echo -e "${m_tab}${red}Follow the guideline 'Two Way Fulfillment Manual Setup' on github${reset}\n"
-		echo "$(timestamp): Cannot enable two way fulfillment workflow: couldn't find necessary files, please check your setup" >> "${error_log}"
+		echo "$(timestamp): Cannot enable two way fulfillment workflow: couldn't find necessary files $missing_t, please check your setup" >> "${error_log}"
 		exit 1
 	fi
 }
@@ -1308,21 +1312,23 @@ twoway_enable () {
 twoway_disable () {
 	if [[ -e "${this_script_path}/.woo.aras.set" ]]; then
 		if [[ -e "${this_script_path}/.two.way.enb" ]]; then
-			if [[ -w "${this_script_path}/.two.way.enb" ]]; then
+			if [[ -w "${this_script_path}" ]]; then
 				chattr -i "${this_script_path}/.two.way.enb" >/dev/null 2>&1
 				rm -f "${this_script_path:?}/.two.way.enb" >/dev/null 2>&1
+				echo -e "\n${green}*${reset} ${green}Two-way fulfillment workflow disabled.${reset}"
+				echo -e "${cyan}${m_tab}#####################################################${reset}\n"
 			else
 				echo -e "\n${red}*${reset} ${red}Cannot disable two-way workflow: ${reset}"
 				echo "${cyan}${m_tab}#####################################################${reset}"
-				echo "${m_tab}${red}As file not writeable ${this_script_path}/.two.way.enb${reset}"
+				echo "${m_tab}${red}As folder not writeable ${this_script_path}${reset}"
 				echo -e "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}\n"
-				echo "$(timestamp): Cannot disable two-way workflow: as file not writeable ${this_script_path}/.two.way.enb" >> "${error_log}"
+				echo "$(timestamp): Cannot disable two-way workflow: as folder not writeable ${this_script_path}" >> "${error_log}"
 				exit 1
 			fi
 		else
 			echo -e "\n${red}*${reset} ${red}Cannot disable two-way workflow: ${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
-			echo "${m_tab}${red}Two-way workflow already disabled.${reset}"
+			echo -e "${m_tab}${red}Two-way workflow already disabled.${reset}\n"
 			echo "$(timestamp): Cannot disable two-way workflow: already disabled" >> "${error_log}"
 			exit 1
 		fi
