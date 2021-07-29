@@ -642,13 +642,14 @@ simple_uninstall_twoway () {
 		fi
 	done
 
-	chattr -i "${this_script_path}/.two.way.enb"
-	rm -f "${this_script_path:?}/.two.way.enb"
+	chattr -i "${this_script_path}/.two.way.enb" >/dev/null 2>&1
+	rm -f "${this_script_path:?}/.two.way.enb" >/dev/null 2>&1
 
-	echo -e "\n${green}*${reset} ${green}Two way fulfillment unistallation: ${reset}"
+	echo -e "\n${yellow}*${reset} ${green}Two way fulfillment unistallation: ${reset}"
 	echo "${cyan}${m_tab}#####################################################${reset}"
-	echo -e "${m_tab}${green}Uninstallation completed. Please check your website for functionality${reset}\n"
-	echo "$(timestamp): Two way fulfillment unistallation: Uninstallation completed." >> "${success_log}"
+	echo "${m_tab}${yellow}Uninstallation completed.${reset}"
+	echo "${m_tab}${yellow}Please check your website for functionality${reset}"
+	echo "$(timestamp): Two way fulfillment unistallation: Uninstallation completed." >> "${access_log}"
 }
 
 uninstall_twoway () {
@@ -879,7 +880,7 @@ install_twoway () {
 		echo "${m_tab}${yellow}If your website or admin panel is broken don't panic.${reset}"
 		echo "${m_tab}${yellow}First try to restart your web server apache,nginx or php-fpm${reset}"
 		echo "${m_tab}${yellow}If still not working please select r for starting recovery process${reset}"
-		echo "${m_tab}${green}If everything on the way CONGRATS select c for continue the setup${reset}"
+		echo "${m_tab}${yellow}If everything on the way CONGRATS select c for continue the setup${reset}"
 
 		# Anything broken? Let check website healt and if encountered any errors revert modifications
 		while true
@@ -899,8 +900,8 @@ install_twoway () {
 
 		echo -e "\n${green}*${reset} ${green}Two way fulfillment workflow installation: ${reset}"
 		echo "${cyan}${m_tab}#####################################################${reset}"
-		echo "${m_tab}${green}Installation completed${reset}"
-		echo "$(timestamp): Two way fulfillment workflow installation completed" >> "${error_log}"
+		echo -e "${m_tab}${green}Completed${reset}\n"
+		echo "$(timestamp): Two way fulfillment workflow installation completed" >> "${access_log}"
 	fi
 }
 
@@ -918,7 +919,7 @@ my_whip_tail () {
 hard_reset () {
 	if [[ -s "${cron_dir}/${cron_filename}" ]]; then
 		if [[ -w "${cron_dir}/${cron_filename}" ]]; then
-			rm -f  "${cron_dir:?}/${cron_filename:?}"
+			rm -f  "${cron_dir:?}/${cron_filename:?}" >/dev/null 2>&1
 			echo -e "\n${green}*${reset} ${yellow}Main cron job uninstalled:${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			echo "${yellow}${m_tab}${cron_dir}/${cron_filename}${reset}"
@@ -934,7 +935,7 @@ hard_reset () {
 
 	if [[ -s "${cron_dir}/${cron_filename_update}" ]]; then
 		if [[ -w "${cron_dir}/${cron_filename_update}" ]]; then
-			rm -f  "${cron_dir:?}/${cron_filename_update:?}"
+			rm -f  "${cron_dir:?}/${cron_filename_update:?}" >/dev/null 2>&1
 			echo -e "\n${green}*${reset} ${yellow}Updater cron job uninstalled:${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			echo "${yellow}${m_tab}${cron_dir}/${cron_filename_update}${reset}"
@@ -971,7 +972,7 @@ hard_reset () {
 
 	if [[ -s "${logrotate_dir}/${logrotate_filename}" ]]; then
 		if [[ -w "${logrotate_dir}/${logrotate_filename}" ]]; then
-			rm -f "${logrotate_dir:?}/${logrotate_filename:?}"
+			rm -f "${logrotate_dir:?}/${logrotate_filename:?}" >/dev/null 2>&1
 			echo -e "\n${green}*${reset} ${yellow}Logrotate removed:${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			echo -e "${yellow}${m_tab}${logrotate_dir}/${logrotate_filename}${reset}\n"
@@ -1091,7 +1092,7 @@ un_install () {
 	rm -f "${this_script_path:?}/.woo.aras.enb" >/dev/null 2>&1
 	rm -rf "${this_script_path:?}/tmp" >/dev/null 2>&1
 
-	echo -e "\n${green}*${reset} ${green}Uninstallation completed${reset}"
+	echo "${green}*${reset} ${green}Uninstallation completed${reset}"
 	echo -e "${cyan}${m_tab}#####################################################${reset}\n"
 }
 
@@ -1627,7 +1628,7 @@ add_cron () {
 			on_fly_disable
 
 			# Add logrotate
-			if [[ ! -n $logrotate_status ]]; then
+			if [[ -z "$logrotate_status" ]]; then
 				add_logrotate
 			fi
 
@@ -1638,6 +1639,13 @@ add_cron () {
 				echo -e "${m_tab}${green}Updater cron installed to ${cyan}${cron_dir}/${cron_filename_update}${reset}${reset}\n"
 			else
 				echo -e "${m_tab}${green}Main cron installed to ${cyan}${cron_dir}/${cron_filename}${reset}${reset}\n"
+			fi
+			if [[ -n "$logrotate_installed" ]]; then
+				if [[ "$logrotate_installed" == "asfile" ]]; then
+					echo "${m_tab}${green}Logrotate installed to ${cyan}${logrotate_dir}/${logrotate_filename}${reset}"
+				elif [[ "$logrotate_installed" == "conf" ]]; then
+					echo "${m_tab}${green}Logrotate rules inserted to ${cyan}${logrotate_conf}${reset}"
+				fi
 			fi
 			echo "$(timestamp): Installation completed." >> "${access_log}"
 		else
@@ -1733,7 +1741,7 @@ add_systemd () {
 						on_fly_disable
 
 						# Add logrotate
-						if [[ ! -n $logrotate_status ]]; then
+						if [[ -z "$logrotate_status" ]]; then
 							add_logrotate
 						fi
 					else
@@ -1756,6 +1764,13 @@ add_systemd () {
 			else
 				echo -e "${m_tab}${green}Timer service enabled and started.${reset}\n"
 			fi
+			if [[ -n "$logrotate_installed" ]]; then
+				if [[ "$logrotate_installed" == "asfile" ]]; then
+					echo "${m_tab}${green}Logrotate installed to ${cyan}${logrotate_dir}/${logrotate_filename}${reset}"
+				elif [[ "$logrotate_installed" == "conf" ]]; then
+					echo "${m_tab}${green}Logrotate rules inserted to ${cyan}${logrotate_conf}${reset}"
+				fi
+			fi
 			echo "$(timestamp): Installation completed." >> "${access_log}"
 		else
 			echo -e "\n${red}*${reset} ${green}Installation failed.${reset}"
@@ -1776,7 +1791,8 @@ add_logrotate () {
 			echo "${m_tab}${yellow}You can run script as root or execute with sudo.${reset}"
 			echo "$(timestamp): Logrotate cannot installed. $logrotate_dir is not writeable by user $user" >> "${error_log}"
 		else
-			cat <<- EOF > "${logrotate_dir}/${logrotate_filename}"
+			logrotate_installed="asfile"
+			cat <<- EOF > "${logrotate_dir}/${logrotate_filename:?}"
 			/var/log/woocommerce_aras.* {
 			weekly
 			rotate 3
@@ -1787,7 +1803,8 @@ add_logrotate () {
 			EOF
 		fi
 	else
-		cat <<- EOF >> "${logrotate_conf}"
+		logrotate_installed="conf"
+		cat <<- EOF >> "${logrotate_conf:?}"
 
 		/var/log/woocommerce_aras.* {
 		weekly
@@ -2222,7 +2239,7 @@ EOF
 
 # Get WC order's ID (processing status) & WC customer info
 # As of 2021 max 100 orders fetchable with one query
-if $m_curl -s -X GET --fail "https://$api_endpoint/wp-json/wc/v3/orders?status=processing&per_page=100" -u "$api_key":"$api_secret" -H "Content-Type: application/json"; then
+if $m_curl -s -o /dev/null -X GET --fail "https://$api_endpoint/wp-json/wc/v3/orders?status=processing&per_page=100" -u "$api_key":"$api_secret" -H "Content-Type: application/json"; then
 	$m_curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/orders?status=processing&per_page=100" -u "$api_key":"$api_secret" -H "Content-Type: application/json" |
 	$m_jq -r '.[]|[.id,.shipping.first_name,.shipping.last_name]|join(" ")' > "$this_script_path/wc.proc"
 elif [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
@@ -2697,13 +2714,14 @@ if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 				echo "${cyan}${m_tab}#####################################################${reset}"
 				echo "${m_tab}${green}Installing two way fulfillment workflow...${reset}"
 				install_twoway
+				echo -e "\n${m_tab}${green}Please select your job schedule method.${reset}"
 			else
 				echo -e "${cyan}${m_tab}#####################################################${reset}\n"
-				echo "${m_tab}${green}Please select installation method.${reset}"
+				echo "${m_tab}${green}Please select your job schedule method.${reset}"
 			fi
 		else
 			echo -e "${cyan}${m_tab}#####################################################${reset}\n"
-			echo "${m_tab}${green}Please select installation method.${reset}"
+			echo "${m_tab}${green}Please select your job schedule method.${reset}"
 		fi
 
 		# Forward to installation
