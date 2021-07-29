@@ -2777,6 +2777,63 @@ if [ -e "${this_script_path}/.woo.aras.enb" ]; then
 			echo "$(timestamp): Couldn't find any updateable order now." >> "${access_log}"
 		fi
 	fi
+
+	if [ -e "${this_script_path}/.two.way.enb" ]; then
+		if [ -s "$my_tmp_del" ]; then
+			# First to handle strange behaviours save the data in tmp
+			cat <(cat "${my_tmp_del}") > "$my_tmp_folder/$(date +%d-%m-%Y)-main.del.$$"
+			cat <(cat "${this_script_path}/wc.proc.del") > "$my_tmp_folder/$(date +%d-%m-%Y)-wc.proc.del.$$"
+			cat <(cat "${this_script_path}/aras.proc.del") > "$my_tmp_folder/$(date +%d-%m-%Y)-aras.proc.del.$$"
+
+			while read -r id
+			do
+				# Update order as delivered via WooCommerce REST API
+				if $m_curl -s -o /dev/null -X PUT --fail \
+					-u "$api_key":"$api_secret" \
+					-H "Content-Type: application/json" \
+					-d '{"status": "delivered"}' \
+					"https://$api_endpoint/wp-json/wc/v3/orders/$id"; then
+					sleep 5
+					c_name=$($m_curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/orders/$id" -u "$api_key":"$api_secret" -H "Content-Type: application/json" | $m_jq -r '[.shipping.first_name,.shipping.last_name]|join(" ")')
+					# Get order number if you use 'sequential order number' plugin
+					order_number=$($m_curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/orders/$id" -u "$api_key":"$api_secret" -H "Content-Type: application/json" | $m_jq -r '[.meta_data]' | $m_awk '/_order_number/{getline; print}' | $m_awk -F: '{print $2}' | tr -d '"' | $m_sed -r 's/\s+//g' | tr " " "*" | tr "\t" "&")
+					# Notify shop manager -- HTML mail
+					send_mail_suc <<- EOF
+					<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd"><html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"/></head><body><table id="v1template_container" style="background-color: #ffffff; border: 1px solid #dedede; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1); border-radius: 3px;" border="0" width="600" cellspacing="0" cellpadding="0"><tbody><tr><td align="center" valign="top"><table id="v1template_header" style="background-color: #567d46; color: #ffffff; border-bottom: 0; font-weight: bold; line-height: 100%; vertical-align: middle; font-family: 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif; border-radius: 3px 3px 0 0;" border="0" width="100%" cellspacing="0" cellpadding="0"><tbody><tr><td id="v1header_wrapper" style="padding: 36px 48px; display: block;"><h2 style="font-family: 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif; font-size: 30px; font-weight: 300; line-height: 150%; margin: 0px; text-shadow: #78976b 0px 1px 0px; color: #ffffff; background-color: inherit; text-align: center;">Aras Kargo Otomatik Güncelleme: $id - $order_number</h2></td></tr></tbody></table></td></tr><tr><td align="center" valign="top"><table id="v1template_body" border="0" width="600" cellspacing="0" cellpadding="0"><tbody><tr><td id="v1body_content" style="background-color: #ffffff;" valign="top"><table border="0" width="100%" cellspacing="0" cellpadding="20"><tbody><tr><td style="padding: 48px 48px 32px;" valign="top"><div id="v1body_content_inner" style="color: #636363; font-family: 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif; font-size: 14px; line-height: 150%; text-align: left;"><p style="margin: 0 0 16px;">Merhaba <strong>$company_name</strong>, <strong>$c_name</strong> siparişi müşteriye ulaştı ve sipariş durumu <strong>Teslim Edildi</strong> olarak güncellendi. Müşteriye sipariş durumunu içeren bir bilgilendirme e-mail'i gönderildi.</p><h2 style="color: #567d46; display: block; font-family: 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif; font-size: 18px; font-weight: bold; line-height: 130%; margin: 0 0 18px; text-align: left;"><a class="v1link" style="font-weight: normal; text-decoration: underline; color: #567d46;" href="#" target="_blank" rel="noopener noreferrer">[Sipariş #$id]</a> ($t_date)</h2><div style="margin-bottom: 40px;">&nbsp;</div></div></td></tr></tbody></table></td></tr></tbody></table></td></tr></tbody></table></body></html>
+					EOF
+					echo "$(date +"%T,%d-%b-%Y"): ORDER MARKED AS DELIVERED: Order_Id=$id Order_Number=$order_number Customer_Info=$c_name" >> "${access_log}"
+					if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
+						echo "${green}*${reset} ${green}ORDER UPDATED AS DELIVERED: Order_Id=$id Order_Number=$order_number Customer_Info=$c_name${reset}"
+					fi
+					sleep 10
+				elif [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
+					if [ $send_mail_err -eq 1 ]; then
+						send_mail_err <<< "Cannot update order=$id status as delivered. Wrong Order ID(corrupt data) or WooCommerce endpoint error. Check $my_tmp_folder/$(date +%d-%m-%Y)-main.del to validate data.$$"
+					fi
+					echo -e "\n${red}*${reset} ${red}Cannot update order=$id status as delivered.${reset}"
+					echo "${m_tab}${cyan}#####################################################${reset}"
+					echo "${m_tab}${red}Wrong Order ID(corrupt data) or WooCommerce endpoint error.${reset}"
+					echo -e "${m_tab}${red}Check $my_tmp_folder/$(date +%d-%m-%Y)-main.del to validate data.${reset}\n"
+					echo "$(timestamp): Cannot update order=$id status as delivered. Wrong Order ID(corrupt data) or WooCommerce endpoint error. Check $my_tmp_folder/$(date +%d-%m-%Y)-main.$$" >> "${error_log}"
+					exit 1
+				elif [ $send_mail_err -eq 1 ]; then
+					send_mail_err <<< "Cannot update order=$id status as delivered. Wrong Order ID(corrupt data) or WooCommerce endpoint error. Check $my_tmp_folder/$(date +%d-%m-%Y)-main.del to validate data.$$"
+					echo "$(timestamp): Cannot update order=$id status as delivered. Wrong Order ID(corrupt data) or WooCommerce endpoint error. Check $my_tmp_folder/$(date +%d-%m-%Y)-main.del to validate data.$$" >> "${error_log}"
+					exit 1
+				else
+					echo "$(timestamp): Cannot update order=$id status as delivered. Wrong Order ID(corrupt data) or WooCommerce endpoint error. Check $my_tmp_folder/$(date +%d-%m-%Y)-main.del to validate data.$$" >> "${error_log}"
+					exit 1
+				fi
+			done < "${my_tmp_del}"
+		elif [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
+			echo -e "\n${yellow}*${reset} ${yellow}Couldn't find any updateable order now.${reset}"
+			echo "$(timestamp): Couldn't find any updateable order now." >> "${access_log}"
+			exit 0
+		else
+			echo "$(timestamp): Couldn't find any updateable order now." >> "${access_log}"
+			exit 0
+		fi
+	fi
 fi
 
 # And lastly we exit
