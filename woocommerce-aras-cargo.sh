@@ -511,7 +511,24 @@ pre_check () {
 	fi
 }
 
+continue_setup () {
+	while true; do
+		echo -e "\n${yellow}*${reset}${yellow} Two-way fulfillment workflow installation skipped.${reset}"
+		echo "${cyan}${m_tab}#####################################################${reset}"
+		echo "${m_tab}${yellow}You can manually implement two-way fulfillment workflow after default setup completed.${reset}"
+		echo -e "${m_tab}${yellow}Check github for manual implementation instructions after default setup completed${reset}\n"
+		read -r -n 1 -p "${m_tab}${BC}Do you want to continue default setup (recommended)? --> (Y)es | (N)o${EC} " yn < /dev/tty
+		echo ""
+		case "${yn}" in
+			[Yy]* ) break;;
+			[Nn]* ) exit 1;;
+			* ) echo -e "\n${m_tab}${magenta}Please answer yes or no.${reset}";;
+		esac
+	done
+}
+
 find_child_path () {
+	local bridge="$1"
 	if [[ -z "$api_key" || -z "$api_secret" || -z "$api_endpoint" ]]; then
 		api_key=$(< "$this_script_path/.key.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
 		api_secret=$(< "$this_script_path/.secret.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
@@ -558,7 +575,7 @@ find_child_path () {
 				echo ""
 				case "${yn}" in
 					[Yy]* ) break;;
-					[Nn]* ) exit 1;;
+					[Nn]* ) [[ "$bridge" == "--install" ]] && { twoway=false; continue_setup; break; } || exit 1;;
 					* ) echo -e "\n${m_tab}${magenta}Please answer yes or no.${reset}";;
 				esac
 			done
@@ -728,46 +745,81 @@ uninstall_twoway () {
 # (processing --> shipped --> delivered) twoway fulfillment workflow setup
 install_twoway () {
 	check_delivered
-	find_child_path
-	# Get ownership operations
-	if [ -f "$absolute_child_path/functions.php" ]; then
-		if [ -r "$absolute_child_path/functions.php" ]; then
-			GROUP_OWNER="$(stat --format "%G" "$absolute_child_path/functions.php" 2> /dev/null)"
-			USER_OWNER="$(stat --format "%U" "$absolute_child_path/functions.php" 2> /dev/null)"
+	find_child_path --install
+	if [ "$twoway" == "true" ]; then
+		# Get ownership operations
+		if [ -f "$absolute_child_path/functions.php" ]; then
+			if [ -r "$absolute_child_path/functions.php" ]; then
+				GROUP_OWNER="$(stat --format "%G" "$absolute_child_path/functions.php" 2> /dev/null)"
+				USER_OWNER="$(stat --format "%U" "$absolute_child_path/functions.php" 2> /dev/null)"
+			else
+				echo -e "\n${red}*${reset} ${red}Installation aborted, as file not readable: ${reset}"
+				echo "${cyan}${m_tab}#####################################################${reset}"
+				echo "${m_tab}${red}$absolute_child_path/functions.php${reset}"
+				echo -e "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}\n"
+				echo "$(timestamp): Installation aborted, as file not readable: $absolute_child_path/functions.php" >> "${error_log}"
+				exit 1
+			fi
+		elif [ -r "$theme_path/index.php" ]; then
+			GROUP_OWNER="$(stat --format "%G" "$theme_path/index.php" 2> /dev/null)"
+			USER_OWNER="$(stat --format "%U" "$theme_path/index.php" 2> /dev/null)"
 		else
 			echo -e "\n${red}*${reset} ${red}Installation aborted, as file not readable: ${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
-			echo "${m_tab}${red}$absolute_child_path/functions.php${reset}"
+			echo "${m_tab}${red}$theme_path/index.php${reset}"
 			echo -e "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}\n"
-			echo "$(timestamp): Installation aborted, as file not readable: $absolute_child_path/functions.php" >> "${error_log}"
+			echo "$(timestamp): Installation aborted, as file not readable: $theme_path/index.php" >> "${error_log}"
 			exit 1
 		fi
-	elif [ -r "$theme_path/index.php" ]; then
-		GROUP_OWNER="$(stat --format "%G" "$theme_path/index.php" 2> /dev/null)"
-		USER_OWNER="$(stat --format "%U" "$theme_path/index.php" 2> /dev/null)"
-	else
-		echo -e "\n${red}*${reset} ${red}Installation aborted, as file not readable: ${reset}"
-		echo "${cyan}${m_tab}#####################################################${reset}"
-		echo "${m_tab}${red}$theme_path/index.php${reset}"
-		echo -e "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}\n"
-		echo "$(timestamp): Installation aborted, as file not readable: $theme_path/index.php" >> "${error_log}"
-		exit 1
-	fi
 
-	# Copy, create apply operations
-	if [[ -n $GROUP_OWNER && -n $USER_OWNER ]]; then
-		# Function.php operations
-		if [ ! -f "$absolute_child_path/functions.php" ]; then
-			if ! grep -q 'Permission denied' <<< "$(touch "$absolute_child_path/functions.php" 2>&1)"; then
-				cat "$this_script_path/custom-order-status-package/functions.php" > "$absolute_child_path/functions.php" &&
-				chown "$USER_OWNER":"$GROUP_OWNER" "$absolute_child_path/functions.php" ||
-				{
-				echo -e "\n${red}*${reset} ${red}Installation aborted, as file cannot modified: ${reset}";
-				echo "${cyan}${m_tab}#####################################################${reset}";
-				echo -e "${m_tab}${red}$absolute_child_path/functions.php${reset}\n";
-				echo "$(timestamp): Installation aborted, as file cannot modified: $absolute_child_path/functions.php" >> "${error_log}";
-				exit 1;
-				}
+		# Copy, create apply operations
+		if [[ -n $GROUP_OWNER && -n $USER_OWNER ]]; then
+			# Function.php operations
+			if [ ! -f "$absolute_child_path/functions.php" ]; then
+				if ! grep -q 'Permission denied' <<< "$(touch "$absolute_child_path/functions.php" 2>&1)"; then
+					cat "$this_script_path/custom-order-status-package/functions.php" > "$absolute_child_path/functions.php" &&
+					chown "$USER_OWNER":"$GROUP_OWNER" "$absolute_child_path/functions.php" ||
+					{
+					echo -e "\n${red}*${reset} ${red}Installation aborted, as file cannot modified: ${reset}";
+					echo "${cyan}${m_tab}#####################################################${reset}";
+					echo -e "${m_tab}${red}$absolute_child_path/functions.php${reset}\n";
+					echo "$(timestamp): Installation aborted, as file cannot modified: $absolute_child_path/functions.php" >> "${error_log}";
+					exit 1;
+					}
+				else
+					echo -e "\n${red}*${reset} ${red}Installation aborted, as file not writeable: ${reset}"
+					echo "${cyan}${m_tab}#####################################################${reset}"
+					echo "${m_tab}${red}$absolute_child_path/functions.php${reset}"
+					echo -e "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}\n"
+					echo "$(timestamp): Installation aborted, as file not writeable: $absolute_child_path/functions.php" >> "${error_log}"
+					exit 1
+				fi
+			elif [ -w "$absolute_child_path/functions.php" ]; then
+				if [ -s "$absolute_child_path/functions.php" ]; then
+					# Take backup of user functions.php first
+					cp "$absolute_child_path/functions.php" "$absolute_child_path/functions.php.wo-aras-backup-$$-$(date +%d-%m-%Y)" &&
+					chown "$USER_OWNER":"$GROUP_OWNER" "$absolute_child_path/functions.php.wo-aras-backup-$$-$(date +%d-%m-%Y)" ||
+					{
+					echo -e "\n${red}*${reset} ${red}Two way fulfillment workflow installation aborted: ${reset}";
+					echo "${cyan}${m_tab}#####################################################${reset}";
+					echo -e "${m_tab}${red}Cannot take backup of $absolute_child_path/functions.php${reset}\n";
+					echo "$(timestamp): Two way fulfillment workflow installation aborted: Cannot take backup of $absolute_child_path/functions.php" >> "${error_log}";
+					exit 1;
+					}
+
+					if ! grep -q "${my_string}" "$absolute_child_path/functions.php"; then
+						if [ $(< "$absolute_child_path/functions.php" $m_sed '1q') == "<?php" ]; then
+							< "$this_script_path/custom-order-status-package/functions.php" $m_sed "1 s/.*/ /" >> "$absolute_child_path/functions.php"
+						else
+							echo -e "\n${red}*${reset} ${red}Two way fulfillment workflow installation aborted: ${reset}"
+							echo "${cyan}${m_tab}#####################################################${reset}"
+							echo "${m_tab}${red}Cannot recognise your child theme function.php, expected php shebang at line 1${reset}"
+							echo -e "${magenta}$absolute_child_path/functions.php${reset}\n"
+							echo "$(timestamp): Cannot recognise your child theme function.php, expected php shebang at line 1 $absolute_child_path/functions.php" >> "${error_log}"
+							exit 1
+						fi
+					fi
+				fi
 			else
 				echo -e "\n${red}*${reset} ${red}Installation aborted, as file not writeable: ${reset}"
 				echo "${cyan}${m_tab}#####################################################${reset}"
@@ -776,132 +828,99 @@ install_twoway () {
 				echo "$(timestamp): Installation aborted, as file not writeable: $absolute_child_path/functions.php" >> "${error_log}"
 				exit 1
 			fi
-		elif [ -w "$absolute_child_path/functions.php" ]; then
-			if [ -s "$absolute_child_path/functions.php" ]; then
-				# Take backup of user functions.php first
-				cp "$absolute_child_path/functions.php" "$absolute_child_path/functions.php.wo-aras-backup-$$-$(date +%d-%m-%Y)" &&
-				chown "$USER_OWNER":"$GROUP_OWNER" "$absolute_child_path/functions.php.wo-aras-backup-$$-$(date +%d-%m-%Y)" ||
-				{
-				echo -e "\n${red}*${reset} ${red}Two way fulfillment workflow installation aborted: ${reset}";
-				echo "${cyan}${m_tab}#####################################################${reset}";
-				echo -e "${m_tab}${red}Cannot take backup of $absolute_child_path/functions.php${reset}\n";
-				echo "$(timestamp): Two way fulfillment workflow installation aborted: Cannot take backup of $absolute_child_path/functions.php" >> "${error_log}";
-				exit 1;
-				}
 
-				if ! grep -q "${my_string}" "$absolute_child_path/functions.php"; then
-					if [ $(< "$absolute_child_path/functions.php" $m_sed '1q') == "<?php" ]; then
-						< "$this_script_path/custom-order-status-package/functions.php" $m_sed "1 s/.*/ /" >> "$absolute_child_path/functions.php"
-					else
-						echo -e "\n${red}*${reset} ${red}Two way fulfillment workflow installation aborted: ${reset}"
-						echo "${cyan}${m_tab}#####################################################${reset}"
-						echo "${m_tab}${red}Cannot recognise your child theme function.php, expected php shebang at line 1${reset}"
-						echo -e "${magenta}$absolute_child_path/functions.php${reset}\n"
-						echo "$(timestamp): Cannot recognise your child theme function.php, expected php shebang at line 1 $absolute_child_path/functions.php" >> "${error_log}"
-						exit 1
+			# File, folder operations
+			if [ -w "$absolute_child_path/functions.php" ]; then
+				for i in "${my_paths[@]}"
+				do
+					if [[ ! -d "$i" ]]; then
+						mkdir "$i" &&
+						chown "$USER_OWNER":"$GROUP_OWNER" "$i" ||
+						{
+						echo -e "\n${red}*${reset} ${red}Two way fulfillment workflow Installation aborted: ${reset}";
+						echo "${cyan}${m_tab}#####################################################${reset}";
+						echo "${m_tab}${red}Cannot create folder: $i${reset}";
+						echo "$(timestamp): Cannot create folder $i" >> "${error_log}";
+						exit 1;
+						}
 					fi
-				fi
+				done
+
+				for i in "${my_files[@]}"
+				do
+					if [[ ! -f "$i" ]]; then
+						if grep -qw "woocommerce/emails" <<< "${i}"; then
+							cp "$this_script_path/custom-order-status-package/class-wc-delivered-status-order.php" "${i%/*}/" &&
+							chown -R "$USER_OWNER":"$GROUP_OWNER" "${i%/*}/" || twoway_pretty_error
+						elif grep -qw "emails/plain" <<< "${i}"; then
+							cp "$this_script_path/custom-order-status-package/wc-customer-delivered-status-order.php" "${i%/*}/" &&
+							chown -R "$USER_OWNER":"$GROUP_OWNER" "${i%/*}/" || twoway_pretty_error
+						elif grep -qw "aras-woo-delivered.php" <<< "${i}"; then
+							cp "$this_script_path/custom-order-status-package/aras-woo-delivered.php" "${i%/*}/" &&
+							chown -R "$USER_OWNER":"$GROUP_OWNER" "${i%/*}/" || twoway_pretty_error
+						else
+							cp "$this_script_path/custom-order-status-package/wc-customer-delivered-status-order.php" "${i%/*}/" &&
+							chown -R "$USER_OWNER":"$GROUP_OWNER" "${i%/*}/" || twoway_pretty_error
+						fi
+					fi
+				done
+			else
+				echo -e "\n${red}*${reset} ${red}Installation aborted, as file not writeable: ${reset}"
+				echo "${cyan}${m_tab}#####################################################${reset}"
+				echo "${m_tab}${red}$absolute_child_path/functions.php${reset}"
+				echo -e "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}\n"
+				echo "$(timestamp): Installation aborted, as file not writeable: $absolute_child_path/functions.php" >> "${error_log}"
+				exit 1
 			fi
 		else
-			echo -e "\n${red}*${reset} ${red}Installation aborted, as file not writeable: ${reset}"
+			echo -e "\n${red}*${reset} ${red}Installation aborted, could not read file permissions: ${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
-			echo "${m_tab}${red}$absolute_child_path/functions.php${reset}"
 			echo -e "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}\n"
-			echo "$(timestamp): Installation aborted, as file not writeable: $absolute_child_path/functions.php" >> "${error_log}"
+			echo "$(timestamp): Installation aborted, could not read file permissions" >> "${error_log}"
 			exit 1
 		fi
 
-		# File, folder operations
-		if [ -w "$absolute_child_path/functions.php" ]; then
-			for i in "${my_paths[@]}"
-			do
-				if [[ ! -d "$i" ]]; then
-					mkdir "$i" &&
-					chown "$USER_OWNER":"$GROUP_OWNER" "$i" ||
-					{
-					echo -e "\n${red}*${reset} ${red}Two way fulfillment workflow Installation aborted: ${reset}";
-					echo "${cyan}${m_tab}#####################################################${reset}";
-					echo "${m_tab}${red}Cannot create folder: $i${reset}";
-					echo "$(timestamp): Cannot create folder $i" >> "${error_log}";
-					exit 1;
-					}
-				fi
-			done
-
-			for i in "${my_files[@]}"
-			do
-				if [[ ! -f "$i" ]]; then
-					if grep -qw "woocommerce/emails" <<< "${i}"; then
-						cp "$this_script_path/custom-order-status-package/class-wc-delivered-status-order.php" "${i%/*}/" &&
-						chown -R "$USER_OWNER":"$GROUP_OWNER" "${i%/*}/" || twoway_pretty_error
-					elif grep -qw "emails/plain" <<< "${i}"; then
-						cp "$this_script_path/custom-order-status-package/wc-customer-delivered-status-order.php" "${i%/*}/" &&
-						chown -R "$USER_OWNER":"$GROUP_OWNER" "${i%/*}/" || twoway_pretty_error
-					elif grep -qw "aras-woo-delivered.php" <<< "${i}"; then
-						cp "$this_script_path/custom-order-status-package/aras-woo-delivered.php" "${i%/*}/" &&
-						chown -R "$USER_OWNER":"$GROUP_OWNER" "${i%/*}/" || twoway_pretty_error
-					else
-						cp "$this_script_path/custom-order-status-package/wc-customer-delivered-status-order.php" "${i%/*}/" &&
-						chown -R "$USER_OWNER":"$GROUP_OWNER" "${i%/*}/" || twoway_pretty_error
-					fi
-				fi
-			done
+		# Validate installation
+		if [[ -n $(validate_twoway) ]]; then
+			echo -e "\n${red}*${reset} ${red}Two way fulfillment workflow installation aborted: ${reset}"
+			echo "${cyan}${m_tab}#####################################################${reset}"
+			echo "${m_tab}${red}Missing file(s) $(validate_twoway)${reset}"
+			echo "$(timestamp): Missing file(s) $(validate_twoway)" >> "${error_log}"
+			exit 1;
 		else
-			echo -e "\n${red}*${reset} ${red}Installation aborted, as file not writeable: ${reset}"
+			# Time to enable functions.php modifications
+			$m_sed -i '/aras_woo_include/c include( get_stylesheet_directory() .'"'/woocommerce/aras-woo-delivered.php'"'); //aras_woo_enabled' "${absolute_child_path}/functions.php"
+
+			echo -e "\n${green}*${reset} ${green}Two way fulfillment workflow is now enabled.${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
-			echo "${m_tab}${red}$absolute_child_path/functions.php${reset}"
-			echo -e "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}\n"
-			echo "$(timestamp): Installation aborted, as file not writeable: $absolute_child_path/functions.php" >> "${error_log}"
-			exit 1
+			echo "${m_tab}${yellow}Please check your website working correctly and able to login admin panel.${reset}"
+			echo "${m_tab}${yellow}Check 'delivered' order status registered and 'delivered' email template exist under woo commerce emails tab${reset}"
+			echo "${m_tab}${yellow}If your website or admin panel is broken don't panic.${reset}"
+			echo "${m_tab}${yellow}First try to restart your web server apache,nginx or php-fpm${reset}"
+			echo "${m_tab}${yellow}If still not working please select r for starting recovery process${reset}"
+			echo "${m_tab}${yellow}If everything on the way CONGRATS select c for continue the setup${reset}"
+
+			# Anything broken? Let check website healt and if encountered any errors revert modifications
+			while true
+			do
+				echo "${m_tab}${cyan}#####################################################${reset}"
+				read -r -n 1 -p "${m_tab}${BC}r for recovery and quit setup, c for continue${EC} " cs < /dev/tty
+				echo ""
+				case "${cs}" in
+					[Rr]* ) $m_sed -i '/aras_woo_enabled/c \/\/aras_woo_include( get_stylesheet_directory() .'"'/woocommerce/aras-woo-delivered.php'"');' "${absolute_child_path}/functions.php";
+						echo -e "\n${yellow}Two way fulfillment workflow installation aborted, recovery process completed.${reset}";
+						echo "$(timestamp): Two way fulfillment workflow installation aborted, recovery process completed." >> "${error_log}";
+						exit 1;;
+					[Cc]* ) touch "${this_script_path}/.two.way.enb"; chattr +i "${this_script_path}/.two.way.enb" >/dev/null 2>&1; break;;
+					* ) echo -e "\n${m_tab}${magenta}Please answer r or c${reset}"; echo "${cyan}${m_tab}#####################################################${reset}";;
+				esac
+			done
+
+			echo -e "\n${green}*${reset} ${green}Two way fulfillment workflow installation: ${reset}"
+			echo "${cyan}${m_tab}#####################################################${reset}"
+			echo -e "${m_tab}${green}Completed${reset}\n"
+			echo "$(timestamp): Two way fulfillment workflow installation completed" >> "${access_log}"
 		fi
-	else
-		echo -e "\n${red}*${reset} ${red}Installation aborted, could not read file permissions: ${reset}"
-		echo "${cyan}${m_tab}#####################################################${reset}"
-		echo -e "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}\n"
-		echo "$(timestamp): Installation aborted, could not read file permissions" >> "${error_log}"
-		exit 1
-	fi
-
-	# Validate installation
-	if [[ -n $(validate_twoway) ]]; then
-		echo -e "\n${red}*${reset} ${red}Two way fulfillment workflow installation aborted: ${reset}"
-		echo "${cyan}${m_tab}#####################################################${reset}"
-		echo "${m_tab}${red}Missing file(s) $(validate_twoway)${reset}"
-		echo "$(timestamp): Missing file(s) $(validate_twoway)" >> "${error_log}"
-		exit 1;
-	else
-		# Time to enable functions.php modifications
-		$m_sed -i '/aras_woo_include/c include( get_stylesheet_directory() .'"'/woocommerce/aras-woo-delivered.php'"'); //aras_woo_enabled' "${absolute_child_path}/functions.php"
-
-		echo -e "\n${green}*${reset} ${green}Two way fulfillment workflow is now enabled.${reset}"
-		echo "${cyan}${m_tab}#####################################################${reset}"
-		echo "${m_tab}${yellow}Please check your website working correctly and able to login admin panel.${reset}"
-		echo "${m_tab}${yellow}Check 'delivered' order status registered and 'delivered' email template exist under woo commerce emails tab${reset}"
-		echo "${m_tab}${yellow}If your website or admin panel is broken don't panic.${reset}"
-		echo "${m_tab}${yellow}First try to restart your web server apache,nginx or php-fpm${reset}"
-		echo "${m_tab}${yellow}If still not working please select r for starting recovery process${reset}"
-		echo "${m_tab}${yellow}If everything on the way CONGRATS select c for continue the setup${reset}"
-
-		# Anything broken? Let check website healt and if encountered any errors revert modifications
-		while true
-		do
-			echo "${m_tab}${cyan}#####################################################${reset}"
-			read -r -n 1 -p "${m_tab}${BC}r for recovery and quit setup, c for continue${EC} " cs < /dev/tty
-			echo ""
-			case "${cs}" in
-				[Rr]* ) $m_sed -i '/aras_woo_enabled/c \/\/aras_woo_include( get_stylesheet_directory() .'"'/woocommerce/aras-woo-delivered.php'"');' "${absolute_child_path}/functions.php";
-					echo -e "\n${yellow}Two way fulfillment workflow installation aborted, recovery process completed.${reset}";
-					echo "$(timestamp): Two way fulfillment workflow installation aborted, recovery process completed." >> "${error_log}";
-					exit 1;;
-				[Cc]* ) touch "${this_script_path}/.two.way.enb"; chattr +i "${this_script_path}/.two.way.enb" >/dev/null 2>&1; break;;
-			* ) echo -e "\n${m_tab}${magenta}Please answer r or c${reset}"; echo "${cyan}${m_tab}#####################################################${reset}";;
-			esac
-		done
-
-		echo -e "\n${green}*${reset} ${green}Two way fulfillment workflow installation: ${reset}"
-		echo "${cyan}${m_tab}#####################################################${reset}"
-		echo -e "${m_tab}${green}Completed${reset}\n"
-		echo "$(timestamp): Two way fulfillment workflow installation completed" >> "${access_log}"
 	fi
 }
 
@@ -1204,10 +1223,10 @@ help () {
 	echo -e "${m_tab}# ---------------------------------------------------------------------"
 	echo -e "${m_tab}#${m_tab}--setup            |-s      first time setup (also hard reset and re-starts setup)"
 	echo -e "${m_tab}#${m_tab}--twoway-enable    |-t      enable twoway fulfillment workflow"
-	echo -e "${m_tab}#${m_tab}--twoway-disable   |-y      only disable twoway fulfillment workflow as script will continue to work default one-way"
+	echo -e "${m_tab}#${m_tab}--twoway-disable   |-y      only disable twoway fulfillment workflow without uninstall custom order status package as script will continue to work default one-way"
 	echo -e "${m_tab}#${m_tab}--disable          |-i      completely disable/inactivate script without uninstallation (for debugging purpose)"
 	echo -e "${m_tab}#${m_tab}--enable           |-a      enable/activate script if previously disabled"
-	echo -e "${m_tab}#${m_tab}--uninstall        |-d      completely remove installed bundles aka twoway, cron jobs, systemd services, logrotate, logs"
+	echo -e "${m_tab}#${m_tab}--uninstall        |-d      completely remove installed bundles aka twoway custom order status package, cron jobs, systemd services, logrotate, logs"
 	echo -e "${m_tab}#${m_tab}--upgrade          |-u      upgrade script to latest version"
 	echo -e "${m_tab}#${m_tab}--dependencies     |-p      display prerequisites & dependencies"
 	echo -e "${m_tab}#${m_tab}--version          |-v      display script info"
