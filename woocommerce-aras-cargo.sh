@@ -663,7 +663,7 @@ simple_uninstall_twoway () {
 	chattr -i "${this_script_path}/.two.way.enb" >/dev/null 2>&1
 	rm -f "${this_script_path:?}/.two.way.enb" >/dev/null 2>&1
 
-	echo -e "\n${yellow}*${reset} ${green}Two way fulfillment unistallation: ${reset}"
+	echo -e "\n${yellow}*${reset} ${yellow}Two way fulfillment unistallation: ${reset}"
 	echo "${cyan}${m_tab}#####################################################${reset}"
 	echo "${m_tab}${yellow}Uninstallation completed.${reset}"
 	echo "${m_tab}${yellow}Please check your website for functionality${reset}"
@@ -919,7 +919,7 @@ install_twoway () {
 
 			echo -e "\n${green}*${reset} ${green}Two way fulfillment workflow installation: ${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
-			echo -e "${m_tab}${green}Completed${reset}\n"
+			echo "${m_tab}${green}Completed${reset}"
 			echo "$(timestamp): Two way fulfillment workflow installation completed" >> "${access_log}"
 		fi
 	fi
@@ -940,7 +940,7 @@ hard_reset () {
 	if [[ -s "${cron_dir}/${cron_filename}" ]]; then
 		if [[ -w "${cron_dir}/${cron_filename}" ]]; then
 			rm -f  "${cron_dir:?}/${cron_filename:?}" >/dev/null 2>&1
-			echo -e "\n${green}*${reset} ${yellow}Main cron job uninstalled:${reset}"
+			echo -e "\n${yellow}*${reset} ${yellow}Main cron job uninstalled:${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			echo "${yellow}${m_tab}${cron_dir}/${cron_filename}${reset}"
 		else
@@ -956,7 +956,7 @@ hard_reset () {
 	if [[ -s "${cron_dir}/${cron_filename_update}" ]]; then
 		if [[ -w "${cron_dir}/${cron_filename_update}" ]]; then
 			rm -f  "${cron_dir:?}/${cron_filename_update:?}" >/dev/null 2>&1
-			echo -e "\n${green}*${reset} ${yellow}Updater cron job uninstalled:${reset}"
+			echo -e "\n${yellow}*${reset} ${yellow}Updater cron job uninstalled:${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			echo "${yellow}${m_tab}${cron_dir}/${cron_filename_update}${reset}"
 		else
@@ -976,7 +976,7 @@ hard_reset () {
 			systemctl stop "${timer_filename}" >/dev/null 2>&1
 			systemctl daemon-reload >/dev/null 2>&1
 			rm -rf  "${systemd_dir:?}/${service_filename:?}" "${systemd_dir:?}/${timer_filename:?}"  >/dev/null 2>&1
-			echo -e "\n${green}*${reset} ${yellow}Systemd unit uninstalled: services stopped:${reset}"
+			echo -e "\n${yellow}*${reset} ${yellow}Systemd unit uninstalled: services stopped:${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			echo "${yellow}${m_tab}${systemd_dir}/${service_filename}${reset}"
 			echo "${yellow}${m_tab}${systemd_dir}/${timer_filename}${reset}"
@@ -993,7 +993,7 @@ hard_reset () {
 	if [[ -s "${logrotate_dir}/${logrotate_filename}" ]]; then
 		if [[ -w "${logrotate_dir}/${logrotate_filename}" ]]; then
 			rm -f "${logrotate_dir:?}/${logrotate_filename:?}" >/dev/null 2>&1
-			echo -e "\n${green}*${reset} ${yellow}Logrotate removed:${reset}"
+			echo -e "\n${yellow}*${reset} ${yellow}Logrotate removed:${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			echo "${yellow}${m_tab}${logrotate_dir}/${logrotate_filename}${reset}"
 		else
