@@ -1,3 +1,14 @@
+2.0.1 - 07/30/2021
+=========================================================
+- MAJOR UPDATE - Add support on auto installation two-way 
+  fulfillment workflow --> processing - shipped - delivered
+  with custom-order-status package. 
+- Allow only one instance running at the same time
+- User has more control over script such as enable,disable
+  operations without uninstallation, check --help
+- Many bug fixes & code optimizations,
+  update highly recommended.
+
 1.0.9 - 07/16/2021
 =========================================================
 - IMPORTANT FIX - null data corrupting array 
