@@ -109,13 +109,13 @@ Critical part such as success mails, fronted&admin side custom order status labe
 
 ## Features
 - Interactive easy setup
-- Two-way fulfillment workflow with custom order status package
+- Pluginless server side bash scripting solution, set and forget
+- Auto two-way fulfillment workflow implementation with custom order status package
 - Encryped sensetive data (REST,SOAP credentials) also never seen on bash history
 - Powerful error handling for various checks like SOAP and REST API connections
 - Auto installation methods via cron, systemd
 - Logrotate support
-- Pluginless pure server side bash solution, set and forget
-- HTML notify mails for updated orders, errors
+- HTML notify mails for shop manager (updated orders)
 - Easily auto upgrade to latest version
 - Strong string matching logic via levenshtein distance function
 
