@@ -95,12 +95,13 @@ sudo ./woocommerce-aras-cargo.sh --twoway-enable
 ## Will mess up anything?
 No! At least if you don't modify source code blindly. If you have a pre-prod env. test it before production.
 Also interactive setup will ask you to validate some parsed data. If you don't validate the data -installation part will be skipped.
-While auto implementing two-way fulfillment workflow we just use child theme so we never ever touch any core files of wordpress or woocommerce directly.
+While auto implementing two-way fulfillment workflow we just use child theme so we never ever touch any core files of wordpress&woocommerce directly.
 
 ![setup5](https://user-images.githubusercontent.com/25556606/124501159-baf95700-ddc9-11eb-81ce-84c5b9117639.png)
 
 ## Any drawbacks?
-Partially Yes! If you have multiple order from same customer just ship them all at once. If you partially ship them (multiple tracking number) matching algorithm can fail but not mess up anything. Keep in mind that If you have a large volume e-commerce platform you need deep integration solutions.
+Partially Yes! If you have multiple order from same customer just ship them all at once as much as possible. If you partially ship them (multiple tracking number) matching algorithm can fail but not mess up anything.
+Secondly, be sure the customer info (first and last name) in the cargo information is correct and match with order info. Levenshtein matching algorithm will help you up to 3 characters. Keep in mind that If you have a large volume e-commerce platform you need deep integration solutions.
 
 ## Where is the Turkish translation?
 Critical part such as success mails, fronted&admin side custom order status label supports Turkish. You are welcome to add support/contribute on Turkish translation of setup&logging&readme part.
