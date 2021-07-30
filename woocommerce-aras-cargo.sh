@@ -2455,12 +2455,12 @@ if [ -s "${this_script_path}/aras.json" ]; then
 	< "${this_script_path}/aras.json" $m_sed 's/^[^[]*://g' | $m_awk 'BEGIN{OFS=FS="]"};{$NF="";print $0}' > "${this_script_path}/aras.json.mod" || { echo 'cannot modify aras.json'; exit 1; }
 fi
 
-# Parse ARAS JSON data with jq to get necessary data --> status, recipient{name,surname}, tracking number(undelivered)
+# Parse ARAS JSON data with jq to get necessary data --> status, recipient{name,surname}, tracking number(undelivered yet)
 if [ -s "${this_script_path}/aras.json.mod" ]; then
 	< "${this_script_path}/aras.json.mod" $m_jq -r '.[]|[.DURUM_KODU,.KARGO_TAKIP_NO,.ALICI]|join(" ")' | $m_sed '/^6/d' | cut -f2- -d ' ' > "${this_script_path}/aras.proc"
 fi
 
-# Two-way workflow, get cargo tracking numbers which delivered
+# Two-way workflow, Parse ARAS JSON data with jq to get necessary data --> status, recipient{name,surname}, tracking number(delivered)
 if [ -e "${this_script_path}/.two.way.enb" ]; then
 	if [ -s "${this_script_path}/aras.json.mod" ]; then
 		< "${this_script_path}/aras.json.mod" $m_jq -r '.[]|[.DURUM_KODU,.KARGO_TAKIP_NO,.ALICI]|join(" ")' | $m_sed '/^6/!d' | cut -f2- -d ' ' | $m_awk '{print $1}' > "${this_script_path}/aras.proc.del"
@@ -2470,8 +2470,8 @@ fi
 # For perfect matching with order id and tracking number we are normalizing the data.
 # Translate customer info to 'en' & transform text to lowercase & remove whitespaces
 if [[ -s "${this_script_path}/aras.proc" && -s "${this_script_path}/wc.proc" ]]; then
-	iconv -f utf8 -t ascii//TRANSLIT < "${this_script_path}/aras.proc" | tr '[:upper:]' '[:lower:]' | $m_awk '{s=$1;gsub($1 FS,x);$1=$1;print s FS $0}' OFS= > "${this_script_path}/aras.proc.en"
-	iconv -f utf8 -t ascii//TRANSLIT < "${this_script_path}/wc.proc" | tr '[:upper:]' '[:lower:]' | $m_awk '{s=$1;gsub($1 FS,x);$1=$1;print s FS $0}' OFS= > "${this_script_path}/wc.proc.en"
+	iconv -f utf8 -t ascii//TRANSLIT < "${this_script_path}/aras.proc" | tr '[:upper:]' '[:lower:]' | $m_awk '{s=$1;gsub($1 FS,x);$1=$1;print s FS $0}' OFS= | $m_awk '{gsub("[.=_:,-?]*","",$2)}1' > "${this_script_path}/aras.proc.en"
+	iconv -f utf8 -t ascii//TRANSLIT < "${this_script_path}/wc.proc" | tr '[:upper:]' '[:lower:]' | $m_awk '{s=$1;gsub($1 FS,x);$1=$1;print s FS $0}' OFS= | $m_awk '{gsub("[.=_:,-?]*","",$2)}1' > "${this_script_path}/wc.proc.en"
 fi
 
 # MAIN STRING MATCHING LOGIC
