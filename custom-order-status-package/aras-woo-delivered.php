@@ -13,12 +13,12 @@ add_filter('bulk_actions-edit-shop_order', 'add_bulk_actions', 50, 1 );
 function register_order_status()
 {
 	register_post_status('wc-delivered', array(
-		'label' => __('Delivered', 'text-domain'),
+		'label' => __('Teslim Edildi', 'text-domain'),
 		'public' => true,
 		'show_in_admin_status_list' => true,
 		'show_in_admin_all_list' => true,
 		'exclude_from_search' => false,
-		'label_count' => _n_noop('Delivered <span class="count">(%s)</span>', 'Delivered <span class="count">(%s)</span>', 'text-domain')
+		'label_count' => _n_noop('Teslim Edildi <span class="count">(%s)</span>', 'Teslim Edildi <span class="count">(%s)</span>', 'text-domain')
 	));
 }
 
@@ -31,7 +31,7 @@ function add_delivered_to_order_statuses($order_statuses)
 	foreach ($order_statuses as $key => $status) {
 		$new_order_statuses[$key] = $status;
 		if ('wc-completed' === $key) {
-			$new_order_statuses['wc-delivered'] = __('Delivered', 'text-domain');
+			$new_order_statuses['wc-delivered'] = __('Teslim Edildi', 'text-domain');
 		}
 	}
 	return $new_order_statuses;
@@ -62,7 +62,7 @@ function delivered_woocommerce_order_is_paid_statuses($statuses)
 function add_bulk_actions( $bulk_actions )
 {
 	$lable = wc_get_order_status_name( 'delivered' );
-	$bulk_actions['mark_delivered'] = __( 'Change status to ' . $lable . '', 'trackship-for-woocommerce' );
+	$bulk_actions['mark_delivered'] = __( 'Olarak işaretle ' . $lable . '', 'text-domain' );
 	return $bulk_actions;
 }
 
