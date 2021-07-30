@@ -3,10 +3,33 @@
 /** * woocommerce-aras-cargo-integration */
 
 add_action('init', 'register_order_status');
+add_action('admin_head', 'add_custom_order_actions_button_css');
 add_filter('wc_order_statuses', 'add_delivered_to_order_statuses');
 add_filter('woocommerce_reports_order_statuses', 'include_custom_order_status_to_reports', 20, 1);
 add_filter('woocommerce_order_is_paid_statuses', 'delivered_woocommerce_order_is_paid_statuses');
 add_filter('bulk_actions-edit-shop_order', 'add_bulk_actions', 50, 1 );
+add_filter('woocommerce_admin_order_actions', 'add_custom_order_status_actions_button', 100, 2 );
+
+/*** Custom order button : Delivered
+**/
+function add_custom_order_status_actions_button( $actions, $order ) {
+	$order_id = method_exists( $order, 'get_id' ) ? $order->get_id() : $order->id;
+	if ( $order->has_status( array( 'completed' ) ) ) {
+		$action_slug = 'delivered';
+
+		$actions[$action_slug] = array(
+			'url'       => wp_nonce_url( admin_url( 'admin-ajax.php?action=woocommerce_mark_order_status&status='.$action_slug.'&order_id=' . $order->get_id() ), 'woocommerce-mark-order-status' ),
+			'name'      => __( 'Teslim Edildi Olarak İşaretle', 'text-domain' ),
+			'action'    => $action_slug,
+		);
+	}
+	return $actions;
+}
+
+function add_custom_order_actions_button_css() {
+	$action_slug = "delivered";
+	echo '<style>.wc-action-button-'.$action_slug.'::after { content: "\f147" !important; }</style>';
+}
 
 /*** Register new status : Delivered
 **/
@@ -62,7 +85,7 @@ function delivered_woocommerce_order_is_paid_statuses($statuses)
 function add_bulk_actions( $bulk_actions )
 {
 	$lable = wc_get_order_status_name( 'delivered' );
-	$bulk_actions['mark_delivered'] = __( 'Olarak işaretle ' . $lable . '', 'text-domain' );
+	$bulk_actions['mark_delivered'] = __( 'Durumu ' . $lable . ' olarak değiştir', 'text-domain' );
 	return $bulk_actions;
 }
 
