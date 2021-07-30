@@ -35,14 +35,14 @@ If you are implementing two-way workflow 'processing -> shipped -> delivered' we
 
 ## Two-way workflow installation (Optional)
 ![twoway_fulfillment](https://user-images.githubusercontent.com/25556606/126962984-d0c6a0e5-e22c-45f4-ba04-500c0f30e405.png)
-Script will ask you for auto implementation during the setup. You can choose auto installation or you can go with manual implementation. If auto implementation can't find your child theme path correctly you can go with manual implementation. Manual implementation steps explained below.
+Script will ask you for auto implementation during the setup. You can choose auto installation or you can go with manual implementation. If auto implementation can't find your child theme path correctly follow manual implementation instructions below.
 In both cases there are 4 prerequisites:
 
-### Prerequisites
+### Two-way workflow Prerequisites
 - 1-You need a active child theme (all modifications will apply to child theme - we never touch woocommerce/wordpress core files)
 - 2-Execute script on application server (webserver where your wordpress/woocommerce currently runs on)
 - 3-Be sure you work with default woocommerce fulfillment workflow (e.g don't have any custom order status which has been already implemented before)
-- 4-Complete default setup first (choose 'No' for 'auto implementation two-way' during setup and complete default setup before manual installation)
+- 4-Complete default setup first
 
 If you go with auto implementation script will find your absolute child theme path and will ask your approval for modifications. If child theme path is wrong please DON'T CONTINUE and go with manual implementation.
 
