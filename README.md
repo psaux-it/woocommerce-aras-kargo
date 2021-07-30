@@ -36,6 +36,8 @@ In default workflow if the cargo on the way (tracking number generated on ARAS e
 
 If you are implementing two-way workflow 'processing -> shipped -> delivered' we need to do some extra stuff that explained below.
 
+![order-status](https://user-images.githubusercontent.com/25556606/127660311-26896fb9-6ed2-480a-8fef-104cb45ff825.png)
+
 ## Two-way workflow installation (Optional)
 ![twoway_fulfillment](https://user-images.githubusercontent.com/25556606/126962984-d0c6a0e5-e22c-45f4-ba04-500c0f30e405.png)
 Script will ask you for auto implementation during the setup. You can choose auto installation or you can go with manual implementation. If auto implementation can't find your child theme path correctly follow manual implementation instructions below.
