@@ -27,11 +27,11 @@ class WC_Delivered_status_Order extends WC_Email {
 		// Replace 'my-custom-status' with your custom order status slug
 		// Replace 'My Custom Status' with your custom order status name
 		$this->id          = 'wc_customer_delivered_status_order';
-		$this->title       = __( 'Delivered Order to Customer', 'text-domain' );
-		$this->description = __( 'An email sent to the customer when an order status change to Delivered.', 'text-domain' );
+		$this->title       = __( 'Teslim Edilen Sipariş', 'text-domain' );
+		$this->description = __( 'Siparişler "teslim edildi" olarak işaretlendiğinde müşterilere teslim edildi sipariş e-postaları gönderilir ve genellikle siparişin teslim edildiğini belirtir.', 'text-domain' );
 		// For admin area to let the user know we are sending this email to customers.
 		$this->customer_email = true;
-		$this->heading     = __( 'Delivered Status', 'text-domain' );
+		$this->heading     = __( 'Siparişiniz teslim edildi', 'text-domain' );
 		// translators: placeholder is {blogname}, a variable that will be substituted when email is sent out
 		$this->subject     = sprintf( _x( '[%s] Delivered Status', 'default email subject for delivered status emails sent to the customer', 'text-domain' ), '{blogname}' );
 
