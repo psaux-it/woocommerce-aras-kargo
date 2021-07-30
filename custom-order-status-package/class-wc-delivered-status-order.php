@@ -33,7 +33,7 @@ class WC_Delivered_status_Order extends WC_Email {
 		$this->customer_email = true;
 		$this->heading     = __( 'Siparişiniz teslim edildi', 'text-domain' );
 		// translators: placeholder is {blogname}, a variable that will be substituted when email is sent out
-		$this->subject     = sprintf( _x( '[%s] Delivered Status', 'default email subject for delivered status emails sent to the customer', 'text-domain' ), '{blogname}' );
+		$this->subject     = sprintf( _x( '[%s] Siparişiniz teslim edildi', 'müşteriye gönderilen teslim durumu e-postaları için varsayılan e-posta konusu', 'text-domain' ), '{blogname}' );
 
 	// Template paths.
 		$this->template_html  = 'woocommerce/templates/emails/wc-customer-delivered-status-order.php';
