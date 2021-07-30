@@ -1,9 +1,3 @@
----
-
-<a href="https://commerce.coinbase.com/checkout/68aa76a7-a8e5-4de0-9e7c-29f9457e6802" target="_blank"><img src="https://user-images.githubusercontent.com/25556606/127000632-0bd49ce4-9eda-4b58-b3ac-9a9de9a809b2.png" alt="Buy Me A Coffee"></a>
-
----
-
 # WooCommerce - Aras Cargo Integration
 ## Pluginless linux server side bash scripting solution #root
 [![N|Solid](https://www.cyberciti.biz/media/new/category/old/terminal.png)](https://www.psauxit.com) 
@@ -23,6 +17,17 @@ This solution best suits to small-mid size e-commerce business. Keep in mind tha
 > to 'delivered' and notify customer via second mail. Simply you don't need to add cargo 
 > tracking number manually and update order status via WooCommerce orders dashboard.
 > The aim of script is automating the process fully.
+
+## What is the point of the project?
+Because deep integration solutions are costly, this script was written to support small and medium-sized e-commerce owners under pandemic conditions.
+Aras Kargo is the most used and most affordable cargo company in Turkey. WooCommerce is also the most preferred e-commerce platform. Simply perfect match for small and medium-sized e-commerce owners.
+If you need further assistance (for an other cargo company) or want to support my open source work:
+
+---
+
+<a href="https://commerce.coinbase.com/checkout/68aa76a7-a8e5-4de0-9e7c-29f9457e6802" target="_blank"><img src="https://user-images.githubusercontent.com/25556606/127000632-0bd49ce4-9eda-4b58-b3ac-9a9de9a809b2.png" alt="Buy MeA Coffee"></a>
+
+---
 
 ## What are the supported workflows?
 ![mermaid-diagram-20210714032040](https://user-images.githubusercontent.com/25556606/125541661-f8a05b42-c174-4bfb-81c9-84e01036a1f6.png)
