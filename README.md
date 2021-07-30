@@ -23,8 +23,6 @@ Because deep integration solutions are costly, this script was written to suppor
 Aras Kargo is the most used and most affordable cargo company in Turkey. WooCommerce is also the most preferred e-commerce platform. Simply perfect match for small and medium-sized e-commerce owners.
 If you need further assistance (for an other cargo company) or want to support my open source work:
 
----
-
 <a href="https://commerce.coinbase.com/checkout/68aa76a7-a8e5-4de0-9e7c-29f9457e6802" target="_blank"><img src="https://user-images.githubusercontent.com/25556606/127000632-0bd49ce4-9eda-4b58-b3ac-9a9de9a809b2.png" alt="Buy MeA Coffee"></a>
 
 ---
