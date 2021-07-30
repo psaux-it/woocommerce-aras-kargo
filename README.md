@@ -100,7 +100,7 @@ No! At least if you don't modify source code blindly. If you have a pre-prod env
 Also interactive setup will ask you to validate some parsed data. If you don't validate the data -installation part will be skipped.
 While auto implementing two-way fulfillment workflow we just use child theme so we never ever touch any core files of wordpress&woocommerce directly.
 
-![setup5](https://user-images.githubusercontent.com/25556606/124501159-baf95700-ddc9-11eb-81ce-84c5b9117639.png)
+![setup5](https://user-images.githubusercontent.com/25556606/127653348-b78cfc4b-d38e-4e4f-9c93-65014ab1d041.png)
 
 ## Any drawbacks?
 Partially Yes! If you have multiple order from same customer just ship them all at once as much as possible. If you partially ship them (multiple tracking number) matching algorithm can fail but not mess up anything.
