@@ -125,14 +125,17 @@ Critical part such as success mails, fronted&admin side custom order status labe
 
 ![setup](https://user-images.githubusercontent.com/25556606/124499928-7e2c6080-ddc7-11eb-9df2-672a0f5ab2d1.png)
 
-## Hard Dependencies (not included in default linux installations)
+## Hard Dependencies (may not included in default linux installations)
+- curl
 - perl-Text::Fuzzy>=0.29 --> for string matching via levenshtein distance function
-- jq>=1.6 --> simplify JSON parsing operations
-- php>=7.0 --> for creating SOAP client to get data from ARAS
+- jq>=1.6 --> simplify JSON parsing operations (caruful to versioning)
+- php, php-soap --> for creating SOAP client to get data from ARAS
+- GNU awk>=5 (gawk in Ubuntu)
+- GNU sed
 - whiptail (as also known (newt,libnewt))
 
 ## Recommended Tools
-- mail --> for shop manager mail alerts (comes with mailutils linux package)
+- mail --> for shop manager & system admin, need for error success mail alerts (comes with mailutils linux package)
 
 ## Tested Applications Versions
 - wordpress>=5.7.2
