@@ -41,6 +41,17 @@
 # Follow detailed installation instructions on github.
 # =====================================================================
 
+# Prevent iconv text translation errors
+# Set locale category for character handling functions (otherwise this script not work correctly)
+if locale -a | grep -iq "en_US.utf8"; then
+	export LC_ALL=en_US.UTF-8
+	export LC_CTYPE=en_US.UTF-8
+else
+	echo "Please add support on English locale for your shell environment."
+	echo "e.g. for ubuntu -> apt-get -y install language-pack-en"
+	exit 1
+fi
+
 # Need for upgrade - DON'T EDIT MANUALLY
 # =====================================================================
 script_version="2.0.1"
@@ -495,8 +506,8 @@ pre_check () {
 		echo "${green}AST_Plugin: ACTIVE ✓${reset}"
 		echo "${green}AST_Plugin_Version: $ast_ver ✓${reset}"
 	else
-		echo "${red}AST_Plugin: NOT FOUND x${reset}"
-		echo "${red}AST_Plugin_Version: NOT FOUND x${reset}"
+		echo "${red}AST_Plugin: NOT_FOUND x${reset}"
+		echo "${red}AST_Plugin_Version: NOT_FOUND x${reset}"
 	fi
 
 	if [ "$bash_ver" -ge 5 ]; then
@@ -512,7 +523,7 @@ pre_check () {
 			echo "${yellow}GNU_Awk_Version: $gnu_awk_v x${reset}"
 		fi
 	else
-		echo "${red}GNU_Awk: NOT GNU x${reset}"
+		echo "${red}GNU_Awk: NOT_GNU x${reset}"
 		awk_not_gnu=1
 	fi
 
@@ -523,7 +534,7 @@ pre_check () {
 			echo "${yellow}GNU_Sed_Version: $gnu_sed_v x${reset}"
 		fi
 	else
-		echo "${red}GNU_Sed: NOT GNU x${reset}"
+		echo "${red}GNU_Sed: NOT_GNU x${reset}"
 		sed_not_gnu=1
 	fi
 
@@ -1929,8 +1940,6 @@ encrypt_wc_auth () {
 			if [ "$my_wc_api_key" == "q" ] || [ "$my_wc_api_key" == "quit" ]; then exit 1; fi
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			echo "$my_wc_api_key" | openssl enc -base64 -e -aes-256-cbc -nosalt  -pass pass:garbageKey  2>/dev/null > "$this_script_path/.key.wc.lck"
-			# delete sensetive data from bash history
-			history -w && $m_sed -i '/.key.wc.lck/d' ~/.bash_history >/dev/null 2>&1
 		else
 			if [ $send_mail_err -eq 1 ]; then
 				send_mail_err <<< "Woocommerce-Aras Cargo integration error. Missing file .key.wc.lck. Please re-start setup manually."
@@ -1947,8 +1956,6 @@ encrypt_wc_auth () {
 			if [ "$my_wc_api_secret" == "q" ] || [ "$my_wc_api_secret" == "quit" ]; then exit 1; fi
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			echo "$my_wc_api_secret" | openssl enc -base64 -e -aes-256-cbc -nosalt  -pass pass:garbageKey  2>/dev/null > "$this_script_path/.secret.wc.lck"
-			# delete sensetive data from bash history
-			history -w && $m_sed -i '/.secret.wc.lck/d' ~/.bash_history >/dev/null 2>&1
 		else
 			if [ $send_mail_err -eq 1 ]; then
 				send_mail_err <<< "Woocommerce-Aras Cargo integration error. Missing file .secret.wc.lck . Please re-start setup manually."
@@ -1969,8 +1976,6 @@ encrypt_wc_end () {
 			if [ "$my_wc_api_endpoint" == "q" ] || [ "$my_wc_api_endpoint" == "quit" ]; then exit 1; fi
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			echo "$my_wc_api_endpoint" | openssl enc -base64 -e -aes-256-cbc -nosalt  -pass pass:garbageKey  2>/dev/null > "$this_script_path/.end.wc.lck"
-			# delete sensetive data from bash history
-			history -w && $m_sed -i '/.end.wc.lck/d' ~/.bash_history >/dev/null 2>&1
 		else
 			if [ $send_mail_err -eq 1 ]; then
 				send_mail_err <<< "Woocommerce-Aras Cargo integration error. Missing file .end.wc.lck. Please re-start setup manually."
@@ -1990,8 +1995,6 @@ encrypt_aras_auth () {
 			if [ "$my_aras_api_pass" == "q" ] || [ "$my_aras_api_pass" == "quit" ]; then exit 1; fi
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			echo "$my_aras_api_pass" | openssl enc -base64 -e -aes-256-cbc -nosalt  -pass pass:garbageKey  2>/dev/null > "$this_script_path/.key.aras.lck"
-			# delete sensetive data from bash history
-			history -w && $m_sed -i '/.key.aras.lck/d' ~/.bash_history
 		else
 			if [ $send_mail_err -eq 1 ]; then
 				send_mail_err <<< "Woocommerce-Aras Cargo integration error. Missing file .key.aras.lck. Please re-start setup manually."
@@ -2008,8 +2011,6 @@ encrypt_aras_auth () {
 			if [ "$my_aras_api_usr" == "q" ] || [ "$my_aras_api_usr" == "quit" ]; then exit 1; fi
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			echo "$my_aras_api_usr" | openssl enc -base64 -e -aes-256-cbc -nosalt  -pass pass:garbageKey  2>/dev/null > "$this_script_path/.usr.aras.lck"
-			# delete sensetive data from bash history
-			history -w && $m_sed -i '/.usr.aras.lck/d' ~/.bash_history >/dev/null 2>&1
 		else
 			if [ $send_mail_err -eq 1 ]; then
 				send_mail_err <<< "Woocommerce-Aras Cargo integration error. Missing file .usr.aras.lck. Please re-start setup manually."
@@ -2033,8 +2034,6 @@ encrypt_aras_auth () {
 				esac
 			done
 			echo "$my_aras_api_mrc" | openssl enc -base64 -e -aes-256-cbc -nosalt  -pass pass:garbageKey  2>/dev/null > "$this_script_path/.mrc.aras.lck"
-			# delete sensetive data from bash history
-			history -w && $m_sed -i '/.mrc.aras.lck/d' ~/.bash_history >/dev/null 2>&1
 		else
 			if [ $send_mail_err -eq 1 ]; then
 				send_mail_err <<< "Woocommerce-Aras Cargo integration error. Missing file .mrc.aras.lck. Please re-start setup manually."
@@ -2054,8 +2053,6 @@ encrypt_aras_end () {
 			if [ "$my_aras_api_end" == "q" ] || [ "$my_aras_api_end" == "quit" ]; then exit 1; fi
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			echo "$my_aras_api_end" | openssl enc -base64 -e -aes-256-cbc -nosalt  -pass pass:garbageKey  2>/dev/null > "$this_script_path/.end.aras.lck"
-			# delete sensetive data from bash history
-			history -w && $m_sed -i '/.end.aras.lck/d' ~/.bash_history
 		else
 			if [ $send_mail_err -eq 1 ]; then
 				send_mail_err <<< "Woocommerce-Aras Cargo integration error. Missing file .end.aras.lck. Please re-start setup manually."
@@ -2082,8 +2079,6 @@ encrypt_aras_qry () {
 			done
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			echo "$my_aras_api_qry" | openssl enc -base64 -e -aes-256-cbc -nosalt  -pass pass:garbageKey  2>/dev/null > "$this_script_path/.qry.aras.lck"
-			# delete sensetive data from bash history
-			history -w && $m_sed -i '/.qry.aras.lck/d' ~/.bash_history
 		else
 			if [ $send_mail_err -eq 1 ]; then
 				send_mail_err <<< "Woocommerce-Aras Cargo integration error. Missing file .qry.aras.lck. Please re-start setup manually."
@@ -2136,6 +2131,19 @@ echo -e "${cyan}${m_tab}#####################################################${r
 echo "$(timestamp): Decrypt error." >> "${error_log}";
 exit 1;
 }
+
+# Write out the current history(memory) to the history file
+# Also we create HISTFILE if not exist yet
+history -w
+
+# Remove all sensetive data from bash history (echo commands always keep in history)
+if [[ -n "${HISTFILE}" ]]; then
+	declare -a lock_files=(".key.wc.lck" ".secret.wc.lck" ".end.wc.lck" ".key.aras.lck" ".usr.aras.lck" ".mrc.aras.lck" ".end.aras.lck" ".qry.aras.lck")
+	for i in "${lock_files[@]}"
+	do
+		$m_sed -i "/$i/d" "${HISTFILE}" >/dev/null 2>&1
+	done
+fi
 #=====================================================================
 
 # Controls
@@ -2934,4 +2942,5 @@ if [ -e "${this_script_path}/.woo.aras.enb" ]; then
 fi
 
 # And lastly we exit
+unset LC_CTYPE
 exit $?
