@@ -364,9 +364,11 @@ if [ ! -d "${this_script_path}/tmp" ]; then
 	mkdir -p "${this_script_path}/tmp"
 fi
 
-# Listen exit signals to destroy temporary files
+# Listen exit signals to destroy temporary files & unset locales
 clean_up () {
 	rm -rf ${my_tmp:?} ${my_tmp_del:?} ${PIDFILE:?} "${this_script_path:?}"/*.en "${this_script_path:?}"/{*proc*,.*proc} "${this_script_path:?}"/{*json*,.*json} "${this_script_path:?}"/aras_request.php "${this_script_path:?}"/.lvn*
+	unset LC_ALL
+	unset LC_CTYPE
 }
 trap clean_up 0 1 2 3 6 15
 
@@ -2970,5 +2972,4 @@ if [ -e "${this_script_path}/.woo.aras.enb" ]; then
 fi
 
 # And lastly we exit
-unset LC_CTYPE
 exit $?
