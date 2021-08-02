@@ -118,6 +118,7 @@ fi
 FROM_SYSTEMD="0"
 RUNNING_FROM_SYSTEMD="${RUNNING_FROM_SYSTEMD:=$FROM_SYSTEMD}"
 
+# Pid pretty error
 pid_pretty_error () {
 	if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 		echo -e "\n${red}*${reset} ${red}FATAL ERROR: ${reset}"
@@ -135,8 +136,6 @@ pid_pretty_error () {
 # Create PID before long running process
 # Allow only one instance running at the same time
 # Check how long actual process has been running
-# NOTE: Used custom exit code(80) to prevent triggering trap clean up for running process
-# TODO: imo flock is better alternative
 PIDFILE=/var/run/woocommerce-aras-cargo.pid
 if [ -f "$PIDFILE" ]; then
 	PID="$(< "$PIDFILE")"
@@ -176,8 +175,46 @@ elif ! echo $$ > "${PIDFILE}" ; then
 	exit 80
 fi
 
-# Set PATHS to prevent cron errors.
-# We will also add explicit paths for specific binaries later.
+# Prevent errors cause by uncompleted downloads
+# Detect to make sure the entire script is avilable, fail if the script is missing contents
+if [ "$(tail -n 1 "${0}" | head -n 1 | cut -c 1-7)" != "exit \$?" ]; then
+	if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
+		echo -e "\n${red}*${reset} ${red}Script is incomplete, please redownload${reset}"
+		echo "${cyan}${m_tab}#####################################################${reset}"
+		echo "$(timestamp): Script is incomplete, please re-download" >> "${error_log}"
+	else
+		echo "$(timestamp): Script is incomplete, please re-download" >> "${error_log}"
+	fi
+
+	if [ $send_mail_err -eq 1 ]; then
+		send_mail_err <<< "Script is incomplete, please force upgrade manually."
+	fi
+	exit 1
+fi
+
+# Test connection & get public ip
+if ! : >/dev/tcp/8.8.8.8/53; then
+	if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
+		echo -e "\n${red}*${reset} ${red}There is no internet connection.${reset}"
+		echo "${cyan}${m_tab}#####################################################${reset}"
+		echo "$(timestamp): There is no internet connection." >> "${error_log}"
+	else
+		echo "$(timestamp): There is no internet connection." >> "${error_log}"
+	fi
+
+	if [ $send_mail_err -eq 1 ]; then
+		send_mail_err <<< "There is no internet connection."
+	fi
+	exit 1
+else
+	# Get public IP
+	exec 3<> /dev/tcp/checkip.amazonaws.com/80
+	printf "GET / HTTP/1.1\r\nHost: checkip.amazonaws.com\r\nConnection: close\r\n\r\n" >&3
+	read -r my_ip < <(tail -n1 <&3)
+fi
+
+# Add local PATHS to deal with cron errors.
+# We will also set explicit paths for specific binaries later.
 export PATH="${PATH}:/sbin:/usr/sbin:/usr/local/bin:/usr/local/sbin"
 uniquepath () {
 	local path=""
@@ -192,59 +229,83 @@ uniquepath () {
 }
 uniquepath
 
-# Check dependencies
+# Check dependencies & Set explicit paths
 # =====================================================================
-declare -a dependencies=("curl" "iconv" "openssl" "jq" "php" "perl" "awk" "sed" "pstree" "stat" "mail" "whiptail")
+
+# Check mailserver > as smtp port 587 is open and listening
+if timeout 1 bash -c "cat < /dev/null > /dev/tcp/"$my_ip"/587" >/dev/null 2>&1; then
+	if command -v lsof >/dev/null 2>&1; then
+		if lsof -i -P -n | grep -q 587; then
+			check_mail_server=0
+		else
+			check_mail_server=1
+		fi
+	elif command -v netstat >/dev/null 2>&1; then
+		if netstat -tulpn | grep -q 587; then
+			check_mail_server=0
+		else
+			check_mail_server=1
+		fi
+	elif command -v ss >/dev/null 2>&1; then
+		if ss -tulpn | grep -q 587; then
+			check_mail_server=0
+		else
+			check_mail_server=1
+		fi
+	fi
+else
+	check_mail_server=1
+fi
+
+# Check dependencies
+declare -a dependencies=("curl" "iconv" "openssl" "jq" "php" "perl" "awk" "sed" "pstree" "stat" "mail" "whiptail" "logrotate" "Text::Fuzzy")
 for i in "${dependencies[@]}"
 do
-	if ! command -v "$i" > /dev/null 2>&1; then
+	if [ "$i" == "Text::Fuzzy" ]; then
+		if ! perl -e 'use Text::Fuzzy;' >/dev/null 2>&1; then
+			echo -e "\n${red}*${reset} ${red}Text::Fuzzy PERL module not found.${reset}"
+			echo "${cyan}${m_tab}#####################################################${reset}"
+			echo -e "${yellow}${m_tab}Use distro repo or CPAN (https://metacpan.org/pod/Text::Fuzzy) to install${reset}\n"
+			echo "$(timestamp): Text::Fuzzy PERL module not found." >> "${error_log}"
+			exit 1
+		fi
+	elif ! command -v "$i" > /dev/null 2>&1; then
 		echo -e "\n${red}*${reset} ${red}$i not found.${reset}"
 		echo "${cyan}${m_tab}#####################################################${reset}"
 		if [ "$i" == "mail" ]; then
 			echo "${yellow}${m_tab}You need running mail server with 'mail' command.${reset}"
-			echo -e "${yellow}${m_tab}'mail' command is part of mailutils package in linux.${reset}\n"
+			if [ $check_mail_server -eq 1 ]; then
+				echo "${yellow}${m_tab}Mail server not configured as SMTP port 587 is closed or not listening.${reset}"
+				echo "$(timestamp): Mail server not configured as SMTP port 587 is closed or not listening, $i command not found." >> "${error_log}"
+			fi
+			echo -e "${yellow}${m_tab}'mail' command is part of mailutils package.${reset}\n"
+			echo "$(timestamp): $i not found." >> "${error_log}"
+		elif [ "$i" == "logrotate" ]; then
+			echo -e "\n${yellow}*${reset} ${yellow}Logrotate not found, there will be no logrotation support.${reset}"
+			echo "${cyan}${m_tab}#####################################################${reset}"
+			echo -e "${yellow}${m_tab}You can install logrotate from distro repo and re-start setup.${reset}\n"
+			echo "$(timestamp): Logrotate not found, there will be no logrotation support" >> "${error_log}"
+			logrotate_status="false"
 		else
-			echo -e "${yellow}${m_tab}If binary not in your PATH: add PATH to ~/.bash_profile, ~/.bashrc or profile.${reset}\n"
+			echo "${yellow}${m_tab}Please install necessary package from your linux repository and re-start setup.${reset}"
+			echo -e "${yellow}${m_tab}If package installed but binary not in your PATH: add PATH to ~/.bash_profile, ~/.bashrc or profile.${reset}\n"
+			echo "$(timestamp): $i not found." >> "${error_log}"
+			exit 1
 		fi
-
-		echo "$(timestamp): $i not found." >> "${error_log}"
-		exit 1
+	else
+		# Explicit paths for specific binaries used by script.
+		# Best practise to avoid cron errors is declare full path of binaries.
+		# I expect bash-builtin commands will not cause any cron errors.
+		# If you use specific linux distro and face cron errors please open issue.
+		suffix="m"
+		declare "${suffix}"_"${i}"="$(command -v "$i" 2>/dev/null)"
 	fi
 done
-
-if ! command -v logrotate > /dev/null 2>&1; then
-	echo -e "\n${yellow}*${reset} ${yellow}Logrotate not found, there will be no logrotation support.${reset}"
-	echo "${cyan}${m_tab}#####################################################${reset}"
-	echo "${yellow}${m_tab}You can install logrotate from distro repo and re-start setup.${reset}"
-	echo "$(timestamp): logrotate not found, there will be no logrotation support" >> "${error_log}"
-	logrotate_status="false"
-fi
-
-if ! perl -e 'use Text::Fuzzy;' >/dev/null 2>&1; then
-	echo -e "\n${red}*${reset} ${red}Text::Fuzzy PERL module not found.${reset}"
-	echo "${cyan}${m_tab}#####################################################${reset}"
-	echo -e "${yellow}${m_tab}Use distro repo or CPAN (https://metacpan.org/pod/Text::Fuzzy) to install${reset}\n"
-	echo "$(timestamp): Text::Fuzzy PERL module not found." >> "${error_log}"
-	exit 1
-fi
 # =====================================================================
 
-# Explicit paths for specific binaries used by script.
-# Best practise to avoid cron errors is declare full path of binaries.
-# I expect bash-builtin commands will not cause any cron errors.
-# If you use specific linux distro and face cron errors please open issue.
-m_jq="$(command -v jq 2>/dev/null)"
-m_pstree="$(command -v pstree 2>/dev/null)"
-m_php="$(command -v php 2>/dev/null)"
-m_awk="$(command -v awk 2>/dev/null)"
-m_curl="$(command -v curl 2>/dev/null)"
-m_sed="$(command -v sed 2>/dev/null)"
-m_paste="$(command -v paste 2>/dev/null)"
-m_perl="$(command -v perl 2>/dev/null)"
-
-# Discover
+# Discover script path
 this_script_full_path="${BASH_SOURCE[0]}"
-# Symlinks
+# Symlinks?
 while [ -h "$this_script_full_path" ]; do
 	this_script_path="$( cd -P "$( dirname "$this_script_full_path" )" >/dev/null 2>&1 && pwd )"
 	this_script_full_path="$(readlink "$this_script_full_path")"
@@ -304,39 +365,7 @@ update_script="woocommerce-aras-update-script.sh"
 my_tmp_folder="${this_script_path}/tmp"
 my_string="woocommerce-aras-cargo-integration"
 
-# Prevent errors cause by uncompleted downloads
-# Detect to make sure the entire script is avilable, fail if the script is missing contents
-if [ "$(tail -n 1 "${0}" | head -n 1 | cut -c 1-7)" != "exit \$?" ]; then
-	if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
-		echo -e "\n${red}*${reset} ${red}Script is incomplete, please redownload${reset}"
-		echo "${cyan}${m_tab}#####################################################${reset}"
-		echo "$(timestamp): Script is incomplete, please re-download" >> "${error_log}"
-	else
-		echo "$(timestamp): Script is incomplete, please re-download" >> "${error_log}"
-	fi
-
-	if [ $send_mail_err -eq 1 ]; then
-		send_mail_err <<< "Script is incomplete, please force upgrade manually."
-	fi
-	exit 1
-fi
-
-# Test connection
-grep -q "200" < <($m_curl -sL -w "%{http_code}\\n" "http://www.google.com/" -o /dev/null) || w_in=1
-if [[ -n $w_in ]]; then
-	if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
-		echo "${red}*${reset} ${red}There is no internet connection.${reset}"
-		echo "$(timestamp): There is no internet connection." >> "${error_log}"
-	else
-		echo "$(timestamp): There is no internet connection." >> "${error_log}"
-	fi
-
-	if [ $send_mail_err -eq 1 ]; then
-		send_mail_err <<< "There is no internet connection."
-	fi
-	exit 1
-fi
-
+# Twoway pretty error
 twoway_pretty_error () {
 	echo -e "\n${red}*${reset} ${red}Two way fulfillment workflow installation aborted: ${reset}"
 	echo "${cyan}${m_tab}#####################################################${reset}"
@@ -2065,8 +2094,17 @@ encrypt_aras_qry () {
 	fi
 }
 
-encrypt_wc_auth && encrypt_wc_end && encrypt_aras_auth && encrypt_aras_end && encrypt_aras_qry ||
-{ echo 'encrypt error';  echo "$(timestamp): Encrypt error." >> "${error_log}";  exit 1; }
+encrypt_wc_auth
+encrypt_wc_end
+encrypt_aras_auth
+encrypt_aras_end
+encrypt_aras_qry ||
+{
+echo -e "\n${red}*${reset} ${red}Encrypt Error: ${reset}";
+echo -e "${cyan}${m_tab}#####################################################${reset}\n";
+echo "$(timestamp): Encrypt error." >> "${error_log}";
+exit 1;
+}
 
 # decrypt ARAS SOAP API credentials
 decrypt_aras_auth () {
@@ -2088,8 +2126,16 @@ decrypt_wc_end () {
 	api_endpoint=$(< "$this_script_path/.end.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
 }
 
-decrypt_aras_auth && decrypt_aras_end && decrypt_wc_auth && decrypt_wc_end ||
-{ echo 'decrypt error'; echo "$(timestamp): Decrypt error." >> "${error_log}"; exit 1; }
+decrypt_aras_auth
+decrypt_aras_end
+decrypt_wc_auth
+decrypt_wc_end ||
+{
+echo -e "\n${red}*${reset} ${red}Decrypt Error: ${reset}";
+echo -e "${cyan}${m_tab}#####################################################${reset}\n";
+echo "$(timestamp): Decrypt error." >> "${error_log}";
+exit 1;
+}
 #=====================================================================
 
 # Controls
@@ -2163,7 +2209,6 @@ fi
 # Test WooCommerce REST API Authorization
 if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 	if grep -q "403" "$this_script_path/curl.proc"; then
-		my_ip=$($m_curl checkip.amazonaws.com)
 		echo -e "\n${red}*${reset}${red} WooCommerce REST API Authorization error.${reset}"
 		echo "${cyan}${m_tab}#####################################################${reset}"
 		echo "${m_tab}${red}Cannot connect destination from $my_ip.${reset}"
