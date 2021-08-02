@@ -242,6 +242,10 @@ uniquepath
 
 # Check dependencies & Set explicit paths
 # =====================================================================
+dynamic_vars () {
+	suffix="m"
+	eval "${suffix}"_"${1}"="$(command -v "$1" 2>/dev/null)"
+}
 
 # Check mailserver > as smtp port 587 is open and listening
 if timeout 1 bash -c "cat < /dev/null > /dev/tcp/"$my_ip"/587" >/dev/null 2>&1; then
@@ -272,25 +276,22 @@ fi
 declare -a dependencies=("curl" "iconv" "openssl" "jq" "php" "perl" "awk" "sed" "pstree" "stat" "mail" "whiptail" "logrotate" "Text::Fuzzy")
 for i in "${dependencies[@]}"
 do
-	if [ "$i" == "Text::Fuzzy" ]; then
-		if ! perl -e 'use Text::Fuzzy;' >/dev/null 2>&1; then
-			echo -e "\n${red}*${reset} ${red}Text::Fuzzy PERL module not found.${reset}"
-			echo "${cyan}${m_tab}#####################################################${reset}"
-			echo -e "${yellow}${m_tab}Use distro repo or CPAN (https://metacpan.org/pod/Text::Fuzzy) to install${reset}\n"
-			echo "$(timestamp): Text::Fuzzy PERL module not found." >> "${error_log}"
-			exit 1
-		fi
-	elif ! command -v "$i" > /dev/null 2>&1; then
+	if ! command -v "$i" > /dev/null 2>&1; then
 		echo -e "\n${red}*${reset} ${red}$i not found.${reset}"
 		echo "${cyan}${m_tab}#####################################################${reset}"
+		# Not break script but warn user about mail operations
 		if [ "$i" == "mail" ]; then
 			echo "${yellow}${m_tab}You need running mail server with 'mail' command.${reset}"
 			if [ $check_mail_server -eq 1 ]; then
 				echo "${yellow}${m_tab}Mail server not configured as SMTP port 587 is closed or not listening.${reset}"
 				echo "$(timestamp): Mail server not configured as SMTP port 587 is closed or not listening, $i command not found." >> "${error_log}"
 			fi
-			echo -e "${yellow}${m_tab}'mail' command is part of mailutils package.${reset}\n"
-			echo "$(timestamp): $i not found." >> "${error_log}"
+			echo "${yellow}${m_tab}'mail' command is part of mailutils package.${reset}"
+			echo -e "${yellow}${m_tab}You can continue the setup but you cannot get important mail alerts${reset}\n"
+			if [ $check_mail_server -eq 0 ]; then
+				echo "$(timestamp): $i not found." >> "${error_log}"
+			fi
+		# Not break script but warn user about logrotate support
 		elif [ "$i" == "logrotate" ]; then
 			echo -e "\n${yellow}*${reset} ${yellow}Logrotate not found, there will be no logrotation support.${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
@@ -298,18 +299,38 @@ do
 			echo "$(timestamp): Logrotate not found, there will be no logrotation support" >> "${error_log}"
 			logrotate_status="false"
 		else
+			# Exit for all other conditions
 			echo "${yellow}${m_tab}Please install necessary package from your linux repository and re-start setup.${reset}"
 			echo -e "${yellow}${m_tab}If package installed but binary not in your PATH: add PATH to ~/.bash_profile, ~/.bashrc or profile.${reset}\n"
 			echo "$(timestamp): $i not found." >> "${error_log}"
 			exit 1
 		fi
+	elif [ "$i" == "php" ]; then
+		dynamic_vars "$i"
+		# Check php-soap module
+		if ! $m_php -m | grep -q "soap"; then
+			echo -e "\n${red}*${reset} ${red}php-soap module not found.${reset}"
+			echo "${cyan}${m_tab}#####################################################${reset}"
+			echo -e "${yellow}${m_tab}Need for creating SOAP client to get data from ARAS${reset}\n"
+			echo "$(timestamp): php-soap module not found, need for creating SOAP client to get data from ARAS" >> "${error_log}"
+			exit 1
+		fi
+	elif [ "$i" == "perl" ]; then
+		dynamic_vars "$i"
+		# Check perl Text::Fuzzy module
+		if ! $m_perl -e 'use Text::Fuzzy;' >/dev/null 2>&1; then
+			echo -e "\n${red}*${reset} ${red}Text::Fuzzy PERL module not found.${reset}"
+			echo "${cyan}${m_tab}#####################################################${reset}"
+			echo -e "${yellow}${m_tab}Use distro repo or CPAN (https://metacpan.org/pod/Text::Fuzzy) to install${reset}\n"
+			echo "$(timestamp): Text::Fuzzy PERL module not found." >> "${error_log}"
+			exit 1
+                fi
 	else
 		# Explicit paths for specific binaries used by script.
 		# Best practise to avoid cron errors is declare full path of binaries.
 		# I expect bash-builtin commands will not cause any cron errors.
 		# If you use specific linux distro and face cron errors please open issue.
-		suffix="m"
-		declare "${suffix}"_"${i}"="$(command -v "$i" 2>/dev/null)"
+		dynamic_vars "$i"
 	fi
 done
 # =====================================================================
@@ -467,12 +488,15 @@ pre_check () {
 	w_ver=$(grep "generator" < <($m_curl -s -X GET -H "Content-Type:text/xml;charset=UTF-8" "https://$api_endpoint/feed/") | $m_perl -pe '($_)=/([0-9]+([.][0-9]+)+)/')
 
 	# awk Version
-	gnu_awk=$(awk -Wv | grep -w "GNU Awk")
-	gnu_awk_v=$(echo "${gnu_awk}" | awk '{print $3}' | tr -d ,)
+	gnu_awk=$($m_awk -Wv | grep -w "GNU Awk")
+	gnu_awk_v=$(echo "${gnu_awk}" | $m_awk '{print $3}' | tr -d ,)
 
 	# sed Version
-	gnu_sed=$(sed --version | grep -w "(GNU sed)")
-	gnu_sed_v=$(echo "${gnu_sed}" | awk '{print $4}')
+	gnu_sed=$($m_sed --version | grep -w "(GNU sed)")
+	gnu_sed_v=$(echo "${gnu_sed}" | $m_awk '{print $4}')
+
+	# jq version
+	jq_ver=$($m_jq --help | grep "version" | tr -d [] | $m_awk '{print $7}')
 
 	echo -ne "${cyan}${m_tab}#####################################################[100%]\r${reset}"
 	echo -ne '\n'
@@ -494,11 +518,21 @@ pre_check () {
 		fi
 	fi
 
+	if [[ -n $jq_ver ]]; then
+		if [ "${jq_ver//./}" -ge 16 ]; then
+			echo "${green}jq_Version: $jq_ver ✓${reset}"
+		else
+			echo "${red}jq_Version: $jq_ver x${reset}"
+			jq_old=1
+		fi
+	fi
+
 	if [[ -n $w_ver ]]; then
 		if [ "${w_ver%%.*}" -ge 5 ]; then
 			echo "${green}Wordpress_Version: $w_ver ✓${reset}"
 		else
-			echo "${yellow}Wordpress_Version: $w_ver x${reset}"
+			echo "${red}Wordpress_Version: $w_ver x${reset}"
+			word_old=1
 		fi
 	fi
 
@@ -513,7 +547,8 @@ pre_check () {
 	if [ "$bash_ver" -ge 5 ]; then
 		echo "${green}Bash_Version: $bash_ver ✓${reset}"
 	else
-		echo "${yellow}Bash_Version: $bash_ver x${reset}"
+		echo "${red}Bash_Version: $bash_ver x${reset}"
+		bash_old=1
 	fi
 
 	if [[ -n $gnu_awk ]]; then
@@ -546,7 +581,7 @@ pre_check () {
 	column -t -s ' ' <<< "$(< "${this_script_path}/.msg.proc" $m_sed 's/^/ /')"
 
 	# Quit
-	if [[ -n $awk_not_gnu || -n $sed_not_gnu || -n $woo_old || "$ast_ver" == "false" ]]; then
+	if [[ -n $awk_not_gnu || -n $sed_not_gnu || -n $woo_old || -n $jq_old || -n $bash_old || -n $word_old || "$ast_ver" == "false" ]]; then
 		exit 1
 	fi
 }
@@ -2089,11 +2124,7 @@ encrypt_aras_qry () {
 	fi
 }
 
-encrypt_wc_auth
-encrypt_wc_end
-encrypt_aras_auth
-encrypt_aras_end
-encrypt_aras_qry ||
+encrypt_wc_auth && encrypt_wc_end && encrypt_aras_auth && encrypt_aras_end && encrypt_aras_qry ||
 {
 echo -e "\n${red}*${reset} ${red}Encrypt Error: ${reset}";
 echo -e "${cyan}${m_tab}#####################################################${reset}\n";
@@ -2121,10 +2152,7 @@ decrypt_wc_end () {
 	api_endpoint=$(< "$this_script_path/.end.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
 }
 
-decrypt_aras_auth
-decrypt_aras_end
-decrypt_wc_auth
-decrypt_wc_end ||
+decrypt_aras_auth && decrypt_aras_end && decrypt_wc_auth && decrypt_wc_end ||
 {
 echo -e "\n${red}*${reset} ${red}Decrypt Error: ${reset}";
 echo -e "${cyan}${m_tab}#####################################################${reset}\n";
