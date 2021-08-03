@@ -430,7 +430,7 @@ validate_twoway () {
 }
 
 check_delivered () {
-	w_delivered=$(curl -s -X GET -u "$api_key":"$api_secret" -H "Content-Type: application/json" "https://$api_endpoint/wp-json/wc/v3/orders?status=delivered")
+	w_delivered=$($m_curl -s -X GET -u "$api_key":"$api_secret" -H "Content-Type: application/json" "https://$api_endpoint/wp-json/wc/v3/orders?status=delivered")
 	if ! grep -q "rest_invalid_param" <<< "${w_delivered}"; then
 		echo -e "\n${yellow}*${reset} ${yellow}WARNING: Two way fulfillment workflow installation:${reset}"
 		echo "${cyan}${m_tab}#####################################################${reset}"
@@ -614,12 +614,12 @@ find_child_path () {
 	fi
 
 	# Get active child theme info
-	theme_child=$(curl -s -X GET -u "$api_key":"$api_secret" -H "Content-Type: application/json" "https://$api_endpoint/wp-json/wc/v3/system_status" | $m_jq -r '[.theme.is_child_theme]|join(" ")')
+	theme_child=$($m_curl -s -X GET -u "$api_key":"$api_secret" -H "Content-Type: application/json" "https://$api_endpoint/wp-json/wc/v3/system_status" | $m_jq -r '[.theme.is_child_theme]|join(" ")')
 
 	# Find absolute path of child theme if exist
 	if [ "$theme_child" == "true" ]; then
-		theme_path=$(curl -s -X GET -u "$api_key":"$api_secret" -H "Content-Type: application/json" "https://$api_endpoint/wp-json/wc/v3/system_status" | $m_jq -r '[.environment.log_directory]|join(" ")' | $m_awk -F 'wp-content' '{print $1"wp-content"}')
-		theme_name=$(curl -s -X GET -u "$api_key":"$api_secret" -H "Content-Type: application/json" "https://$api_endpoint/wp-json/wc/v3/system_status" | $m_jq -r '[.theme.name]|join(" ")')
+		theme_path=$($m_curl -s -X GET -u "$api_key":"$api_secret" -H "Content-Type: application/json" "https://$api_endpoint/wp-json/wc/v3/system_status" | $m_jq -r '[.environment.log_directory]|join(" ")' | $m_awk -F 'wp-content' '{print $1"wp-content"}')
+		theme_name=$($m_curl -s -X GET -u "$api_key":"$api_secret" -H "Content-Type: application/json" "https://$api_endpoint/wp-json/wc/v3/system_status" | $m_jq -r '[.theme.name]|join(" ")')
 		theme_name="${theme_name//[^[:alnum:]]/}"
 		theme_name="${theme_name,,}"
 		for i in "${theme_path:?}"/themes/*; do
@@ -756,7 +756,7 @@ uninstall_twoway () {
 				if [ "${get_delivered}" != "[]" ]; then # Check for null data
 					if grep -q "${my_string}" "$absolute_child_path/functions.php"; then # Lastly, check the file is not modified
 						# Unhook woocommerce order status completed notification temporarly
-						sed -i -e '/\'"$my_string"'/{ r '"$this_script_path/custom-order-status-package/action-unhook-email.php"'' -e 'b R' -e '}' -e 'b' -e ':R {n ; b R' -e '}' "$absolute_child_path/woocommerce/aras-woo-delivered.php" >/dev/null 2>&1 &&
+						$m_sed -i -e '/\'"$my_string"'/{ r '"$this_script_path/custom-order-status-package/action-unhook-email.php"'' -e 'b R' -e '}' -e 'b' -e ':R {n ; b R' -e '}' "$absolute_child_path/woocommerce/aras-woo-delivered.php" >/dev/null 2>&1 &&
 						# Call page to take effects function.php modifications
 						$m_curl -s -X GET "https://$api_endpoint/" >/dev/null 2>&1 ||
 						{
@@ -1499,7 +1499,7 @@ download () {
 
 	for i in "${getold[@]}"
 	do
-		read "keeped[$i]" <<< "$(grep "^$i=" "${cron_script_full_path}" | awk -F= '{print $2}')"
+		read "keeped[$i]" <<< "$(grep "^$i=" "${cron_script_full_path}" | $m_awk -F= '{print $2}')"
 	done
 
 	# Apply old user defined settings before upgrading
@@ -1597,7 +1597,7 @@ upgrade () {
 			if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 				echo -e "\n${green}*${reset} ${green}NEW UPDATE FOUND!${reset}"
 				echo "${cyan}${m_tab}#####################################################${reset}"
-				echo -e "${magenta}$changelog_p${reset}\n" | sed 's/^/  /'
+				echo -e "${magenta}$changelog_p${reset}\n" | $m_sed 's/^/  /'
 				while true; do
 					read -r -n 1 -p "${m_tab}${BC}Do you want to update version $latest_version? --> (Y)es | (N)o${EC} " yn < /dev/tty
 					echo ""
