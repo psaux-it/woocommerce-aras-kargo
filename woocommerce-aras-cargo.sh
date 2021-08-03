@@ -511,76 +511,76 @@ pre_check () {
 
 	if [[ -n $woo_ver ]]; then
 		if [ "${woo_ver%%.*}" -ge 5 ]; then
-			echo "${green}${m_tab}WooCommerce_Version: $woo_ver ✓${reset}"
+			echo "${green}WooCommerce_Version: $woo_ver ✓${reset}"
 		elif [ "${woo_ver%%.*}" -ge 4 ]; then
-			echo "${yellow}${m_tab}WooCommerce_Version: $woo_ver x${reset}"
+			echo "${yellow}WooCommerce_Version: $woo_ver x${reset}"
 		else
-			echo "${red}${m_tab}WooCommerce_Version: $woo_ver x${reset}"
+			echo "${red}WooCommerce_Version: $woo_ver x${reset}"
 			woo_old=1
 		fi
 	fi
 
 	if [[ -n $jq_ver ]]; then
 		if [ "${jq_ver//./}" -ge 16 ]; then
-			echo "${green}${m_tab}jq_Version: $jq_ver ✓${reset}"
+			echo "${green}jq_Version: $jq_ver ✓${reset}"
 		else
-			echo "${red}${m_tab}jq_Version: $jq_ver x${reset}"
+			echo "${red}jq_Version: $jq_ver x${reset}"
 			jq_old=1
 		fi
 	fi
 
 	if [[ -n $w_ver ]]; then
 		if [ "${w_ver%%.*}" -ge 5 ]; then
-			echo "${green}${m_tab}Wordpress_Version: $w_ver ✓${reset}"
+			echo "${green}Wordpress_Version: $w_ver ✓${reset}"
 		else
-			echo "${red}${m_tab}Wordpress_Version: $w_ver x${reset}"
+			echo "${red}Wordpress_Version: $w_ver x${reset}"
 			word_old=1
 		fi
 	fi
 
 	if [ "$ast_ver" != "false" ]; then
-		echo "${green}${m_tab}AST_Plugin: ACTIVE ✓${reset}"
-		echo "${green}${m_tab}AST_Plugin_Version: $ast_ver ✓${reset}"
+		echo "${green}AST_Plugin: ACTIVE ✓${reset}"
+		echo "${green}AST_Plugin_Version: $ast_ver ✓${reset}"
 	else
-		echo "${red}${m_tab}AST_Plugin: NOT_FOUND x${reset}"
-		echo "${red}${m_tab}AST_Plugin_Version: NOT_FOUND x${reset}"
+		echo "${red}AST_Plugin: NOT_FOUND x${reset}"
+		echo "${red}AST_Plugin_Version: NOT_FOUND x${reset}"
 	fi
 
 	if [ "$bash_ver" -ge 5 ]; then
-		echo "${green}${m_tab}Bash_Version: $bash_ver ✓${reset}"
+		echo "${green}Bash_Version: $bash_ver ✓${reset}"
 	else
-		echo "${red}${m_tab}Bash_Version: $bash_ver x${reset}"
+		echo "${red}Bash_Version: $bash_ver x${reset}"
 		bash_old=1
 	fi
 
 	if [[ -n $gnu_awk ]]; then
 		if [ "${gnu_awk_v%%.*}" -ge 5 ]; then
-			echo "${green}${m_tab}GNU_Awk_Version: $gnu_awk_v ✓${reset}"
+			echo "${green}GNU_Awk_Version: $gnu_awk_v ✓${reset}"
 		else
-			echo "${yellow}${m_tab}GNU_Awk_Version: $gnu_awk_v x${reset}"
+			echo "${yellow}GNU_Awk_Version: $gnu_awk_v x${reset}"
 		fi
 	else
-		echo "${red}${m_tab}GNU_Awk: NOT_GNU x${reset}"
+		echo "${red}GNU_Awk: NOT_GNU x${reset}"
 		awk_not_gnu=1
 	fi
 
 	if [[ -n $gnu_sed ]]; then
 		if [ "${gnu_sed_v%%.*}" -ge 4 ]; then
-			echo "${green}${m_tab}GNU_Sed_Version: $gnu_sed_v ✓${reset}"
+			echo "${green}GNU_Sed_Version: $gnu_sed_v ✓${reset}"
 		else
-			echo "${yellow}${m_tab}GNU_Sed_Version: $gnu_sed_v x${reset}"
+			echo "${yellow}GNU_Sed_Version: $gnu_sed_v x${reset}"
 		fi
 	else
-		echo "${red}${m_tab}GNU_Sed: NOT_GNU x${reset}"
+		echo "${red}GNU_Sed: NOT_GNU x${reset}"
 		sed_not_gnu=1
 	fi
 
-	echo "${green}${m_tab}Operating_System: $o_s ✓${reset}"
-	echo "${green}${m_tab}Dependencies: Ok ✓${reset}"
+	echo "${green}Operating_System: $o_s ✓${reset}"
+	echo "${green}Dependencies: Ok ✓${reset}"
 
 	} > "${this_script_path}/.msg.proc" # End redirection to file
 
-	column -t -s ' ' <<< "$(< "${this_script_path}/.msg.proc")"
+	column -t -s ' ' <<< "$(< "${this_script_path}/.msg.proc")" | $m_sed 's/^/  /'
 
 	# Quit
 	if [[ -n $awk_not_gnu || -n $sed_not_gnu || -n $woo_old || -n $jq_old || -n $bash_old || -n $word_old || "$ast_ver" == "false" ]]; then
@@ -2755,8 +2755,7 @@ if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 			column -t -s' ' <<< $(echo "$data_test" | $m_jq -r '.[]|[.id,.shipping.first_name,.shipping.last_name]|join(" ")' |
 				iconv -f utf8 -t ascii//TRANSLIT | tr '[:upper:]' '[:lower:]' |
 				$m_awk '{s=$1;gsub($1 FS,x);$1=$1;print s FS $0}' OFS= |
-				$m_sed '1i Order_ID Customer_Name' | $m_sed '2i --------------- -------------' |
-				$m_sed 's/^/ /')
+				$m_sed '1i Order_ID Customer_Name' | $m_sed '2i --------------- -------------') | $m_sed 's/^/  /'
 			while true
  			do
 				echo "${m_tab}${cyan}#####################################################${reset}"
@@ -2785,7 +2784,7 @@ if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 				cut -f2- -d ' ' | iconv -f utf8 -t ascii//TRANSLIT | tr '[:upper:]' '[:lower:]' |
 				$m_awk '{s=$1;gsub($1 FS,x);$1=$1;print s FS $0}' OFS= |
 				$m_sed '1i Tracking_Number Customer_Name' | $m_sed '2i --------------- -------------' |
-				$m_sed 's/^/ /' | $m_sed '8,$d')
+				$m_sed '8,$d') | $m_sed 's/^/  /'
 			while true
 			do
 				echo "${m_tab}${cyan}#####################################################${reset}"
