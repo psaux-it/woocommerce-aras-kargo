@@ -490,8 +490,10 @@ pre_check () {
 	w_ver=$(grep "generator" < <($m_curl -s -X GET -H "Content-Type:text/xml;charset=UTF-8" "https://$api_endpoint/feed/") | $m_perl -pe '($_)=/([0-9]+([.][0-9]+)+)/')
 
 	# awk Version
-	gnu_awk=$($m_awk -Wv | grep -w "GNU Awk")
-	gnu_awk_v=$(echo "${gnu_awk}" | $m_awk '{print $3}' | tr -d ,)
+	if grep -q "GNU Awk" <<< "$(awk -Wv 2>&1)"; then
+		gnu_awk=$($m_awk -Wv | grep -w "GNU Awk")
+		gnu_awk_v=$(echo "${gnu_awk}" | $m_awk '{print $3}' | tr -d ,)
+	fi
 
 	# sed Version
 	gnu_sed=$($m_sed --version | grep -w "(GNU sed)")
@@ -557,7 +559,8 @@ pre_check () {
 		if [ "${gnu_awk_v%%.*}" -ge 5 ]; then
 			echo "${green}GNU_Awk_Version: $gnu_awk_v ✓${reset}"
 		else
-			echo "${yellow}GNU_Awk_Version: $gnu_awk_v x${reset}"
+			echo "${red}GNU_Awk_Version: $gnu_awk_v x${reset}"
+			awk_old=1
 		fi
 	else
 		echo "${red}GNU_Awk: NOT_GNU x${reset}"
@@ -568,7 +571,8 @@ pre_check () {
 		if [ "${gnu_sed_v%%.*}" -ge 4 ]; then
 			echo "${green}GNU_Sed_Version: $gnu_sed_v ✓${reset}"
 		else
-			echo "${yellow}GNU_Sed_Version: $gnu_sed_v x${reset}"
+			echo "${red}GNU_Sed_Version: $gnu_sed_v x${reset}"
+			sed_old=1
 		fi
 	else
 		echo "${red}GNU_Sed: NOT_GNU x${reset}"
@@ -583,7 +587,7 @@ pre_check () {
 	column -t -s ' ' <<< "$(< "${this_script_path}/.msg.proc")" | $m_sed 's/^/  /'
 
 	# Quit
-	if [[ -n $awk_not_gnu || -n $sed_not_gnu || -n $woo_old || -n $jq_old || -n $bash_old || -n $word_old || "$ast_ver" == "false" ]]; then
+	if [[ -n $awk_not_gnu || -n $sed_not_gnu || -n $awk_old || -n $sed_old || -n $woo_old || -n $jq_old || -n $bash_old || -n $word_old || "$ast_ver" == "false" ]]; then
 		exit 1
 	fi
 }
@@ -639,7 +643,10 @@ find_child_path () {
 		if [[ -z $absolute_child_path ]]; then
 			echo -e "\n${red}*${reset} ${red}Could not get child theme path${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
-			echo "${m_tab}${red}Expected in $theme_path/themes/${reset}"
+			echo "${m_tab}${red}You must execute script on application server where woocommerce runs${reset}"
+			echo "${m_tab}${red}If the problem still persists complete setup without twoway-workflow,${reset}"
+			echo "${m_tab}${red}And follow manual implementation instructions on github${reset}"
+			echo -e "${m_tab}${red}Expected in $theme_path/themes/${reset}\n"
 			echo "$(timestamp): Could not found child theme path: Expected in $theme_path/themes/" >> "${error_log}"
 			exit 1
 		else
