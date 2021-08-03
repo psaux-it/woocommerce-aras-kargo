@@ -490,7 +490,7 @@ pre_check () {
 	w_ver=$(grep "generator" < <($m_curl -s -X GET -H "Content-Type:text/xml;charset=UTF-8" "https://$api_endpoint/feed/") | $m_perl -pe '($_)=/([0-9]+([.][0-9]+)+)/')
 
 	# awk Version
-	if grep -q "GNU Awk" <<< "$(awk -Wv 2>&1)"; then
+	if grep -q "GNU Awk" <<< "$($m_awk -Wv 2>&1)"; then
 		gnu_awk=$($m_awk -Wv | grep -w "GNU Awk")
 		gnu_awk_v=$(echo "${gnu_awk}" | $m_awk '{print $3}' | tr -d ,)
 	fi
