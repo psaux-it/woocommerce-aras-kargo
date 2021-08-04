@@ -6,7 +6,7 @@ The aim of this pluginless bash scripting solution is effortlessly integrate Woo
 This solution best suits to small-mid size e-commerce business. Keep in mind that If you have a large volume e-commerce business you need deep integration solutions.
 
 ## What is the actual solution here exactly?
-![woocommerce](https://user-images.githubusercontent.com/25556606/125707166-aa92a5a3-5655-450c-bc23-c67d8fc5ab10.png)
+![woocommerce_aras](https://user-images.githubusercontent.com/25556606/128200258-b9bd3c4f-1c3c-4316-8d4e-90950d22f60f.png)
 
 > This automation updates woocomerce order status 'processing' to 
 > 'completed/shipped' (via REST), when the matching cargo tracking code is 
