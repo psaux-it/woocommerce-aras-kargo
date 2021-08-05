@@ -286,7 +286,7 @@ else
 fi
 
 # Check dependencies
-declare -a dependencies=("curl" "iconv" "openssl" "jq" "php" "perl" "awk" "sed" "pstree" "stat" "mail" "whiptail" "logrotate" "paste" "column")
+declare -a dependencies=("curl" "iconv" "openssl" "jq" "php" "perl" "awk" "sed" "pstree" "stat" "mail" "whiptail" "logrotate" "paste" "column" "chattr")
 for i in "${dependencies[@]}"
 do
 	if ! command -v "$i" > /dev/null 2>&1; then
@@ -386,7 +386,7 @@ clean_up () {
 trap clean_up 0 1 2 3 6 15
 
 # Global variables
-user="$(whoami)"
+if [ $SUDO_USER ]; then user="$SUDO_USER"; else user="$(whoami)"; fi
 cron_dir="/etc/cron.d"
 shopt -s extglob; cron_dir="${cron_dir%%+(/)}"
 cron_filename="woocommerce_aras"
@@ -395,6 +395,7 @@ cron_filename_update="woocommerce_aras_update"
 cron_minute="*/30 9-20"
 cron_minute_update="28 2"
 cron_user="${user}"
+systemd_user="${user}"
 cron_script_full_path="$this_script_path/$this_script_name"
 systemd_dir="/etc/systemd/system"
 shopt -s extglob; systemd_dir="${systemd_dir%%+(/)}"
@@ -1811,6 +1812,8 @@ add_systemd () {
 
 		[Service]
 		Type=oneshot
+		User="${systemd_user}"
+		Group="${systemd_user}"
 		Environment=RUNNING_FROM_SYSTEMD=1
 		StandardOutput=append:"${access_log}"
 		StandardError=append:"${error_log}"
@@ -1988,6 +1991,8 @@ if [[ "$1" != "-s" && "$1" != "--setup" ]]; then
 	fi
 fi
 
+if [[ $- =~ x ]]; then debug=1; set +x; fi
+set +o history
 encrypt_wc_auth () {
 	if [[ ! -s "$this_script_path/.key.wc.lck" ]]; then
 		if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
@@ -2183,10 +2188,9 @@ exit 1;
 }
 
 # Write out the current history(memory) to the history file
-# Also we create HISTFILE if not exist yet
 history -w
 
-# Remove all sensetive data from bash history (echo commands always keep in history)
+# Double check any sensetive data written to history
 if [[ -n "${HISTFILE}" ]]; then
 	declare -a lock_files=(".key.wc.lck" ".secret.wc.lck" ".end.wc.lck" ".key.aras.lck" ".usr.aras.lck" ".mrc.aras.lck" ".end.aras.lck" ".qry.aras.lck")
 	for i in "${lock_files[@]}"
@@ -2194,6 +2198,9 @@ if [[ -n "${HISTFILE}" ]]; then
 		$m_sed -i "/$i/d" "${HISTFILE}" >/dev/null 2>&1
 	done
 fi
+
+[[ $debug == 1 ]] && set -x
+set -o history
 #=====================================================================
 
 # Controls
@@ -2340,6 +2347,7 @@ if ! grep -q "401" "$this_script_path/curl.proc"; then
 fi
 #========================================================================
 
+if [[ $- =~ x ]]; then debug=1; set +x; fi
 # Create SOAP client to request ARAS cargo end
 cat <<- EOF > "${this_script_path}/aras_request.php"
 <?php
@@ -2369,6 +2377,7 @@ cat <<- EOF > "${this_script_path}/aras_request.php"
 	print_r(\$result->GetQueryJSONResult);
 ?>
 EOF
+[[ $debug == 1 ]] && set -x
 
 # Get WC order's ID (processing status) & WC customer info
 # As of 2021 max 100 orders fetchable with one query
