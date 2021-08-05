@@ -43,13 +43,16 @@
 
 # Prevent iconv text translation errors
 # Set locale category for character handling functions (otherwise this script not work correctly)
-if locale -a | grep -iq "en_US.utf8"; then
-	export LC_ALL=en_US.UTF-8
-	export LC_CTYPE=en_US.UTF-8
-else
-	echo "Please add support on English locale for your shell environment."
-	echo "e.g. for ubuntu -> apt-get -y install language-pack-en"
-	exit 1
+m_ctype=$(locale | grep LC_CTYPE | cut -d= -f2 | cut -d_ -f1 | tr -d '"')
+if [ "$m_ctype" != "en" ]; then
+	if locale -a | grep -iq "en_US.utf8"; then
+		export LC_ALL=en_US.UTF-8
+		export LC_CTYPE=en_US.UTF-8
+	else
+		echo "Please add support on English locale for your shell environment."
+		echo "e.g. for ubuntu -> apt-get -y install language-pack-en"
+		exit 1
+	fi
 fi
 
 # Need for upgrade - DON'T EDIT MANUALLY
@@ -59,6 +62,16 @@ script_version="2.0.1"
 
 # USER DEFINED-EDITABLE VARIABLES & FUNCTIONS
 # =====================================================================
+# Set estimated delivery time (default 5 day)
+# Increase this value if sent packages take longer 5 days to reach the customer.
+# If holidays and special days are the case increasing the value is recommended.
+delivery_time=5
+
+# Set levenshtein distance function approx. string matching (default max 3 characters)
+# Setting higher values degrade performance for big data also cause unexpected matching result
+# If you miss the matches too much set higher values, max recommended is 4,5 char.
+max_distance=3
+
 # Logging paths
 error_log="/var/log/woocommerce_aras.err"
 access_log="/var/log/woocommerce_aras.log"
@@ -2406,7 +2419,17 @@ if [ -e "${this_script_path}/.two.way.enb" ]; then
 		hrs=min=sec=delta=""
 		}
 		' |
-		$m_awk '{print $1,$2,$5}' | tr : ' ' | $m_awk '{print $1,$2,$3/24}' | tr . ' ' | $m_awk '{print $3,$2,$1}' | $m_awk '(NR>0) && ($1 < 6 )' | cut -f2- -d ' ' > "$this_script_path/wc.proc.del"
+		$m_awk '{print $1,$2,$5}' | tr : ' ' | $m_awk '{print $1,$2,$3/24}' | tr . ' ' | $m_awk '{print $3,$2,$1}' | $m_awk '(NR>0) && ($1 <= '"$delivery_time"')' | cut -f2- -d ' ' > "$this_script_path/wc.proc.del"
+	elif [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
+		echo -e "\n${yellow}*${reset}${yellow} ${access_log} is not exist${reset}"
+		echo "${cyan}${m_tab}#####################################################${reset}"
+		echo "${m_tab}${yellow}Two-way workflow not working as expected, please check script logging correctly."
+		echo "$(timestamp): ${access_log} is not exist, two-way workflow not working as expected. Please check script logging correctly." >> "${error_log}"
+	elif [ $send_mail_err -eq 1 ]; then
+		send_mail_err <<< "${access_log} is not exist, two-way workflow not working as expected. Please check script logging correctly."
+		echo "$(timestamp): ${access_log} is not exist, two-way workflow not working as expected. Please check script logging correctly." >> "${error_log}"
+	else
+		echo "$(timestamp): ${access_log} is not exist, two-way workflow not working as expected. Please check script logging correctly." >> "${error_log}"
 	fi
 
 	# Verify columns of file
@@ -2662,9 +2685,9 @@ if [ -s "${this_script_path}/.lvn.all.cus" ]; then
 	if [ ! -e "${this_script_path}/.lvn.stn" ]; then # This is always appended file and trap can fail, linux is mystery
 		while read -r wc aras
 		do
-			$m_perl -MText::Fuzzy -e 'my $tf = Text::Fuzzy->new ("$ARGV[0]");' -e '$tf->set_max_distance (3);' -e 'print $tf->distance ("$ARGV[1]"), "\n";' "$wc" "$aras" >> "${this_script_path}/.lvn.stn"
+			$m_perl -MText::Fuzzy -e 'my $tf = Text::Fuzzy->new ("$ARGV[0]");' -e '$tf->set_max_distance ('"$((max_distance-1))"');' -e 'print $tf->distance ("$ARGV[1]"), "\n";' "$wc" "$aras" >> "${this_script_path}/.lvn.stn"
 		done < <( < "${this_script_path}/.lvn.all.cus" $m_awk '{print $2,$4}' )
-		$m_paste "${this_script_path}/.lvn.all.cus" "${this_script_path}/.lvn.stn" | $m_awk '($5 < 4 )' | $m_awk '{print $1,$3}' > "${my_tmp}"
+		$m_paste "${this_script_path}/.lvn.all.cus" "${this_script_path}/.lvn.stn" | $m_awk '($5 <= '"$max_distance"')' | $m_awk '{print $1,$3}' > "${my_tmp}"
 	elif [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 		echo -e "\n${red}*${reset}${red} Removing temporary file failed by trap.${reset}"
 		echo "${cyan}${m_tab}#####################################################${reset}"
@@ -2863,7 +2886,7 @@ fi
 # ARAS Tracking number will be sent to customer.
 if [ -e "${this_script_path}/.woo.aras.enb" ]; then
 	if [ -s "$my_tmp" ]; then
-		# First to handle strange behaviours save the data in tmp
+		# For debugging purpose save the parsed data first
 		cat <(cat "${my_tmp}") > "$my_tmp_folder/$(date +%d-%m-%Y)-main.$$"
 		cat <(cat "${this_script_path}/wc.proc.en") > "$my_tmp_folder/$(date +%d-%m-%Y)-wc.proc.en.$$"
 		cat <(cat "${this_script_path}/aras.proc.en") > "$my_tmp_folder/$(date +%d-%m-%Y)-aras.proc.en.$$"
@@ -2921,7 +2944,7 @@ if [ -e "${this_script_path}/.woo.aras.enb" ]; then
 
 	if [ -e "${this_script_path}/.two.way.enb" ]; then
 		if [ -s "$my_tmp_del" ]; then
-			# First to handle strange behaviours save the data in tmp
+			# For debugging purpose save the parsed data first
 			cat <(cat "${my_tmp_del}") > "$my_tmp_folder/$(date +%d-%m-%Y)-main.del.$$"
 			cat <(cat "${this_script_path}/wc.proc.del") > "$my_tmp_folder/$(date +%d-%m-%Y)-wc.proc.del.$$"
 			cat <(cat "${this_script_path}/aras.proc.del") > "$my_tmp_folder/$(date +%d-%m-%Y)-aras.proc.del.$$"
