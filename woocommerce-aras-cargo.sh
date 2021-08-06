@@ -32,11 +32,15 @@
 #
 # The aim of this script is integration woocommerce and ARAS cargo.
 # What is doing this script exactly?
-#  -Updates woocomerce order status from processing to completed,
-#  -when the matching tracking code is generated on the ARAS Cargo end.
-#  -Attachs cargo information(tracking number, track link etc.) to
-#  -order completed e-mail with the help of AST plugin.
-#  -You can modify woocommerce completed e-mail templaete as shipped.
+# -This automation updates woocomerce order status processing to completed/shipped
+# -(via WC REST), when the matching cargo tracking code is generated on the ARAS
+# -cargo end (SOAP). Attachs cargo information (tracking number, track link etc.)
+# -to order completed/shipped e-mail with the help of AST plugin (AST REST) and
+# -notify customer. If you implemented two-way fulfillment workflow, script goes
+# -one layer up and updates order status shipped to delivered and notify customer
+# -via second mail. Simply you don't need to add cargo tracking number manually
+# -and update order status via WooCommerce orders dashboard. The aim of script is
+# -automating the process fully.
 #
 # Follow detailed installation instructions on github.
 # =====================================================================
