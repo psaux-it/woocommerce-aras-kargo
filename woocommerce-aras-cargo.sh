@@ -1539,7 +1539,10 @@ download () {
 
 	# Keep user defined settings before upgrading
 	declare -A keeped
-	declare -a getold=("mail_to" "mail_from" "mail_subject_suc" "mail_subject_err" "e_date" "s_date" "error_log" "access_log" "send_mail_err" "company_name" "company_domain")
+	declare -a getold=("mail_to" "mail_from" "mail_subject_suc" "mail_subject_err"
+			   "e_date" "s_date" "e_date" "error_log" "access_log" "send_mail_err"
+			   "company_name" "company_domain" "cron_minute" "cron_minute_update"
+			   "on_calendar" "delivery_time" "max_distance")
 
 	for i in "${getold[@]}"
 	do
@@ -1552,6 +1555,17 @@ download () {
 	do
 		$m_sed -i -e "s|^$i=.*|$i=${keeped[$i]}|" "${sh_output}"
 	done
+
+	$m_sed -n '/^# If you use sendmail/,/^# END/p' 2>/dev/null "${cron_script_full_path}" | $m_sed '1,1d' | $m_sed '$d' > "${this_script_path}/upgr.proc"
+	$m_sed -i '
+		/^# If you use sendmail/,/^# END/{
+			/^# If you use sendmail/{
+				n
+				r '"${this_script_path}"'/upgr.proc
+			}
+			/^# END/!d
+		}
+	' "${sh_output}"
 
 	# Copy over permissions from old version
 	OCTAL_MODE="$(stat -c "%a" "${cron_script_full_path}" 2> /dev/null)"
