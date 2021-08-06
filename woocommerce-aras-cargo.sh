@@ -72,6 +72,18 @@ delivery_time=5
 # If you miss the matches too much set higher values, max recommended is 4,5 char.
 max_distance=3
 
+# For main cron job schedule timer
+# At every 30th minute past every hour from 9 AM through 20 PM
+cron_minute="*/30 9-20"
+
+# For updater cron job schedule timer
+# Every night 2:28
+cron_minute_update="28 2"
+
+# For systemd job schedule timer
+# At every 30th minute past every hour from 9 AM through 20 PM between mon-sat
+on_calendar="Mon..Sat 9..20:00/30:00"
+
 # Logging paths
 error_log="/var/log/woocommerce_aras.err"
 access_log="/var/log/woocommerce_aras.log"
@@ -90,6 +102,13 @@ mail_from="From: ${company_name} <aras_woocommerce@${company_domain}>"
 mail_subject_suc="SUCCESS: WooCommerce - ARAS Cargo"
 mail_subject_err="ERROR: WooCommerce - ARAS Cargo Integration Error"
 
+# Set ARAS cargo request date range --> last 10 days
+# Supports Max 30 days.
+# Keep date format!
+t_date=$(date +%d/%m/%Y)
+e_date=$(date +%d-%m-%Y -d "+1 days")
+s_date=$(date +%d-%m-%Y -d "-10 days")
+
 # Send mail functions
 # If you use sendmail, mutt etc. you can adjust here
 send_mail_err () {
@@ -101,13 +120,6 @@ send_mail_suc () {
 }
 # END
 # =====================================================================
-
-# Set ARAS cargo request date range --> last 10 days
-# Supports Max 30 days.
-# Keep date format!
-t_date=$(date +%d/%m/%Y)
-e_date=$(date +%d-%m-%Y -d "+1 days")
-s_date=$(date +%d-%m-%Y -d "-10 days")
 
 # Log timestamp
 timestamp () {
@@ -176,6 +188,8 @@ if [ -f "$PIDFILE" ]; then
 		else
 			echo "$(timestamp): The operation cannot be performed at the moment: as script already running --> pid=$PID, please try again later" >> "${error_log}"
 		fi
+
+		# Warn about possible hang process
 		if [ "$is_running" -gt 30 ]; then
 			if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 				echo -e "\n${red}*${reset} ${red}Possible hang process found: ${reset}"
@@ -391,9 +405,6 @@ cron_dir="/etc/cron.d"
 shopt -s extglob; cron_dir="${cron_dir%%+(/)}"
 cron_filename="woocommerce_aras"
 cron_filename_update="woocommerce_aras_update"
-# At every 30th minute past every hour from 9 through 20
-cron_minute="*/30 9-20"
-cron_minute_update="28 2"
 cron_user="${user}"
 systemd_user="${user}"
 cron_script_full_path="$this_script_path/$this_script_name"
@@ -625,11 +636,13 @@ continue_setup () {
 
 find_child_path () {
 	local bridge="$1"
+	if [[ $- =~ x ]]; then debug=1; set +x; fi
 	if [[ -z "$api_key" || -z "$api_secret" || -z "$api_endpoint" ]]; then
 		api_key=$(< "$this_script_path/.key.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
 		api_secret=$(< "$this_script_path/.secret.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
 		api_endpoint=$(< "$this_script_path/.end.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
 	fi
+	[[ $debug == 1 ]] && set -x
 
 	# Get active child theme info
 	theme_child=$($m_curl -s -X GET -u "$api_key":"$api_secret" -H "Content-Type: application/json" "https://$api_endpoint/wp-json/wc/v3/system_status" | $m_jq -r '[.theme.is_child_theme]|join(" ")')
@@ -1111,6 +1124,15 @@ hard_reset () {
 	fi
 }
 
+# Display user defined/adjustable options currently in use
+options () {
+	while read -r opt
+	do
+		[[ "$opt" =~ ^#.* ]] && opt_color="${cyan}" || opt_color="${magenta}"
+		echo -e "${opt_color}$(echo $line | sed 's/^/  /')${reset}"
+	done < <($m_sed -n '/USER DEFINED/,/END/p' 2>/dev/null "${0}")
+}
+
 # Instead of uninstall just disable/inactivate script (for urgent cases & debugging purpose)
 disable () {
 	if [[ -e "${this_script_path}/.woo.aras.set" ]]; then
@@ -1331,6 +1353,7 @@ help () {
 	echo -e "${m_tab}#${m_tab}--enable           |-a      enable/activate script if previously disabled"
 	echo -e "${m_tab}#${m_tab}--uninstall        |-d      completely remove installed bundles aka twoway custom order status package, cron jobs, systemd services, logrotate, logs"
 	echo -e "${m_tab}#${m_tab}--upgrade          |-u      upgrade script to latest version"
+	echo -e "${m_tab}#${m_tab}--options          |-o      show user defined/adjustable options currently in use"
 	echo -e "${m_tab}#${m_tab}--dependencies     |-p      display prerequisites & dependencies"
 	echo -e "${m_tab}#${m_tab}--version          |-v      display script info"
 	echo -e "${m_tab}#${m_tab}--help             |-h      display help"
@@ -1667,6 +1690,9 @@ upgrade () {
 
 while :; do
 	case "${1}" in
+	-o|--options	      )	options
+				exit
+				;;
 	-t|--twoway-enable    ) twoway_enable
 				exit
 				;;
@@ -1828,7 +1854,7 @@ add_systemd () {
 		Description=woocommerce-aras timer - At every 30th minute past every hour from 9AM through 20PM expect Sunday
 
 		[Timer]
-		OnCalendar=Mon..Sat 9..20:00/30:00
+		OnCalendar="${on_calendar}"
 		Persistent=true
 		Unit="${service_filename}"
 
