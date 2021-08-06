@@ -1129,7 +1129,7 @@ options () {
 	while read -r opt
 	do
 		[[ "$opt" =~ ^#.* ]] && opt_color="${cyan}" || opt_color="${magenta}"
-		echo -e "${opt_color}$(echo $line | sed 's/^/  /')${reset}"
+		echo -e "${opt_color}$(echo "$opt" | $m_sed 's/^/  /')${reset}"
 	done < <($m_sed -n '/USER DEFINED/,/END/p' 2>/dev/null "${0}")
 }
 
