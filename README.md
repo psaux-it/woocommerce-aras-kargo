@@ -19,8 +19,8 @@ This solution best suits to small-mid size e-commerce business. Keep in mind tha
 > The aim of script is automating the process fully.
 
 ## What is the point of the project?
-Because deep integration solutions are costly, this script was written to support small and medium-sized e-commerce owners under pandemic conditions.
-Aras Cargo is the most used and most affordable cargo company in Turkey. ARAS provides SOAP membership to corporate customers. WooCommerce is also the most preferred e-commerce platform. Simply perfect match for small and medium-sized e-commerce owners.
+Because deep integration solutions are complex and costly, this automation was written to simplify this integration for small and medium-sized e-commerce owners.
+Aras Cargo is the most used and most affordable cargo company in Turkey. ARAS provides SOAP XML/JSON membership to corporate customers. WooCommerce is also the most preferred e-commerce platform. Simply perfect match for small and medium-sized e-commerce owners.
 If you need further technical assistance (for an other cargo company) or want to support my open source work:
 
 <a href="https://commerce.coinbase.com/checkout/68aa76a7-a8e5-4de0-9e7c-29f9457e6802" target="_blank"><img src="https://user-images.githubusercontent.com/25556606/127000632-0bd49ce4-9eda-4b58-b3ac-9a9de9a809b2.png" alt="Buy MeA Coffee"></a>
@@ -113,29 +113,31 @@ Critical part such as success mails, fronted&admin side custom order status labe
 
 ## Features
 - Interactive easy setup
-- Pluginless server side bash scripting solution, set and forget
+- Adjustable user options like delivery_time, max_distance, job schedule timer, check --options
+- User has full control over the automation with useful arguments, check --help
+- Pluginless server side bash scripting solution, nothing is complex and costly, set and forget
 - Auto two-way fulfillment workflow implementation with custom order status package
-- Encryped sensetive data (REST,SOAP credentials) also never seen on bash history
+- Encryped sensetive data (REST,SOAP credentials) hardened as much as possible (credentials always headache in bash scripting)
 - Powerful error handling for various checks like SOAP and REST API connections
-- Auto installation methods via cron, systemd
+- Support installation methods via cron, systemd
 - Logrotate support
-- HTML notify mails for shop manager (updated orders)
-- Easily auto upgrade to latest version
+- HTML notify mails for shop manager
+- Easily auto upgrade to latest version (also via cron job)
 - Strong string matching logic via levenshtein distance function
 
 ![setup](https://user-images.githubusercontent.com/25556606/124499928-7e2c6080-ddc7-11eb-9df2-672a0f5ab2d1.png)
 
 ## Hard Dependencies (may not included in default linux installations)
 - curl
-- perl-Text::Fuzzy>=0.29 --> for string matching via levenshtein distance function
+- perl-Text::Fuzzy>=0.29 --> perl module for string matching via levenshtein distance function
 - jq>=1.6 --> simplify JSON parsing operations (careful to versioning)
 - php, php-soap --> for creating SOAP client to get data from ARAS
 - GNU awk>=5 (gawk in Ubuntu)
-- GNU sed
+- GNU sed>=4.8
 - whiptail (as also known (newt,libnewt))
 
 ## Recommended Tools
-- mail --> for shop manager & system admin, need for important mail alerts (comes with mailutils linux package)
+- mail --> for shop manager & system admin, need for important mail alerts (comes with mailutils linux package). If you use mutt, ssmtp, sendmail etc. please edit mail function as you wish.
 
 ## Tested Applications Versions
 - wordpress>=5.7.2
@@ -159,8 +161,14 @@ Critical part such as success mails, fronted&admin side custom order status labe
 
 ## User Defined Settings
 Please set below settings manually in the script. While auto update triggers we always keep these settings.
-So it is enough to set one time. For mail notification you need working mail server like postfix with 'mail' command which comes with mailutils linux package.
+So it is enough to set one time. For shop manager & system admin mail notifications you need working mail server like postfix with 'mail' command which comes with mailutils linux package.
+If you use mutt, ssmtp, sendmail etc. please edit mail function as you wish. You can find detailed info about below settings in script comments.
 
+- delivery_time
+- max_distance
+- cron_minute
+- cron_minute_update
+- on_calendar
 - error_log
 - access_log
 - company_name
