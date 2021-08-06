@@ -64,7 +64,7 @@ fi
 script_version="2.0.1"
 # =====================================================================
 
-# USER DEFINED-EDITABLE VARIABLES & FUNCTIONS
+# USER DEFINED-EDITABLE VARIABLES & OPTIONS
 # =====================================================================
 # Set estimated delivery time (default 5 day)
 # Increase this value if sent packages take longer 5 days to reach the customer.
@@ -2444,7 +2444,6 @@ else
 fi
 
 # Two-way workflow, extract tracking number from data we previosly marked as shipped
-# Last 5 day !
 if [ -e "${this_script_path}/.two.way.enb" ]; then
 	declare -A check_status_del
 	declare -A check_status_del_new
@@ -2988,10 +2987,8 @@ if [ -e "${this_script_path}/.woo.aras.enb" ]; then
 		if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 			echo "${yellow}*${reset} ${yellow}Couldn't find any updateable order now.${reset}"
 			echo "$(timestamp): Couldn't find any updateable order now." >> "${access_log}"
-			exit 0
 		else
 			echo "$(timestamp): Couldn't find any updateable order now." >> "${access_log}"
-			exit 0
 		fi
 	fi
 
@@ -3045,10 +3042,8 @@ if [ -e "${this_script_path}/.woo.aras.enb" ]; then
 		elif [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 			echo -e "\n${yellow}*${reset} ${yellow}Couldn't find any updateable order now.${reset}"
 			echo "$(timestamp): Couldn't find any updateable order now." >> "${access_log}"
-			exit 0
 		else
 			echo "$(timestamp): Couldn't find any updateable order now." >> "${access_log}"
-			exit 0
 		fi
 	fi
 fi
