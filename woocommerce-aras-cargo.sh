@@ -287,7 +287,7 @@ options () {
 	do
 		[[ "$opt" =~ ^#.* ]] && opt_color="${cyan}" || opt_color="${magenta}"
 		echo -e "${opt_color}$(echo "$opt" | sed 's/^/  /')${reset}"
-	done < <(sed -n '/USER DEFINED/,/END/p' 2>/dev/null "${0}")
+	done < <(sed -n '/^# USER DEFINED/,/^# END/p' 2>/dev/null "${0}")
 }
 
 # Discover script path
