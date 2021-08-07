@@ -45,20 +45,6 @@
 # Follow detailed installation instructions on github.
 # =====================================================================
 
-# Prevent iconv text translation errors
-# Set locale category for character handling functions (otherwise this script not work correctly)
-m_ctype=$(locale | grep LC_CTYPE | cut -d= -f2 | cut -d_ -f1 | tr -d '"')
-if [ "$m_ctype" != "en" ]; then
-	if locale -a | grep -iq "en_US.utf8"; then
-		export LC_ALL=en_US.UTF-8
-		export LC_CTYPE=en_US.UTF-8
-	else
-		echo "Please add support on English locale for your shell environment."
-		echo "e.g. for ubuntu -> apt-get -y install language-pack-en"
-		exit 1
-	fi
-fi
-
 # Need for upgrade - DON'T EDIT MANUALLY
 # =====================================================================
 script_version="2.0.1"
@@ -234,6 +220,98 @@ if [ "$(tail -n 1 "${0}" | head -n 1 | cut -c 1-7)" != "exit \$?" ]; then
 	exit 1
 fi
 
+# Add local PATHS to deal with cron errors.
+# We will also set explicit paths for specific binaries later.
+export PATH="${PATH}:/sbin:/usr/sbin:/usr/local/bin:/usr/local/sbin"
+uniquepath () {
+	local path=""
+	while read -r; do
+		if [[ ! ${path} =~ (^|:)"${REPLY}"(:|$) ]]; then
+			[ -n "${path}" ] && path="${path}:"
+			path="${path}${REPLY}"
+		fi
+	done < <(echo "${PATH}" | tr ":" "\n")
+
+	[ -n "${path}" ] && [[ ${PATH} =~ /bin ]] && [[ ${PATH} =~ /sbin ]] && export PATH="${path}"
+}
+uniquepath
+
+# Version Info
+version () {
+        echo -e "\n${m_tab}${cyan}# WOOCOMMERCE - ARAS CARGO INTEGRATION VERSION"
+        echo -e "${m_tab}# ---------------------------------------------------------------------"
+        echo -e "${m_tab}# Written by : Hasan ÇALIŞIR - hasan.calisir@psauxit.com"
+        echo -e "${m_tab}# Version    : 2.0.1"
+        echo -e "${m_tab}# Bash       : 5.1.8"
+        echo -e "${m_tab}# ---------------------------------------------------------------------${reset}\n"
+}
+
+# Display script hard dependencies (may not included in default linux installations)
+dependencies () {
+	echo -e "\n${m_tab}${cyan}# WOOCOMMERCE - ARAS CARGO INTEGRATION HARD DEPENDENCIES"
+	echo -e "${m_tab}# ---------------------------------------------------------------------"
+	echo -e "${m_tab}# curl"
+	echo -e "${m_tab}# perl-Text::Fuzzy"
+	echo -e "${m_tab}# jq"
+	echo -e "${m_tab}# php"
+	echo -e "${m_tab}# php-soap"
+	echo -e "${m_tab}# gnu sed"
+	echo -e "${m_tab}# gnu awk"
+	echo -e "${m_tab}# whiptail"
+	echo -e "${m_tab}# english locale"
+	echo -e "${m_tab}# ---------------------------------------------------------------------${reset}\n"
+}
+
+# Display script controls
+help () {
+	echo -e "\n${m_tab}${cyan}# WOOCOMMERCE - ARAS CARGO INTEGRATION HELP"
+	echo -e "${m_tab}# ---------------------------------------------------------------------"
+	echo -e "${m_tab}#${m_tab}--setup            |-s      first time setup (also hard reset and re-starts setup)"
+	echo -e "${m_tab}#${m_tab}--twoway-enable    |-t      enable twoway fulfillment workflow"
+	echo -e "${m_tab}#${m_tab}--twoway-disable   |-y      only disable twoway fulfillment workflow without uninstall custom order status package as script will continue to work default one-way"
+	echo -e "${m_tab}#${m_tab}--disable          |-i      completely disable/inactivate script without uninstallation (for debugging purpose)"
+	echo -e "${m_tab}#${m_tab}--enable           |-a      enable/activate script if previously disabled"
+	echo -e "${m_tab}#${m_tab}--uninstall        |-d      completely remove installed bundles aka twoway custom order status package, cron jobs, systemd services, logrotate, logs"
+	echo -e "${m_tab}#${m_tab}--upgrade          |-u      upgrade script to latest version"
+	echo -e "${m_tab}#${m_tab}--options          |-o      show user defined/adjustable options currently in use"
+	echo -e "${m_tab}#${m_tab}--status           |-S      display automation status"
+	echo -e "${m_tab}#${m_tab}--dependencies     |-p      display prerequisites & dependencies"
+	echo -e "${m_tab}#${m_tab}--version          |-v      display script info"
+	echo -e "${m_tab}#${m_tab}--help             |-h      display help"
+	echo -e "${m_tab}# ---------------------------------------------------------------------${reset}\n"
+}
+
+# Display user defined/adjustable options currently in use
+options () {
+	while read -r opt
+	do
+		[[ "$opt" =~ ^#.* ]] && opt_color="${cyan}" || opt_color="${magenta}"
+		echo -e "${opt_color}$(echo "$opt" | sed 's/^/  /')${reset}"
+	done < <(sed -n '/USER DEFINED/,/END/p' 2>/dev/null "${0}")
+}
+
+# Discover script path
+this_script_full_path="${BASH_SOURCE[0]}"
+# Symlinks?
+while [ -h "$this_script_full_path" ]; do
+	this_script_path="$( cd -P "$( dirname "$this_script_full_path" )" >/dev/null 2>&1 && pwd )"
+	this_script_full_path="$(readlink "$this_script_full_path")"
+	# Resolve
+	if [[ $this_script_full_path != /* ]] ; then
+		this_script_full_path="$this_script_path/$this_script_full_path"
+	fi
+done
+
+this_script_path="$( cd -P "$( dirname "$this_script_full_path" )" >/dev/null 2>&1 && pwd )"
+this_script_name="$(basename "$this_script_full_path")"
+
+if [ -z "$this_script_full_path" ] || [ -z "$this_script_path" ] || [ -z "$this_script_name" ]; then
+	echo -e "\n${red}*${reset} Could not determine script name and fullpath"
+	echo "${cyan}${m_tab}#####################################################${reset}"
+	echo "$(timestamp): Could not determine script name and fullpath." >> "${error_log}"
+	exit 1
+fi
+
 # Test connection & get public ip
 if ! : >/dev/tcp/8.8.8.8/53; then
 	if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
@@ -254,22 +332,6 @@ else
 	printf "GET / HTTP/1.1\r\nHost: checkip.amazonaws.com\r\nConnection: close\r\n\r\n" >&3
 	read -r my_ip < <(tail -n1 <&3)
 fi
-
-# Add local PATHS to deal with cron errors.
-# We will also set explicit paths for specific binaries later.
-export PATH="${PATH}:/sbin:/usr/sbin:/usr/local/bin:/usr/local/sbin"
-uniquepath () {
-	local path=""
-	while read -r; do
-		if [[ ! ${path} =~ (^|:)"${REPLY}"(:|$) ]]; then
-			[ -n "${path}" ] && path="${path}:"
-			path="${path}${REPLY}"
-		fi
-	done < <(echo "${PATH}" | tr ":" "\n")
-
-	[ -n "${path}" ] && [[ ${PATH} =~ /bin ]] && [[ ${PATH} =~ /sbin ]] && export PATH="${path}"
-}
-uniquepath
 
 # Check dependencies & Set explicit paths
 # =====================================================================
@@ -304,7 +366,7 @@ else
 fi
 
 # Check dependencies
-declare -a dependencies=("curl" "iconv" "openssl" "jq" "php" "perl" "awk" "sed" "pstree" "stat" "mail" "whiptail" "logrotate" "paste" "column" "chattr")
+declare -a dependencies=("curl" "iconv" "openssl" "jq" "php" "perl" "awk" "sed" "pstree" "stat" "mail" "whiptail" "logrotate" "paste" "column" "chattr" "zgrep")
 for i in "${dependencies[@]}"
 do
 	if ! command -v "$i" > /dev/null 2>&1; then
@@ -364,29 +426,24 @@ do
 		dynamic_vars "$i"
 	fi
 done
-# =====================================================================
 
-# Discover script path
-this_script_full_path="${BASH_SOURCE[0]}"
-# Symlinks?
-while [ -h "$this_script_full_path" ]; do
-	this_script_path="$( cd -P "$( dirname "$this_script_full_path" )" >/dev/null 2>&1 && pwd )"
-	this_script_full_path="$(readlink "$this_script_full_path")"
-	# Resolve
-	if [[ $this_script_full_path != /* ]] ; then
-		this_script_full_path="$this_script_path/$this_script_full_path"
+# Prevent iconv text translation errors
+# Set locale category for character handling functions (otherwise this script not work correctly)
+m_ctype=$(locale | grep LC_CTYPE | cut -d= -f2 | cut -d_ -f1 | tr -d '"')
+if [ "$m_ctype" != "en" ]; then
+	if locale -a | grep -iq "en_US.utf8"; then
+		export LC_ALL=en_US.UTF-8
+		export LC_CTYPE=en_US.UTF-8
+	else
+		echo -e "\n${red}*${reset} ${red}English locale not found${reset}"
+		echo "${cyan}${m_tab}#####################################################${reset}"
+		echo "${red}${m_tab}Please add support on English locale for your shell environment.${reset}"
+		echo -e "${red}${m_tab}e.g. for ubuntu -> apt-get -y install language-pack-en${reset}\n"
+		echo "$(timestamp): English locale not found." >> "${error_log}"
+		exit 1
 	fi
-done
-
-this_script_path="$( cd -P "$( dirname "$this_script_full_path" )" >/dev/null 2>&1 && pwd )"
-this_script_name="$(basename "$this_script_full_path")"
-
-if [ -z "$this_script_full_path" ] || [ -z "$this_script_path" ] || [ -z "$this_script_name" ]; then
-	echo -e "\n${red}*${reset} Could not determine script name and fullpath"
-	echo "${cyan}${m_tab}#####################################################${reset}"
-	echo "$(timestamp): Could not determine script name and fullpath." >> "${error_log}"
-	exit 1
 fi
+# =====================================================================
 
 # Create tmp folder
 my_tmp=$(mktemp)
@@ -427,6 +484,97 @@ sh_output="${this_script_path}/woocommerce-aras-cargo.sh.tmp"
 update_script="woocommerce-aras-update-script.sh"
 my_tmp_folder="${this_script_path}/tmp"
 my_string="woocommerce-aras-cargo-integration"
+
+# Display automation status
+my_status () {
+	echo -e "\n${m_tab}${cyan}# WOOCOMMERCE - ARAS CARGO INTEGRATION STATUS${reset}"
+	echo -e "${m_tab}${cyan}# ---------------------------------------------------------------------${reset}"
+
+	{ # Start redirection to file
+
+	# Setup status
+	if [ -e "${this_script_path}/.woo.aras.set" ]; then
+		s_status="Completed"
+		echo -e "${green}Default-Setup: $s_status${reset}"
+
+		if [[ $- =~ x ]]; then debug=1; set +x; fi
+		if [[ -z "$api_key" || -z "$api_secret" || -z "$api_endpoint" ]]; then
+			api_key=$(< "$this_script_path/.key.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
+			api_secret=$(< "$this_script_path/.secret.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
+			api_endpoint=$(< "$this_script_path/.end.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
+		fi
+		[[ $debug == 1 ]] && set -x
+
+		w_delivered=$($m_curl -s -X GET -u "$api_key":"$api_secret" -H "Content-Type: application/json" "https://$api_endpoint/wp-json/wc/v3/orders?status=delivered")
+		if ! grep -q "rest_invalid_param" <<< "${w_delivered}"; then
+			ts_status="Completed"
+			echo -e "${green}Two-way_Workflow-Setup: $ts_status${reset}"
+		else
+			ts_status="Not_Completed"
+			echo -e "${green}Two-way_Workflow-Setup: ${yellow}$ts_status${reset}"
+		fi
+
+	else
+		ts_status="Null"
+		s_status="Not_Completed"
+		echo -e "${green}Default-Setup: ${red}$s_status${reset}"
+		echo -e "${green}Two-way_Workflow-Setup: ${yellow}$ts_status${reset}"
+	fi
+
+	# Automation status
+	if [ -e "${this_script_path}/.woo.aras.enb" ]; then
+		a_status="Enabled"
+		echo -e "${green}Automation-Status: $a_status${reset}"
+	else
+		a_status="Disabled"
+		echo -e "${green}Automation-Status: ${red}$a_status${reset}"
+	fi
+
+	# Two-way status
+	if [ -e "${this_script_path}/.two.way.enb" ]; then
+		t_status="Enabled"
+		echo -e "${green}Two-Way-Status: $t_status${reset}"
+	else
+		t_status="Disabled"
+		echo -e "${green}Two-Way-Status: ${red}$t_status${reset}"
+	fi
+
+	# Installation status
+	if [ -s "${cron_dir}/${cron_filename}" ]; then
+		i_status="Cron"
+		echo -e "${green}Installation: $i_status${reset}"
+	elif [[ -s "${systemd_dir}/${service_filename}" && -s "${systemd_dir}/${timer_filename}" ]]; then
+		if sudo systemctl -t timer | grep "${timer_filename}" | grep -q "active"; then
+			i_status="Systemd"
+			echo -e "${green}Installation: $i_status${reset}"
+		else
+			i_status="Broken"
+			echo -e "${green}Installation: ${red}$i_status${reset}"
+		fi
+	else
+		i_status="Failed"
+		echo -e "${green}Installation: ${red}$i_status${reset}"
+	fi
+
+	# Auto-update status
+	if [ -s "${cron_dir}/${cron_filename_update}" ]; then
+		u_status="Enabled"
+		echo -e "${green}Auto-Update: $u_status${reset}"
+	else
+		u_status="Disabled"
+		echo -e "${green}Auto-Update: ${yellow}$u_status${reset}"
+	fi
+
+	# Total processed order status
+	total_processed="$(zgrep -ci "SHIPPED" "${access_log}")"
+	echo "${green}Total_Processed_Orders: $total_processed${reset}"
+
+	} > "${this_script_path}/.status.proc" # End redirection to file
+
+	column -t -s ' ' <<< "$(< "${this_script_path}/.status.proc")" | $m_sed 's/^/  /'
+	echo -e "${m_tab}${cyan}# ---------------------------------------------------------------------${reset}"
+	echo ""
+}
 
 # Twoway pretty error
 twoway_pretty_error () {
@@ -480,6 +628,7 @@ check_delivered () {
 	fi
 }
 
+# Check dependency version
 pre_check () {
 	# Find distro
 	echo -e "\n${green}*${reset} ${green}Checking system requirements.${reset}"
@@ -1128,15 +1277,6 @@ hard_reset () {
 	fi
 }
 
-# Display user defined/adjustable options currently in use
-options () {
-	while read -r opt
-	do
-		[[ "$opt" =~ ^#.* ]] && opt_color="${cyan}" || opt_color="${magenta}"
-		echo -e "${opt_color}$(echo "$opt" | $m_sed 's/^/  /')${reset}"
-	done < <($m_sed -n '/USER DEFINED/,/END/p' 2>/dev/null "${0}")
-}
-
 # Instead of uninstall just disable/inactivate script (for urgent cases & debugging purpose)
 disable () {
 	if [[ -e "${this_script_path}/.woo.aras.set" ]]; then
@@ -1347,23 +1487,6 @@ on_fly_enable () {
 		fi
 }
 
-help () {
-	echo -e "\n${m_tab}${cyan}# WOOCOMMERCE - ARAS CARGO INTEGRATION HELP"
-	echo -e "${m_tab}# ---------------------------------------------------------------------"
-	echo -e "${m_tab}#${m_tab}--setup            |-s      first time setup (also hard reset and re-starts setup)"
-	echo -e "${m_tab}#${m_tab}--twoway-enable    |-t      enable twoway fulfillment workflow"
-	echo -e "${m_tab}#${m_tab}--twoway-disable   |-y      only disable twoway fulfillment workflow without uninstall custom order status package as script will continue to work default one-way"
-	echo -e "${m_tab}#${m_tab}--disable          |-i      completely disable/inactivate script without uninstallation (for debugging purpose)"
-	echo -e "${m_tab}#${m_tab}--enable           |-a      enable/activate script if previously disabled"
-	echo -e "${m_tab}#${m_tab}--uninstall        |-d      completely remove installed bundles aka twoway custom order status package, cron jobs, systemd services, logrotate, logs"
-	echo -e "${m_tab}#${m_tab}--upgrade          |-u      upgrade script to latest version"
-	echo -e "${m_tab}#${m_tab}--options          |-o      show user defined/adjustable options currently in use"
-	echo -e "${m_tab}#${m_tab}--dependencies     |-p      display prerequisites & dependencies"
-	echo -e "${m_tab}#${m_tab}--version          |-v      display script info"
-	echo -e "${m_tab}#${m_tab}--help             |-h      display help"
-	echo -e "${m_tab}# ---------------------------------------------------------------------${reset}\n"
-}
-
 # If user manually implemented two-way workflow also need to call this function to activate it
 # sudo ./woocommerce-aras-cargo.sh  --twoway-enable
 twoway_enable () {
@@ -1473,36 +1596,6 @@ twoway_disable () {
 if [[ "$1" == "--setup" || "$1" == "-s" ]]; then
 	on_fly_enable
 fi
-
-version () {
-	echo -e "\n${m_tab}${cyan}# WOOCOMMERCE - ARAS CARGO INTEGRATION VERSION"
-	echo -e "${m_tab}# ---------------------------------------------------------------------"
-	echo -e "${m_tab}# Written by : Hasan ÇALIŞIR - hasan.calisir@psauxit.com"
-	echo -e "${m_tab}# Version    : 1.0.9"
-	echo -e "${m_tab}# Bash       : 5.1.8"
-	echo -e "${m_tab}# ---------------------------------------------------------------------${reset}\n"
-}
-
-dependencies () {
-	echo -e "\n${m_tab}${cyan}# WOOCOMMERCE - ARAS CARGO INTEGRATION DEPENDENCIES"
-	echo -e "${m_tab}# ---------------------------------------------------------------------"
-	echo -e "${m_tab}# bash >= 5.1"
-	echo -e "${m_tab}# curl"
-	echo -e "${m_tab}# openssl"
-	echo -e "${m_tab}# jq"
-	echo -e "${m_tab}# php"
-	echo -e "${m_tab}# iconv"
-	echo -e "${m_tab}# pstree"
-	echo -e "${m_tab}# gnu sed"
-	echo -e "${m_tab}# gnu awk"
-	echo -e "${m_tab}# stat"
-	echo -e "${m_tab}# whiptail"
-	echo -e "${m_tab}# mail (mail server aka postfix)"
-	echo -e "${m_tab}# woocommerce"
-	echo -e "${m_tab}# woocommerce AST plugin"
-	echo -e "${m_tab}# ARAS Cargo commercial account"
-	echo -e "${m_tab}# ---------------------------------------------------------------------${reset}\n"
-}
 
 download () {
 	$m_curl -f -s -k -R -L --compressed -z "$sh_output" -o "$sh_output" "$sh_github" >/dev/null 2>&1
@@ -1708,6 +1801,9 @@ upgrade () {
 
 while :; do
 	case "${1}" in
+	-S|--status	      ) my_status
+				exit
+				;;
 	-o|--options	      )	options
 				exit
 				;;
