@@ -257,9 +257,9 @@ version () {
 
 # Display script hard dependencies (may not included in default linux installations)
 dependencies () {
-	echo -e "\n${m_tab}${cyan}# WOOCOMMERCE - ARAS CARGO INTEGRATION HARD DEPENDENCIES"
-	echo -e "${m_tab}${magenta}(may not included in default linux installations)"
-	echo -e "${m_tab}# ---------------------------------------------------------------------"
+	echo -e "\n${m_tab}${magenta}# WOOCOMMERCE - ARAS CARGO INTEGRATION HARD DEPENDENCIES"
+	echo -e "${m_tab}${magenta} (may not included in default linux installations)${reset}"
+	echo -e "${cyan}${m_tab}# ---------------------------------------------------------------------"
 	echo -e "${m_tab}# curl"
 	echo -e "${m_tab}# perl-Text::Fuzzy >= 0.29"
 	echo -e "${m_tab}# jq >= 1.6"
@@ -270,26 +270,26 @@ dependencies () {
 	echo -e "${m_tab}# whiptail (as also known (newt,libnewt))"
 	echo -e "${m_tab}# english locale"
 	echo -e "${m_tab}# ---------------------------------------------------------------------"
-	echo -e "\n${m_tab}# WOOCOMMERCE - ARAS CARGO INTEGRATION RECOMMENDED TOOLS"
+	echo -e "\n${m_tab}${magenta}# WOOCOMMERCE - ARAS CARGO INTEGRATION RECOMMENDED TOOLS${reset}"
+	echo -e "${cyan}${m_tab}# ---------------------------------------------------------------------"
+	echo -e "${m_tab}# mail --> If you use mutt, ssmtp, sendmail etc. please edit mail function as you wish."
 	echo -e "${m_tab}# ---------------------------------------------------------------------"
-	echo -e "${m_tab}mail --> If you use mutt, ssmtp, sendmail etc. please edit mail function as you wish."
+	echo -e "\n${m_tab}${magenta}# WOOCOMMERCE - ARAS CARGO INTEGRATION NEEDED APPLICATION VERSIONS${reset}"
+	echo -e "${cyan}${m_tab}# ---------------------------------------------------------------------"
+	echo -e "${m_tab}# Wordpress >= 5"
+	echo -e "${m_tab}# WooCommerce >= 5"
+	echo -e "${m_tab}# WooCommerce AST Plugin >= 3.2.5"
+	echo -e "${m_tab}# Bash >= 5"
 	echo -e "${m_tab}# ---------------------------------------------------------------------"
-	echo -e "\n${m_tab}# WOOCOMMERCE - ARAS CARGO INTEGRATION NEEDED APPLICATION VERSIONS"
-	echo -e "${m_tab}# ---------------------------------------------------------------------"
-	echo -e "${m_tab}Wordpress >= 5"
-	echo -e "${m_tab}WooCommerce >= 5"
-	echo -e "${m_tab}WooCommerce AST Plugin >= 3.2.5"
-	echo -e "${m_tab}Bash >= 5"
-	echo -e "${m_tab}# ---------------------------------------------------------------------"
-	echo -e "\n${m_tab}# WOOCOMMERCE - ARAS CARGO INTEGRATION REQUIREMENTS DURING SETUP"
-	echo -e "${m_tab}# ---------------------------------------------------------------------"
-	echo -e "${m_tab}WooCommerce REST API Key (v3)"
-	echo -e "${m_tab}WooCommerce REST API Secret (v3)"
-	echo -e "${m_tab}Wordpress Site URL (format in www.my-ecommerce.com)"
-	echo -e "${m_tab}ARAS SOAP API Password"
-	echo -e "${m_tab}ARAS SOAP API Username"
-	echo -e "${m_tab}ARAS SOAP Endpoint URL (wsdl) (get from ARAS commercial user control panel)"
-	echo -e "${m_tab}ARAS SOAP Merchant Code"
+	echo -e "\n${m_tab}${magenta}# WOOCOMMERCE - ARAS CARGO INTEGRATION REQUIREMENTS DURING SETUP${reset}"
+	echo -e "${cyan}${m_tab}# ---------------------------------------------------------------------"
+	echo -e "${m_tab}# WooCommerce REST API Key (v3)"
+	echo -e "${m_tab}# WooCommerce REST API Secret (v3)"
+	echo -e "${m_tab}# Wordpress Site URL (format in www.my-ecommerce.com)"
+	echo -e "${m_tab}# ARAS SOAP API Password"
+	echo -e "${m_tab}# ARAS SOAP API Username"
+	echo -e "${m_tab}# ARAS SOAP Endpoint URL (wsdl) (get from ARAS commercial user control panel)"
+	echo -e "${m_tab}# ARAS SOAP Merchant Code"
 	echo -e "${m_tab}# ---------------------------------------------------------------------${reset}\n"
 }
 
@@ -320,6 +320,26 @@ options () {
 		echo -e "${opt_color}$(echo "$opt" | sed 's/^/  /')${reset}"
 	done < <(sed -n '/^# USER DEFINED/,/^# END/p' 2>/dev/null "${0}")
 }
+
+while :; do
+        case "${1}" in
+	-o|--options          ) options
+				exit
+				;;
+	-p|--dependencies     ) dependencies
+				exit
+				;;
+	-v|--version          ) version
+				exit
+				;;
+	-h|--help             ) help
+				exit
+				;;
+	*                     ) break;;
+        esac
+        shift
+done
+
 
 # Discover script path
 this_script_full_path="${BASH_SOURCE[0]}"
@@ -1835,9 +1855,6 @@ while :; do
 	-S|--status	      ) my_status
 				exit
 				;;
-	-o|--options	      )	options
-				exit
-				;;
 	-t|--twoway-enable    ) twoway_enable
 				exit
 				;;
@@ -1854,15 +1871,6 @@ while :; do
 				exit
 				;;
 	-d|--uninstall        ) un_install
-				exit
-				;;
-	-p|--dependencies     ) dependencies
-				exit
-				;;
-	-v|--version          ) version
-				exit
-				;;
-	-h|--help             ) help
 				exit
 				;;
 	*                     ) break;;
