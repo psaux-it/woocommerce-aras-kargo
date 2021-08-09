@@ -58,7 +58,7 @@ script_version="2.0.1"
 delivery_time=5
 
 # Set levenshtein distance function approx. string matching (default max 3 characters)
-# Setting higher values degrade performance for big data also cause unexpected matching result
+# Setting higher values causes unexpected matching result
 # If you miss the matches too much set higher values, max recommended is 4,5 char.
 max_distance=3
 
@@ -2833,7 +2833,7 @@ if [ -s "${this_script_path}/.lvn.all.cus" ]; then
 	if [ ! -e "${this_script_path}/.lvn.stn" ]; then # This is always appended file and trap can fail, linux is mystery
 		while read -r wc aras
 		do
-			$m_perl -MText::Fuzzy -e 'my $tf = Text::Fuzzy->new ("$ARGV[0]");' -e '$tf->set_max_distance ('"$((max_distance-1))"');' -e 'print $tf->distance ("$ARGV[1]"), "\n";' "$wc" "$aras" >> "${this_script_path}/.lvn.stn"
+			$m_perl -MText::Fuzzy -e 'my $tf = Text::Fuzzy->new ("$ARGV[0]");' -e 'print $tf->distance ("$ARGV[1]"), "\n";' "$wc" "$aras" >> "${this_script_path}/.lvn.stn"
 		done < <( < "${this_script_path}/.lvn.all.cus" $m_awk '{print $2,$4}' )
 		$m_paste "${this_script_path}/.lvn.all.cus" "${this_script_path}/.lvn.stn" | $m_awk '($5 <= '"$max_distance"')' | $m_awk '{print $1,$3}' > "${my_tmp}"
 	elif [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
