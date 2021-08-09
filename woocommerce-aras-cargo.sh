@@ -203,6 +203,15 @@ elif ! echo $$ > "${PIDFILE}" ; then
 	exit 80
 fi
 
+# Check OS
+if [[ "$OSTYPE" != "linux-gnu"* ]]; then
+	echo -e "\n${red}*${reset} ${red}Unsupported operating system${reset}"
+	echo "${cyan}${m_tab}#####################################################${reset}"
+	echo -e "${m_tab}${red}Please check dependencies via --dependencies argument${reset}\n"
+	echo "$(timestamp): Unsupported operating system $OSTYPE" >> "${error_log}"
+	exit 1
+fi
+
 # Prevent errors cause by uncompleted downloads
 # Detect to make sure the entire script is avilable, fail if the script is missing contents
 if [ "$(tail -n 1 "${0}" | head -n 1 | cut -c 1-7)" != "exit \$?" ]; then
@@ -267,10 +276,10 @@ dependencies () {
 	echo -e "${m_tab}# ---------------------------------------------------------------------"
 	echo -e "\n${m_tab}# WOOCOMMERCE - ARAS CARGO INTEGRATION NEEDED APPLICATION VERSIONS"
 	echo -e "${m_tab}# ---------------------------------------------------------------------"
-	echo -e "${m_tab}Wordpress >= 5.7.2"
-	echo -e "${m_tab}WooCommerce >= 5.5.1"
+	echo -e "${m_tab}Wordpress >= 5"
+	echo -e "${m_tab}WooCommerce >= 5"
 	echo -e "${m_tab}WooCommerce AST Plugin >= 3.2.5"
-	echo -e "${m_tab}Bash >= 5.1.8"
+	echo -e "${m_tab}Bash >= 5"
 	echo -e "${m_tab}# ---------------------------------------------------------------------"
 	echo -e "\n${m_tab}# WOOCOMMERCE - ARAS CARGO INTEGRATION REQUIREMENTS DURING SETUP"
 	echo -e "${m_tab}# ---------------------------------------------------------------------"
