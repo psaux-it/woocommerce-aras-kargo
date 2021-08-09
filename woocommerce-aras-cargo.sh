@@ -2764,7 +2764,9 @@ if [ -e "${this_script_path}/.two.way.enb" ]; then
 					fi
 				done
 
-				echo "$(< "${my_tmp_del}" $m_sed '/^[[:blank:]]*$/ d' | $m_awk '!seen[$0]++')" > "${my_tmp_del}"
+				if [[ -s "${my_tmp_del}" ]]; then
+					echo "$(< "${my_tmp_del}" $m_sed '/^[[:blank:]]*$/ d' | $m_awk '!seen[$0]++')" > "${my_tmp_del}"
+				fi
 			fi
 		fi
 	fi
