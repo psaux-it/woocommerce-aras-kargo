@@ -315,6 +315,9 @@ while :; do
         shift
 done
 
+# Accept only one argument
+[[ ${#} -gt 1 ]] && { help; exit 1; }
+
 # Check OS
 if [[ "$OSTYPE" != "linux-gnu"* ]]; then
 	echo -e "\n${red}*${reset} ${red}Unsupported operating system${reset}"
@@ -1638,9 +1641,6 @@ twoway_disable () {
 		exit 1
 	fi
 }
-
-# Accept only one argument
-[[ ${#} -gt 1 ]] && { help; exit 1; }
 
 # Starts setup
 if [[ "$1" == "--setup" || "$1" == "-s" ]]; then
