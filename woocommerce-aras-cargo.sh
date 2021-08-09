@@ -203,15 +203,6 @@ elif ! echo $$ > "${PIDFILE}" ; then
 	exit 80
 fi
 
-# Check OS
-if [[ "$OSTYPE" != "linux-gnu"* ]]; then
-	echo -e "\n${red}*${reset} ${red}Unsupported operating system${reset}"
-	echo "${cyan}${m_tab}#####################################################${reset}"
-	echo -e "${m_tab}${red}Please check dependencies via --dependencies argument${reset}\n"
-	echo "$(timestamp): Unsupported operating system $OSTYPE" >> "${error_log}"
-	exit 1
-fi
-
 # Prevent errors cause by uncompleted downloads
 # Detect to make sure the entire script is avilable, fail if the script is missing contents
 if [ "$(tail -n 1 "${0}" | head -n 1 | cut -c 1-7)" != "exit \$?" ]; then
@@ -228,22 +219,6 @@ if [ "$(tail -n 1 "${0}" | head -n 1 | cut -c 1-7)" != "exit \$?" ]; then
 	fi
 	exit 1
 fi
-
-# Add local PATHS to deal with cron errors.
-# We will also set explicit paths for specific binaries later.
-export PATH="${PATH}:/sbin:/usr/sbin:/usr/local/bin:/usr/local/sbin"
-uniquepath () {
-	local path=""
-	while read -r; do
-		if [[ ! ${path} =~ (^|:)"${REPLY}"(:|$) ]]; then
-			[ -n "${path}" ] && path="${path}:"
-			path="${path}${REPLY}"
-		fi
-	done < <(echo "${PATH}" | tr ":" "\n")
-
-	[ -n "${path}" ] && [[ ${PATH} =~ /bin ]] && [[ ${PATH} =~ /sbin ]] && export PATH="${path}"
-}
-uniquepath
 
 # Version Info
 version () {
@@ -340,6 +315,30 @@ while :; do
         shift
 done
 
+# Check OS
+if [[ "$OSTYPE" != "linux-gnu"* ]]; then
+	echo -e "\n${red}*${reset} ${red}Unsupported operating system${reset}"
+	echo "${cyan}${m_tab}#####################################################${reset}"
+	echo -e "${m_tab}${red}Please check dependencies via --dependencies${reset}\n"
+	echo "$(timestamp): Unsupported operating system $OSTYPE" >> "${error_log}"
+	exit 1
+fi
+
+# Add local PATHS to deal with cron errors.
+# We will also set explicit paths for specific binaries later.
+export PATH="${PATH}:/sbin:/usr/sbin:/usr/local/bin:/usr/local/sbin"
+uniquepath () {
+	local path=""
+	while read -r; do
+		if [[ ! ${path} =~ (^|:)"${REPLY}"(:|$) ]]; then
+			[ -n "${path}" ] && path="${path}:"
+			path="${path}${REPLY}"
+		fi
+	done < <(echo "${PATH}" | tr ":" "\n")
+
+	[ -n "${path}" ] && [[ ${PATH} =~ /bin ]] && [[ ${PATH} =~ /sbin ]] && export PATH="${path}"
+}
+uniquepath
 
 # Discover script path
 this_script_full_path="${BASH_SOURCE[0]}"
