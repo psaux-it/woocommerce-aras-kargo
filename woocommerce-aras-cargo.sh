@@ -2502,16 +2502,9 @@ elif grep -q "woocommerce_rest_authentication_error\|woocommerce_rest_cannot_vie
 	exit 1
 fi
 
-# Here a important security check.
-# This is the reason why you need to clean wordpress cache before execute the script.
-# If you throw in this error and reading here probably your all data is leaking.
-# Let me explain:
-# I assume you cleaned up your wordpress cache before execute the script.
-# After successful curl respond with you credentials we send a new curl request without credentials
-# If we don't get 401 thats mean you are caching json request.
-# Check your wordpress caching plugin configuration and be sure wp-json exluded.
-# If you have server side caching setup like fastcgi cache skip caching json requests.
-# This is deadly vulnerability.
+# After successful curl respond with credentials we send a new curl request without credentials
+# CRITICAL: Throwing in error? Caching json requests!
+# If you have server side caching setup like fastcgi cache skip caching json requests
 w_curl_s
 if ! grep -q "401" "$this_script_path/curl.proc"; then
         echo -e "\n${red}*${reset}${red} You are caching wp-json request !${reset}"
@@ -2523,9 +2516,9 @@ if ! grep -q "401" "$this_script_path/curl.proc"; then
 	echo "$(timestamp): You are caching wp-json requests." >> "${error_log}"
 	exit 1
 fi
-#========================================================================
 
 if [[ $- =~ x ]]; then debug=1; set +x; fi
+
 # Create SOAP client to request ARAS cargo end
 cat <<- EOF > "${this_script_path}/aras_request.php"
 <?php
@@ -2555,7 +2548,233 @@ cat <<- EOF > "${this_script_path}/aras_request.php"
 	print_r(\$result->GetQueryJSONResult);
 ?>
 EOF
+
 [[ $debug == 1 ]] && set -x
+
+# Make SOAP request to ARAS web service to get shipment DATA in JSON format
+# We will request last 10 day data as setted before
+aras_request () {
+	$m_php "$this_script_path/aras_request.php" > "$this_script_path/aras.json"
+}
+
+# Test Aras SOAP Endpoint
+aras_request
+if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
+	try=0
+	while grep -q "error_4625264224" "$this_script_path/aras.json"
+	do
+		try=$((try+1))
+		[[ $try -eq 3 ]] && { echo -e "\n${red}Too many bad try. Cannot connect ARAS SOAP API.${reset}\n"; echo "$(timestamp): Too many bad try. Cannot connect ARAS SOAP API. Check your ARAS endpoint URL." >> "${error_log}";  exit 1; }
+		echo ""
+		echo -e "\n${red}*${reset} ${red}ARAS SOAP Endpoint error${reset}"
+		echo "${cyan}${m_tab}#####################################################${reset}"
+		echo "${m_tab}${red}Is your ARAS endpoint URL correct?${reset}"
+		echo -e "${m_tab}${magenta}$api_end_aras${reset}\n"
+		echo "$(timestamp): ARAS SOAP Endpoint Error! Check your ARAS endpoint URL." >> "${error_log}"
+		while true
+		do
+			echo "${m_tab}${cyan}###########################################################################${reset}"
+			read -r -n 1 -p "${m_tab}${BC}Do you want to reset your ARAS SOAP endpoint URL now? --> (Y)es | (N)o${EC}" yn < /dev/tty
+			echo ""
+			case "${yn}" in
+				[Yy]* ) rm -f "${this_script_path}/.end.aras.lck";
+					encrypt_aras_end;
+					decrypt_aras_end;
+					$m_sed -i -z 's!([^(]*,!("'"$api_end_aras"'",!' "$this_script_path/aras_request.php";
+					aras_request; break;;
+				[Nn]* ) exit 1;;
+				* ) echo -e "\n${m_tab}${magenta}Please answer yes or no.${reset}"; echo "${m_tab}${cyan}###########################################################################${reset}";;
+			esac
+		done
+	done
+elif grep -q "error_4625264224" "$this_script_path/aras.json"; then
+	if [ $send_mail_err -eq 1 ]; then
+		send_mail_err <<< "ARAS SOAP Endpoint Error! Check your ARAS endpoint URL. Please re-start setup manually."
+	fi
+	echo "$(timestamp): ARAS SOAP Endpoint Error! Check your ARAS endpoint URL." >> "${error_log}"
+	exit 1
+fi
+
+# Test Aras SOAP Authentication
+if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
+	try=0
+	while grep -q "error_75546475052" "$this_script_path/aras.json"
+	do
+		try=$((try+1))
+		[[ $try -eq 3 ]] && { echo -e "\n${red}Too many bad try. Cannot connect ARAS SOAP API.${reset}\n"; echo "$(timestamp): Too many bad try. Cannot connect ARAS SOAP API. Check your login credentials." >> "${error_log}";  exit 1; }
+		echo ""
+                echo -e "\n${red}*${reset} ${red}ARAS SOAP Authentication error${reset}"
+                echo "${cyan}${m_tab}#####################################################${reset}"
+                echo -e "${m_tab}${red}Is your ARAS SOAP API credentials correct?${reset}\n"
+		echo "$(timestamp): ARAS SOAP Authentication Error! Check your login credentials." >> "${error_log}"
+		while true
+		do
+			echo "${m_tab}${cyan}###########################################################################${reset}"
+			read -r -n 1 -p "${m_tab}${BC}Do you want to reset your ARAS SOAP API credentials now? --> (Y)es | (N)o${EC}" yn < /dev/tty
+			echo ""
+			case "${yn}" in
+				[Yy]* ) rm -rf "${this_script_path:?}/.key.aras.lck" "${this_script_path:?}/.usr.aras.lck" "${this_script_path:?}/.mrc.aras.lck";
+					encrypt_aras_auth;
+					decrypt_aras_auth;
+					$m_sed -i \
+						-e "s|\(<Password>\).*\(<\/Password>\)|<Password>$api_key_aras<\/Password>|g" \
+						-e "s|\(<CustomerCode>\).*\(<\/CustomerCode>\)|<CustomerCode>$api_mrc_aras<\/CustomerCode>|g" \
+						-e "s|\(<UserName>\).*\(<\/UserName>\)|<UserName>$api_usr_aras<\/UserName>|g" \
+						"$this_script_path/aras_request.php";
+					aras_request; break;;
+				[Nn]* ) exit 1;;
+				* ) echo -e "\n${m_tab}${magenta}Please answer yes or no.${reset}"; echo "${cyan}${m_tab}#####################################################${reset}";;
+			esac
+		done
+	done
+elif grep -q "error_75546475052" "$this_script_path/aras.json"; then
+	if [ $send_mail_err -eq 1 ]; then
+		send_mail_err <<< "ARAS SOAP Authentication Error! Check your login credentials."
+	fi
+	echo "$(timestamp): ARAS SOAP Authentication Error! Check your login credentials." >> "${error_log}"
+	exit 1
+fi
+
+# trap clean_up may expose credentials so delete file immediately
+rm -f "${this_script_path:?}/aras_request.php"
+# END CONTROLS
+#=====================================================================
+
+# Passed all controls, time to call INSTALLATION functions
+# Also validate the data that parsed by script.
+# If ARAS data is empty first check 'merchant code' which not return any error from ARAS end
+if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
+	if [ ! -e "${this_script_path}/.woo.aras.set" ]; then
+		pre_check
+		echo -e "\n${green}*${reset} ${green}Parsing some random data to validate.${reset}"
+		echo -ne "${cyan}${m_tab}########                                             [20%]\r${reset}"
+		sleep 1
+		echo -ne "${cyan}${m_tab}##################                                   [40%]\r${reset}"
+		echo -ne "${cyan}${m_tab}#################################                    [60%]\r${reset}"
+		sleep 2
+		echo -ne "${cyan}${m_tab}#####################################                [75%]\r${reset}"
+		echo -ne "${cyan}${m_tab}##########################################           [85%]\r${reset}"
+		sleep 1
+		echo -ne "${cyan}${m_tab}#####################################################[100%]\r${reset}"
+		echo -ne '\n'
+		data_test=$($m_curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/orders?per_page=5" -u "$api_key":"$api_secret" -H "Content-Type: application/json")
+		if [ "$data_test" == "[]" ]; then
+			echo -e "\n${red}*${reset} ${red}Couldn't find any woocommerce order data to validate.${reset}"
+			echo "${cyan}${m_tab}#####################################################${reset}"
+			echo "${m_tab}${red}You can simply create a test order if throw in error here.${reset}"
+			echo "${m_tab}${red}Without data validation by user we cannot go for production.${reset}"
+			echo "$(timestamp): Couldn't find any woocommerce order data to validate. You can simply create a test order." >> "${error_log}"
+			exit 1
+		else
+			echo -e "${m_tab}${green}Done${reset}"
+			echo -e "\n${green}${m_tab}Please validate Order_ID & Customer_Info.${reset}"
+			echo "${cyan}${m_tab}#####################################################${reset}"
+			column -t -s' ' <<< $(echo "$data_test" | $m_jq -r '.[]|[.id,.shipping.first_name,.shipping.last_name]|join(" ")' |
+				iconv -f utf8 -t ascii//TRANSLIT | tr '[:upper:]' '[:lower:]' |
+				$m_awk '{s=$1;gsub($1 FS,x);$1=$1;print s FS $0}' OFS= |
+				$m_sed '1i Order_ID Customer_Name' | $m_sed '2i --------------- -------------') | $m_sed 's/^/  /'
+			while true
+ 			do
+				echo "${m_tab}${cyan}#####################################################${reset}"
+				read -r -n 1 -p "${m_tab}${BC}Is data correct? --> (Y)es | (N)o${EC} " yn < /dev/tty
+				echo ""
+				case "${yn}" in
+					[Yy]* ) break;;
+					[Nn]* ) exit 1;;
+					* ) echo -e "\n${m_tab}${magenta}Please answer yes or no.${reset}";;
+				esac
+			done
+		fi
+
+		if [ -s "${this_script_path}/aras.json" ]; then
+			< "${this_script_path}/aras.json" $m_sed 's/^[^[]*://g' | $m_awk 'BEGIN{OFS=FS="]"};{$NF="";print $0}' > "${this_script_path}/aras.json.mod" || { echo 'cannot modify aras.json'; exit 1; }
+		fi
+
+		if grep "null" "$this_script_path/aras.json.mod"; then
+			echo -e "\n${red}*${reset} ${red}Couldn't find any ARAS cargo data to validate${reset}"
+			echo "${cyan}${m_tab}#####################################################${reset}"
+			echo "${m_tab}${red}You can simply set wide time range to get cargo data${reset}"
+			echo "${m_tab}${red}Set 'start_date' 'end_date' variables in script.${reset}"
+			echo "${m_tab}${red}Without data validation by user we cannot go for production.${reset}"
+			echo "$(timestamp): Couldn't find any ARAS cargo data to validate" >> "${error_log}"
+			exit 1
+		else
+			echo -e "\n${green}${m_tab}Please validate Tracking_Number & Customer_Info.${reset}"
+			echo "${cyan}${m_tab}#####################################################${reset}"
+			column -t -s' ' <<< $(< "$this_script_path/aras.json.mod" $m_jq -r '.[]|[.DURUM_KODU,.KARGO_TAKIP_NO,.ALICI]|join(" ")' |
+				cut -f2- -d ' ' | iconv -f utf8 -t ascii//TRANSLIT | tr '[:upper:]' '[:lower:]' |
+				$m_awk '{s=$1;gsub($1 FS,x);$1=$1;print s FS $0}' OFS= |
+				$m_sed '1i Tracking_Number Customer_Name' | $m_sed '2i --------------- -------------' |
+				$m_sed '8,$d') | $m_sed 's/^/  /'
+			while true
+			do
+				echo "${m_tab}${cyan}#####################################################${reset}"
+				read -r -n 1 -p "${m_tab}${BC}Is data correct? --> (Y)es | (N)o${EC} " yn < /dev/tty
+				echo ""
+				case "${yn}" in
+					[Yy]* ) break;;
+					[Nn]* ) exit 1;;
+					* ) echo -e "\n${m_tab}${magenta}Please answer yes or no.${reset}";;
+				esac
+			done
+		fi
+
+		echo -e "\n${green}*${reset} ${green}Please set auto update preference${reset}"
+		echo "${cyan}${m_tab}#####################################################${reset}"
+
+		# Auto upgrade cronjob
+		while true
+		do
+			read -r -n 1 -p "${m_tab}${BC}Script automatically update itself? --> (Y)es | (N)o${EC} " yn < /dev/tty
+			echo ""
+			case "${yn}" in
+				[Yy]* ) auto_update=1; break;;
+				[Nn]* ) auto_update=0; break;;
+				* ) echo -e "\n${m_tab}${magenta}Please answer yes or no.${reset}"; echo "${cyan}${m_tab}#####################################################${reset}";;
+			esac
+		done
+
+		# Add IMMUTABLE to critical files
+		for i in "${this_script_path:?}"/.*lck
+		do
+			chattr +i "$i" >/dev/null 2>&1
+		done
+
+		echo -e "\n${green}*${reset} ${green}Default setup completed.${reset}"
+		# Forward to twoway installation
+		if [[ -n "$twoway" ]]; then
+			if [ "$twoway" == "true" ]; then
+				echo "${cyan}${m_tab}#####################################################${reset}"
+				echo "${m_tab}${green}Installing two way fulfillment workflow...${reset}"
+				install_twoway
+				echo -e "\n${m_tab}${green}Please select your job schedule method.${reset}"
+			else
+				echo -e "${cyan}${m_tab}#####################################################${reset}\n"
+				echo "${m_tab}${green}Please select your job schedule method.${reset}"
+			fi
+		else
+			echo -e "${cyan}${m_tab}#####################################################${reset}\n"
+			echo "${m_tab}${green}Please select your job schedule method.${reset}"
+		fi
+
+		# Forward to installation
+		while true
+		do
+			echo "${m_tab}${cyan}#####################################################${reset}"
+			read -r -n 1 -p "${m_tab}${BC}c for crontab, s for systemd, q for quit${EC} " cs < /dev/tty
+			echo ""
+			case "${cs}" in
+				[Cc]* ) add_cron; break;;
+				[Ss]* ) add_systemd; break;;
+				[qQ]* ) exit 1;;
+			* ) echo -e "\n${m_tab}${magenta}Please answer c or s, q.${reset}"; echo "${cyan}${m_tab}#####################################################${reset}";;
+			esac
+		done
+	fi
+fi
+
+# MAIN STRING MATCHING LOGIC
+# =============================================================================================
 
 # Get WC order's ID (processing status) & WC customer info
 # As of 2021 max 100 orders fetchable with one query
@@ -2663,91 +2882,6 @@ if [ -e "${this_script_path}/.two.way.enb" ]; then
 	fi
 fi
 
-# Make SOAP request to ARAS web service to get shipment DATA in JSON format
-# We will request last 10 day data as setted before
-#==========================================================================
-aras_request () {
-	$m_php "$this_script_path/aras_request.php" > "$this_script_path/aras.json"
-}
-#==========================================================================
-
-# Test Aras SOAP Endpoint
-aras_request
-if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
-	try=0
-	while grep -q "error_4625264224" "$this_script_path/aras.json"
-	do
-		try=$((try+1))
-		[[ $try -eq 3 ]] && { echo -e "\n${red}Too many bad try. Cannot connect ARAS SOAP API.${reset}\n"; echo "$(timestamp): Too many bad try. Cannot connect ARAS SOAP API. Check your ARAS endpoint URL." >> "${error_log}";  exit 1; }
-		echo ""
-		echo -e "\n${red}*${reset} ${red}ARAS SOAP Endpoint error${reset}"
-		echo "${cyan}${m_tab}#####################################################${reset}"
-		echo "${m_tab}${red}Is your ARAS endpoint URL correct?${reset}"
-		echo -e "${m_tab}${magenta}$api_end_aras${reset}\n"
-		echo "$(timestamp): ARAS SOAP Endpoint Error! Check your ARAS endpoint URL." >> "${error_log}"
-		while true
-		do
-			echo "${m_tab}${cyan}###########################################################################${reset}"
-			read -r -n 1 -p "${m_tab}${BC}Do you want to reset your ARAS SOAP endpoint URL now? --> (Y)es | (N)o${EC}" yn < /dev/tty
-			echo ""
-			case "${yn}" in
-				[Yy]* ) rm -f "${this_script_path}/.end.aras.lck";
-					encrypt_aras_end;
-					decrypt_aras_end;
-					$m_sed -i -z 's!([^(]*,!("'"$api_end_aras"'",!' "$this_script_path/aras_request.php";
-					aras_request; break;;
-				[Nn]* ) exit 1;;
-				* ) echo -e "\n${m_tab}${magenta}Please answer yes or no.${reset}"; echo "${m_tab}${cyan}###########################################################################${reset}";;
-			esac
-		done
-	done
-elif grep -q "error_4625264224" "$this_script_path/aras.json"; then
-	if [ $send_mail_err -eq 1 ]; then
-		send_mail_err <<< "ARAS SOAP Endpoint Error! Check your ARAS endpoint URL. Please re-start setup manually."
-	fi
-	echo "$(timestamp): ARAS SOAP Endpoint Error! Check your ARAS endpoint URL." >> "${error_log}"
-	exit 1
-fi
-
-# Test Aras SOAP Authentication
-if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
-	try=0
-	while grep -q "error_75546475052" "$this_script_path/aras.json"
-	do
-		try=$((try+1))
-		[[ $try -eq 3 ]] && { echo -e "\n${red}Too many bad try. Cannot connect ARAS SOAP API.${reset}\n"; echo "$(timestamp): Too many bad try. Cannot connect ARAS SOAP API. Check your login credentials." >> "${error_log}";  exit 1; }
-		echo ""
-                echo -e "\n${red}*${reset} ${red}ARAS SOAP Authentication error${reset}"
-                echo "${cyan}${m_tab}#####################################################${reset}"
-                echo -e "${m_tab}${red}Is your ARAS SOAP API credentials correct?${reset}\n"
-		echo "$(timestamp): ARAS SOAP Authentication Error! Check your login credentials." >> "${error_log}"
-		while true
-		do
-			echo "${m_tab}${cyan}###########################################################################${reset}"
-			read -r -n 1 -p "${m_tab}${BC}Do you want to reset your ARAS SOAP API credentials now? --> (Y)es | (N)o${EC}" yn < /dev/tty
-			echo ""
-			case "${yn}" in
-				[Yy]* ) rm -rf "${this_script_path:?}/.key.aras.lck" "${this_script_path:?}/.usr.aras.lck" "${this_script_path:?}/.mrc.aras.lck";
-					encrypt_aras_auth;
-					decrypt_aras_auth;
-					$m_sed -i \
-						-e "s|\(<Password>\).*\(<\/Password>\)|<Password>$api_key_aras<\/Password>|g" \
-						-e "s|\(<CustomerCode>\).*\(<\/CustomerCode>\)|<CustomerCode>$api_mrc_aras<\/CustomerCode>|g" \
-						-e "s|\(<UserName>\).*\(<\/UserName>\)|<UserName>$api_usr_aras<\/UserName>|g" \
-						"$this_script_path/aras_request.php";
-					aras_request; break;;
-				[Nn]* ) exit 1;;
-				* ) echo -e "\n${m_tab}${magenta}Please answer yes or no.${reset}"; echo "${cyan}${m_tab}#####################################################${reset}";;
-			esac
-		done
-	done
-elif grep -q "error_75546475052" "$this_script_path/aras.json"; then
-	if [ $send_mail_err -eq 1 ]; then
-		send_mail_err <<< "ARAS SOAP Authentication Error! Check your login credentials."
-	fi
-	echo "$(timestamp): ARAS SOAP Authentication Error! Check your login credentials." >> "${error_log}"
-	exit 1
-fi
 
 # Modify ARAS SOAP json response to make easily parsable with jq
 if [ -s "${this_script_path}/aras.json" ]; then
@@ -2772,13 +2906,6 @@ if [[ -s "${this_script_path}/aras.proc" && -s "${this_script_path}/wc.proc" ]];
 	iconv -f utf8 -t ascii//TRANSLIT < "${this_script_path}/aras.proc" | tr '[:upper:]' '[:lower:]' | $m_awk '{s=$1;gsub($1 FS,x);$1=$1;print s FS $0}' OFS= | $m_awk '{gsub("[.=_:,-?]*","",$2)}1' > "${this_script_path}/aras.proc.en"
 	iconv -f utf8 -t ascii//TRANSLIT < "${this_script_path}/wc.proc" | tr '[:upper:]' '[:lower:]' | $m_awk '{s=$1;gsub($1 FS,x);$1=$1;print s FS $0}' OFS= | $m_awk '{gsub("[.=_:,-?]*","",$2)}1' > "${this_script_path}/wc.proc.en"
 fi
-
-# MAIN STRING MATCHING LOGIC
-# Approximate string matching up to 3 characters.
-# Use perl for string matching via levenshtein distance function
-# Perl Text::Fuzzy module is very fast in my tests.
-# You can try Text::Levenshtein - Text::Levenshtein::XS if you interested in speed test (need some coding)
-# =============================================================================================
 
 # Two-way workflow
 if [ -e "${this_script_path}/.two.way.enb" ]; then
@@ -2937,138 +3064,8 @@ if [ -s "${this_script_path}/.lvn.all.cus" ]; then
 		fi
 	fi
 fi
+# END MAIN STRING MATCHING LOGIC
 # ============================================================================================
-
-# User must validate the data that parsed by script.
-# If you haven't any orders or shipped cargo yet we cannot generate any data.
-# You can simply create a test order if throw in error here.
-# If data validated by user we are ready for production.
-# If ARAS data is empty first check 'merchant code' which not return any error from ARAS end
-if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
-	if [ ! -e "${this_script_path}/.woo.aras.set" ]; then
-		pre_check
-		echo -e "\n${green}*${reset} ${green}Parsing some random data to validate.${reset}"
-		echo -ne "${cyan}${m_tab}########                                             [20%]\r${reset}"
-		sleep 1
-		echo -ne "${cyan}${m_tab}##################                                   [40%]\r${reset}"
-		echo -ne "${cyan}${m_tab}#################################                    [60%]\r${reset}"
-		sleep 2
-		echo -ne "${cyan}${m_tab}#####################################                [75%]\r${reset}"
-		echo -ne "${cyan}${m_tab}##########################################           [85%]\r${reset}"
-		sleep 1
-		echo -ne "${cyan}${m_tab}#####################################################[100%]\r${reset}"
-		echo -ne '\n'
-		data_test=$($m_curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/orders?per_page=5" -u "$api_key":"$api_secret" -H "Content-Type: application/json")
-		if [ "$data_test" == "[]" ]; then
-			echo -e "\n${red}*${reset} ${red}Couldn't find any woocommerce order data to validate.${reset}"
-			echo "${cyan}${m_tab}#####################################################${reset}"
-			echo "${m_tab}${red}You can simply create a test order if throw in error here.${reset}"
-			echo "${m_tab}${red}Without data validation by user we cannot go for production.${reset}"
-			echo "$(timestamp): Couldn't find any woocommerce order data to validate. You can simply create a test order." >> "${error_log}"
-			exit 1
-		else
-			echo -e "${m_tab}${green}Done${reset}"
-			echo -e "\n${green}${m_tab}Please validate Order_ID & Customer_Info.${reset}"
-			echo "${cyan}${m_tab}#####################################################${reset}"
-			column -t -s' ' <<< $(echo "$data_test" | $m_jq -r '.[]|[.id,.shipping.first_name,.shipping.last_name]|join(" ")' |
-				iconv -f utf8 -t ascii//TRANSLIT | tr '[:upper:]' '[:lower:]' |
-				$m_awk '{s=$1;gsub($1 FS,x);$1=$1;print s FS $0}' OFS= |
-				$m_sed '1i Order_ID Customer_Name' | $m_sed '2i --------------- -------------') | $m_sed 's/^/  /'
-			while true
- 			do
-				echo "${m_tab}${cyan}#####################################################${reset}"
-				read -r -n 1 -p "${m_tab}${BC}Is data correct? --> (Y)es | (N)o${EC} " yn < /dev/tty
-				echo ""
-				case "${yn}" in
-					[Yy]* ) break;;
-					[Nn]* ) exit 1;;
-					* ) echo -e "\n${m_tab}${magenta}Please answer yes or no.${reset}";;
-				esac
-			done
-		fi
-
-		if grep "null" "$this_script_path/aras.json.mod"; then
-			echo -e "\n${red}*${reset} ${red}Couldn't find any ARAS cargo data to validate${reset}"
-			echo "${cyan}${m_tab}#####################################################${reset}"
-			echo "${m_tab}${red}You can simply set wide time range to get cargo data${reset}"
-			echo "${m_tab}${red}Set 'start_date' 'end_date' variables in script.${reset}"
-			echo "${m_tab}${red}Without data validation by user we cannot go for production.${reset}"
-			echo "$(timestamp): Couldn't find any ARAS cargo data to validate" >> "${error_log}"
-			exit 1
-		else
-			echo -e "\n${green}${m_tab}Please validate Tracking_Number & Customer_Info.${reset}"
-			echo "${cyan}${m_tab}#####################################################${reset}"
-			column -t -s' ' <<< $(< "$this_script_path/aras.json.mod" $m_jq -r '.[]|[.DURUM_KODU,.KARGO_TAKIP_NO,.ALICI]|join(" ")' |
-				cut -f2- -d ' ' | iconv -f utf8 -t ascii//TRANSLIT | tr '[:upper:]' '[:lower:]' |
-				$m_awk '{s=$1;gsub($1 FS,x);$1=$1;print s FS $0}' OFS= |
-				$m_sed '1i Tracking_Number Customer_Name' | $m_sed '2i --------------- -------------' |
-				$m_sed '8,$d') | $m_sed 's/^/  /'
-			while true
-			do
-				echo "${m_tab}${cyan}#####################################################${reset}"
-				read -r -n 1 -p "${m_tab}${BC}Is data correct? --> (Y)es | (N)o${EC} " yn < /dev/tty
-				echo ""
-				case "${yn}" in
-					[Yy]* ) break;;
-					[Nn]* ) exit 1;;
-					* ) echo -e "\n${m_tab}${magenta}Please answer yes or no.${reset}";;
-				esac
-			done
-		fi
-
-		echo -e "\n${green}*${reset} ${green}Please set auto update preference${reset}"
-		echo "${cyan}${m_tab}#####################################################${reset}"
-
-		# Auto upgrade cronjob
-		while true
-		do
-			read -r -n 1 -p "${m_tab}${BC}Script automatically update itself? --> (Y)es | (N)o${EC} " yn < /dev/tty
-			echo ""
-			case "${yn}" in
-				[Yy]* ) auto_update=1; break;;
-				[Nn]* ) auto_update=0; break;;
-				* ) echo -e "\n${m_tab}${magenta}Please answer yes or no.${reset}"; echo "${cyan}${m_tab}#####################################################${reset}";;
-			esac
-		done
-
-		# Add IMMUTABLE to critical files
-		for i in "${this_script_path:?}"/.*lck
-		do
-			chattr +i "$i" >/dev/null 2>&1
-		done
-
-		echo -e "\n${green}*${reset} ${green}Default setup completed.${reset}"
-		# Forward to twoway installation
-		if [[ -n "$twoway" ]]; then
-			if [ "$twoway" == "true" ]; then
-				echo "${cyan}${m_tab}#####################################################${reset}"
-				echo "${m_tab}${green}Installing two way fulfillment workflow...${reset}"
-				install_twoway
-				echo -e "\n${m_tab}${green}Please select your job schedule method.${reset}"
-			else
-				echo -e "${cyan}${m_tab}#####################################################${reset}\n"
-				echo "${m_tab}${green}Please select your job schedule method.${reset}"
-			fi
-		else
-			echo -e "${cyan}${m_tab}#####################################################${reset}\n"
-			echo "${m_tab}${green}Please select your job schedule method.${reset}"
-		fi
-
-		# Forward to installation
-		while true
-		do
-			echo "${m_tab}${cyan}#####################################################${reset}"
-			read -r -n 1 -p "${m_tab}${BC}c for crontab, s for systemd, q for quit${EC} " cs < /dev/tty
-			echo ""
-			case "${cs}" in
-				[Cc]* ) add_cron; break;;
-				[Ss]* ) add_systemd; break;;
-				[qQ]* ) exit 1;;
-			* ) echo -e "\n${m_tab}${magenta}Please answer c or s, q.${reset}"; echo "${cyan}${m_tab}#####################################################${reset}";;
-			esac
-		done
-	fi
-fi
 
 # Lets start updating woocommerce order status as completed with AST plugin.
 # ARAS Tracking number will be sent to customer.
