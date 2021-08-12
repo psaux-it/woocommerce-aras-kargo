@@ -1642,11 +1642,6 @@ twoway_disable () {
 	fi
 }
 
-# Starts setup
-if [[ "$1" == "--setup" || "$1" == "-s" ]]; then
-	on_fly_enable
-fi
-
 download () {
 	$m_curl -f -s -k -R -L --compressed -z "$sh_output" -o "$sh_output" "$sh_github" >/dev/null 2>&1
 	result=$?
@@ -1851,6 +1846,9 @@ upgrade () {
 
 while :; do
 	case "${1}" in
+	-s|--setup	      ) on_fly_enable
+				break
+				;;
 	-S|--status	      ) my_status
 				exit
 				;;
@@ -1872,7 +1870,7 @@ while :; do
 	-d|--uninstall        ) un_install
 				exit
 				;;
-	*                     ) break;;
+	*                     ) help; exit;;
 	esac
 	shift
 done
