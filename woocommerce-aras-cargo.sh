@@ -1467,19 +1467,30 @@ on_fly_enable () {
 			-e "${systemd_dir}/${timer_filename}" ||
 			-e "${cron_dir}/${cron_filename_update}" ]]; then
 
-			echo -e "\n${green}*${reset} ${green}Found absolute files, hard resetting for fresh installation: ${reset}"
-			echo -ne "${cyan}${m_tab}########                                             [20%]\r${reset}"
-			sleep 1
-			echo -ne "${cyan}${m_tab}##################                                   [40%]\r${reset}"
-			echo -ne "${cyan}${m_tab}#################################                    [60%]\r${reset}"
-			sleep 2
-			echo -ne "${cyan}${m_tab}#####################################                [75%]\r${reset}"
-			echo -ne "${cyan}${m_tab}##########################################           [85%]\r${reset}"
-			sleep 1
-			echo -ne "${cyan}${m_tab}#####################################################[100%]\r${reset}"
-			echo -ne '\n'
-
-			hard_reset
+			while true
+			do
+				echo -e "\n${green}*${reset}${green} Installation found${reset}"
+				echo "${m_tab}${cyan}##################################################################${reset}"
+				read -r -n 1 -p "${m_tab}${BC}Do you want to continue with hard reset? --> (Y)es | (N)o${EC} " yn < /dev/tty
+				echo ""
+				case "${yn}" in
+					[Yy]* ) echo -e "\n${green}*${reset} ${green}Hard resetting for fresh installation: ${reset}";
+						echo -ne "${cyan}${m_tab}########                                             [20%]\r${reset}";
+						sleep 1;
+						echo -ne "${cyan}${m_tab}##################                                   [40%]\r${reset}";
+						echo -ne "${cyan}${m_tab}#################################                    [60%]\r${reset}";
+						sleep 2;
+						echo -ne "${cyan}${m_tab}#####################################                [75%]\r${reset}";
+						echo -ne "${cyan}${m_tab}##########################################           [85%]\r${reset}";
+						sleep 1;
+						echo -ne "${cyan}${m_tab}#####################################################[100%]\r${reset}";
+						echo -ne '\n';
+						hard_reset;
+						break;;
+					[Nn]* ) break;;
+					*     ) echo -e "\n${m_tab}${magenta}Please answer yes or no.${reset}"; echo "${cyan}${m_tab}#####################################################${reset}";;
+				esac
+			done
 		fi
 
 		# WELCOME ASCII
@@ -2416,7 +2427,7 @@ if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 					encrypt_wc_end;
 					decrypt_wc_end;
 					w_curl_a; break;;
-					[Nn]* ) exit 1;;
+				[Nn]* ) exit 1;;
 				* ) echo -e "\n${m_tab}${magenta}Please answer yes or no.${reset}"; echo "${cyan}${m_tab}#####################################################${reset}";;
 			esac
 		done
