@@ -418,6 +418,17 @@ if [[ "$OSTYPE" != "linux-gnu"* ]]; then
 	exit 1
 fi
 
+# Force working in '/opt' folder
+# Prevent working in $HOME directory to eliminate complications (cron permissions)
+if [[ $this_script_path != /opt* ]]; then
+	echo -e "\n${red}*${reset} ${red}Working in $this_script_path not allowed${reset}"
+	echo "${cyan}${m_tab}#####################################################${reset}"
+	echo "${m_tab}${red}You have to work in /opt folder for eliminate complications${reset}"
+	echo -e "${m_tab}${red}git clone to /opt folder and re-run setup${reset}\n"
+	echo "$(timestamp): Working in $this_script_path not allowed" >> "${error_log}"
+	exit 1
+fi
+
 # Test connection & get public ip
 if ! : >/dev/tcp/8.8.8.8/53; then
 	if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
@@ -1742,7 +1753,7 @@ download () {
 	declare -a getold=("mail_to" "mail_from" "mail_subject_suc" "mail_subject_err"
 			   "e_date" "s_date" "e_date" "error_log" "access_log" "send_mail_err"
 			   "company_name" "company_domain" "cron_minute" "cron_minute_update"
-			   "on_calendar" "delivery_time" "max_distance")
+			   "on_calendar" "delivery_time" "max_distance" "send_mail_command")
 
 	for i in "${getold[@]}"
 	do
