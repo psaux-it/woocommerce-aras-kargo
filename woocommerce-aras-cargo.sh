@@ -595,6 +595,8 @@ sh_output="${this_script_path}/woocommerce-aras-cargo.sh.tmp"
 update_script="woocommerce-aras-update-script.sh"
 my_tmp_folder="${this_script_path}/tmp"
 my_string="woocommerce-aras-cargo-integration"
+tmpfiles_d="/etc/tmpfiles.d"
+tmpfiles_f="woo-aras.conf"
 
 # Display automation status
 my_status () {
@@ -1381,7 +1383,23 @@ hard_reset () {
 		logrotate_uninstall=0
 	fi
 
-	if [[ -n $systemd_uninstall && -n $cron_uninstall && -n $cron_uninstall_update && -n $logrotate_uninstall ]]; then
+	if [[ -s "${tmpfiles_d}/${tmpfiles_f}" ]]; then
+		if [[ -w "${tmpfiles_d}/${tmpfiles_f}" ]]; then
+			rm -f "${tmpfiles_d:?}/${tmpfiles_f:?}" >/dev/null 2>&1
+			echo -e "\n${yellow}*${reset} ${yellow}tmpfiles mount config removed:${reset}"
+			echo "${cyan}${m_tab}#####################################################${reset}"
+			echo "${yellow}${m_tab}${tmpfiles_d}/${tmpfiles_f}${reset}"
+		else
+			echo -e "\n${red}*${reset} ${red}tmpfiles mount config uninstallation aborted, as file not writable: ${logrotate_dir}/${logrotate_filename}${reset}"
+			echo "${cyan}${m_tab}#####################################################${reset}"
+			echo "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}"
+			echo "$(timestamp): Uninstallation error: ${tmpfiles_d}/${tmpfiles_f} not writeable" >> "${error_log}"
+		fi
+	else
+		tmpfiles_uninstall=0
+	fi
+
+	if [[ -n $systemd_uninstall && -n $cron_uninstall && -n $cron_uninstall_update && -n $logrotate_uninstall && -n $tmpfiles_uninstall ]]; then
 		echo -e "\n${yellow}*${reset} ${yellow}Cron, systemd, logrotate not installed.${reset}"
 		echo "${cyan}${m_tab}#####################################################${reset}"
 		echo -e "${m_tab}${yellow}Nothing found to uninstall.${reset}\n"
@@ -1460,11 +1478,12 @@ un_install () {
 		uninstall_twoway
 	fi
 
-	# Removes install bundles aka cron jobs, systemd services, logrotate
+	# Removes install bundles aka cron jobs, systemd services, logrotate, tmpfiles
 	if [[ -e "${cron_dir}/${cron_filename}" ||
 		-e "${systemd_dir}/${service_filename}" ||
 		-e "${logrotate_dir}/${logrotate_filename}" ||
 		-e "${systemd_dir}/${timer_filename}" ||
+		-e "${tmpfiles_d}/${tmpfiles_f}" ||
 		-e "${cron_dir}/${cron_filename_update}" ]]; then
 		hard_reset
 	fi
@@ -1976,8 +1995,8 @@ add_cron () {
 		exit 1
 	else
 		if [ "$auto_update" -eq 1 ]; then
-			cat <<- EOF > "${cron_dir}/${cron_filename_update}"
-			# Every night at 02:28 AM
+			cat <<- EOF > "${cron_dir:?}/${cron_filename_update:?}"
+			# At 09:19 on Sunday.
 			# Via WooCommerce - ARAS Cargo Integration Script
 			# Copyright 2021 Hasan ÇALIŞIR
 			# MAILTO=$mail_to
@@ -1986,8 +2005,8 @@ add_cron () {
 			EOF
                 fi
 
-		cat <<- EOF > "${cron_dir}/${cron_filename}"
-		# At every 30th minute past every hour from 9 AM through 20 PM
+		cat <<- EOF > "${cron_dir:?}/${cron_filename:?}"
+		# At every 24th minute past every hour from 9 through 19 on every day-of-week from Monday through Saturday.
 		# Via WooCommerce - ARAS Cargo Integration Script
 		# Copyright 2021 Hasan ÇALIŞIR
 		# MAILTO=$mail_to
@@ -2051,7 +2070,7 @@ add_systemd () {
 		echo "$(timestamp): Systemd install aborted, as file not writable: ${systemd_dir}/${service_filename}" >> "${error_log}"
 		exit 1
 	else
-		cat <<- EOF > "${systemd_dir}/${service_filename}"
+		cat <<- EOF > "${systemd_dir:?}/${service_filename:?}"
 		[Unit]
 		Description=woocommerce aras cargo integration script.
 
@@ -2068,7 +2087,7 @@ add_systemd () {
 		WantedBy=multi-user.target
 		EOF
 
-		cat <<- EOF > "${systemd_dir}/${timer_filename}"
+		cat <<- EOF > "${systemd_dir:?}/${timer_filename:?}"
 		[Unit]
 		Description=woocommerce-aras timer - At every 30th minute past every hour from 9AM through 20PM expect Sunday
 
@@ -2101,8 +2120,8 @@ add_systemd () {
 				exit 1
 			else
 				if [ "$auto_update" -eq 1 ]; then
-					cat <<- EOF > "${cron_dir}/${cron_filename_update}"
-					# Every night at 02:28 AM
+					cat <<- EOF > "${cron_dir:?}/${cron_filename_update:?}"
+					# At 09:19 on Sunday.
 					# Via WooCommerce - ARAS Cargo Integration Script
 					# Copyright 2021 Hasan ÇALIŞIR
 					# MAILTO=$mail_to
@@ -2168,7 +2187,7 @@ add_logrotate () {
 			echo "$(timestamp): Logrotate cannot installed. $logrotate_dir is not writeable by user $user" >> "${error_log}"
 		else
 			logrotate_installed="asfile"
-			cat <<- EOF > "${logrotate_dir}/${logrotate_filename:?}"
+			cat <<- EOF > "${logrotate_dir:?}/${logrotate_filename:?}"
 			/var/log/woocommerce_aras.* {
 			firstaction
 			${cron_script_full_path} --rotate > /dev/null 2>&1
@@ -2211,6 +2230,17 @@ add_logrotate () {
 		}
 		EOF
 	fi
+}
+
+run_tmpfiles () {
+	if [ ! -d /run/woo-aras ]; then
+		mkdir /run/woo-aras/ >/dev/null 2>&1
+		chown $user:$user /run/woo-aras
+	fi
+
+	cat <<- EOF > "${tmpfiles_d:?}/${tmpfiles_f:?}"
+	d /run/woo-aras 0755 $user $user
+	EOF
 }
 #=====================================================================
 
