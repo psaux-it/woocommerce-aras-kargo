@@ -187,8 +187,8 @@ If you use mutt, ssmtp, sendmail etc. please edit mail function as you wish. You
 - Adjust user defined settings such as mail_to, company_name as mentioned before
 - Clear wordpress cache for some security checks
 - Be sure you have some data both on woocommerce and ARAS for validations (if not create test orders)
-- Clone repo ```git clone https://github.com/hsntgm/woocommerce-aras-kargo.git``` (Never manually copy/paste script)
-- Copy woocommerce-aras-cargo.sh anywhere you want and execute script as 'root' or with sudo 
+- Clone repo in /opt folder ```git clone https://github.com/hsntgm/woocommerce-aras-kargo.git``` (Never manually copy/paste script)
+- In /opt folder execute script as 'root' or with sudo 
 - ```sudo ./woocommerce-aras-cargo.sh --setup```
 
 ![woocommerce-aras-help](https://user-images.githubusercontent.com/25556606/127486809-ede139f7-4903-4779-8dbb-06f38f3ea7b4.png)
