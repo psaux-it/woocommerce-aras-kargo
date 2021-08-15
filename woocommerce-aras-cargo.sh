@@ -412,7 +412,7 @@ fi
 if ! : >/dev/tcp/8.8.8.8/53; then
 	if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 		echo -e "\n${red}*${reset} ${red}There is no internet connection.${reset}"
-		echo "${cyan}${m_tab}#####################################################${reset}"
+		echo -e "${cyan}${m_tab}#####################################################${reset}\n"
 		echo "$(timestamp): There is no internet connection." >> "${error_log}"
 	else
 		echo "$(timestamp): There is no internet connection." >> "${error_log}"
