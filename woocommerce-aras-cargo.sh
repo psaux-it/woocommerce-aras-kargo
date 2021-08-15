@@ -62,17 +62,22 @@ delivery_time=5
 # If you miss the matches too much set higher values, max recommended is 4,5 char.
 max_distance=3
 
-# For main cron job schedule timer
-# At every 30th minute past every hour from 9 AM through 20 PM
-cron_minute="*/30 9-20"
+# Main cron job schedule timer
+# At every 24th minute past every hour from 9 through 19 on every day-of-week from Monday through Saturday.
+cron_minute="*/24 9-19 * * 1-6"
 
-# For updater cron job schedule timer
-# Every night 2:28
-cron_minute_update="28 2"
+# Updater cron job schedule timer
+# At 09:19 on Sunday.
+cron_minute_update="19 9 * * 0"
 
-# For systemd job schedule timer
-# At every 30th minute past every hour from 9 AM through 20 PM between mon-sat
-on_calendar="Mon..Sat 9..20:00/30:00"
+# Systemd job schedule timer
+# At every 30th minute past every hour from 9 through 19 on every day-of-week from Monday through Saturday.
+on_calendar="Mon..Sat 9..19:00/30:00"
+
+# Logrotate configuration
+# Keeping log file size small is important for performance (kb)
+maxsize="35"
+l_maxsize="35k"
 
 # Logging paths
 error_log="/var/log/woocommerce_aras.err"
@@ -81,6 +86,13 @@ access_log="/var/log/woocommerce_aras.log"
 # Need for html mail template
 company_name="E-Commerce Company"
 company_domain="mycompany.com"
+
+# Set ARAS cargo request date range --> last 10 days
+# Supports Max 30 days.
+# Keep date format!
+t_date=$(date +%d/%m/%Y)
+e_date=$(date +%d-%m-%Y -d "+1 days")
+s_date=$(date +%d-%m-%Y -d "-10 days")
 
 # Send mail command, adjust as you wish sendmail, mutt, ssmtp
 send_mail_command="mail"
@@ -95,13 +107,6 @@ mail_to="order_info@${company_domain}"
 mail_from="From: ${company_name} <aras_woocommerce@${company_domain}>"
 mail_subject_suc="SUCCESS: WooCommerce - ARAS Cargo"
 mail_subject_err="ERROR: WooCommerce - ARAS Cargo"
-
-# Set ARAS cargo request date range --> last 10 days
-# Supports Max 30 days.
-# Keep date format!
-t_date=$(date +%d/%m/%Y)
-e_date=$(date +%d-%m-%Y -d "+1 days")
-s_date=$(date +%d-%m-%Y -d "-10 days")
 
 # Send mail functions
 # If you use sendmail, mutt, ssmtp etc. you can adjust here with proper properties
@@ -212,8 +217,13 @@ my_rotate () {
 	fi
 
 	# Create dummy process (PID will kill by logrotate) to prevent executing script while logrotation triggering
-	perl -MPOSIX -e '$0="wooaras"; pause' &
-	echo $! > "${PIDFILE}"
+	filesize="$(du -k "${access_log}" | cut -f1)"
+	if (( filesize > maxsize )); then
+		perl -MPOSIX -e '$0="wooaras"; pause' &
+		echo $! > "${PIDFILE}"
+	else
+		exit 1
+	fi
 
 	# Send signal to start logrotation
 	exit 0
@@ -2137,6 +2147,7 @@ add_systemd () {
 	exit 0
 }
 
+# Keeping log size small is important for performance
 add_logrotate () {
 	if grep -qFx "include ${logrotate_dir}" "${logrotate_conf}"; then
 		if [[ ! -w "$logrotate_dir" ]]; then
@@ -2151,13 +2162,17 @@ add_logrotate () {
 			firstaction
 			${cron_script_full_path} --rotate > /dev/null 2>&1
 			endscript
-			weekly
-			rotate 3
-			size 1M
+			daily
+			rotate 5
+			size ${l_maxsize}
+			missingok
 			compress
 			delaycompress
+			notifempty
+			create 0660 ${user} ${user}
 			lastaction
 			/bin/kill -HUP `cat ${PIDFILE}` 2>/dev/null || true
+			echo "Logrotation completed" >> ${access_log}
 			endscript
 			}
 			EOF
@@ -2170,13 +2185,17 @@ add_logrotate () {
 		firstaction
 		${cron_script_full_path} --rotate > /dev/null 2>&1
 		endscript
-		weekly
+		daily
 		rotate 5
-		size 1M
+		size ${l_maxsize}
+		missingok
 		compress
 		delaycompress
+		notifempty
+		create 0660 ${user} ${user}
 		lastaction
 		/bin/kill -HUP `cat ${PIDFILE}` 2>/dev/null || true
+		echo "Logrotation completed" >> ${access_log}
 		endscript
 		}
 		EOF
