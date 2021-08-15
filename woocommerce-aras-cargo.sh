@@ -181,7 +181,7 @@ path_pretty_error () {
 
 # Discover script path
 this_script_full_path="${BASH_SOURCE[0]}"
-if command -v dirname && command -v readlink && command -v basename; then
+if command -v dirname >/dev/null 2>&1 && command -v readlink >/dev/null 2>&1 && command -v basename >/dev/null 2>&1; then
 	# Symlinks
 	while [ -h "$this_script_full_path" ]; do
 		this_script_path="$( cd -P "$( dirname "$this_script_full_path" )" >/dev/null 2>&1 && pwd )"
@@ -280,14 +280,14 @@ fi
 
 # Listen exit signals to destroy temporary files
 clean_up () {
-	rm -rf ${my_tmp:?} ${my_tmp_del:?} ${PIDFILE:?}
-	rm -rf "${this_script_path:?}"/*.en
-	rm -rf "${this_script_path:?}"/{*proc*,.*proc}
-	rm -rf "${this_script_path:?}"/{*json*,.*json}
-	rm -rf "${this_script_path:?}"/.lvn*
-	rm -f "${this_script_path:?}"/aras_request.php
+	rm -rf ${PIDFILE:?} "${this_script_path:?}"/aras_request.php >/dev/null 2>&1
+	rm -rf "${this_script_path:?}"/*.en >/dev/null 2>&1
+	rm -rf "${this_script_path:?}"/{*proc*,.*proc} >/dev/null 2>&1
+	rm -rf "${this_script_path:?}"/{*json*,.*json} >/dev/null 2>&1
+	rm -rf "${this_script_path:?}"/.lvn* >/dev/null 2>&1
 }
 trap clean_up 0 1 2 3 6 15
+trap - SIGINT
 
 # Log timestamp
 timestamp () {
@@ -1971,7 +1971,7 @@ add_cron () {
 			# Copyright 2021 Hasan ÇALIŞIR
 			# MAILTO=$mail_to
 			SHELL=/bin/bash
-			$cron_minute_update * * * ${cron_user} [ -x ${cron_script_full_path} ] && ${my_bash} ${cron_script_full_path} -u
+			$cron_minute_update ${cron_user} [ -x ${cron_script_full_path} ] && ${my_bash} ${cron_script_full_path} -u
 			EOF
                 fi
 
@@ -1981,7 +1981,7 @@ add_cron () {
 		# Copyright 2021 Hasan ÇALIŞIR
 		# MAILTO=$mail_to
 		SHELL=/bin/bash
-		$cron_minute * * * ${cron_user} [ -x ${cron_script_full_path} ] && ${my_bash} ${cron_script_full_path}
+		$cron_minute ${cron_user} [ -x ${cron_script_full_path} ] && ${my_bash} ${cron_script_full_path}
 		EOF
 
 		result=$?
@@ -2096,7 +2096,7 @@ add_systemd () {
 					# Copyright 2021 Hasan ÇALIŞIR
 					# MAILTO=$mail_to
 					SHELL=/bin/bash
-					$cron_minute_update * * * ${cron_user} [ -x ${cron_script_full_path} ] && ${my_bash} ${cron_script_full_path} -u
+					$cron_minute_update ${cron_user} [ -x ${cron_script_full_path} ] && ${my_bash} ${cron_script_full_path} -u
 					EOF
 
 					result=$?
@@ -2533,7 +2533,7 @@ if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 		echo "${cyan}${m_tab}#####################################################${reset}"
 		echo "${m_tab}${red}Cannot connect destination from $my_ip.${reset}"
 		echo "${m_tab}${red}Check your firewall settings and webserver restrictions.${reset}"
-		echo "${m_tab}${red}Please give allow to $my_ip on your end and restart setup.${reset}"
+		echo -e "${m_tab}${red}Please give allow to $my_ip on your end and restart setup.${reset}\n"
 		echo "$(timestamp): WooCommerce REST API Authorization error. Cannot connect destination from $my_ip." >> "${error_log}"
 		exit 1
 	fi
@@ -2855,6 +2855,11 @@ fi
 my_tmp=$(mktemp)
 my_tmp_del=$(mktemp)
 
+clean_up_tmp () {
+	rm -rf ${my_tmp:?} ${my_tmp_del:?}
+}
+trap clean_up_tmp 0 1 2 3 6 15
+
 # Get WC order's ID (processing status) & WC customer info
 # As of 2021 max 100 orders fetchable with one query
 if $m_curl -s -o /dev/null -X GET --fail "https://$api_endpoint/wp-json/wc/v3/orders?status=processing&per_page=100" -u "$api_key":"$api_secret" -H "Content-Type: application/json"; then
@@ -3150,6 +3155,9 @@ fi
 # ARAS Tracking number will be sent to customer.
 if [ -e "${this_script_path}/.woo.aras.enb" ]; then
 	if [ -s "$my_tmp" ]; then
+		# Run something important, no Ctrl-C allowed.
+		trap "" SIGINT
+
 		# For debugging purpose save the parsed data first
 		if [ ! -d "${this_script_path}/tmp" ]; then
 			mkdir "${this_script_path}/tmp"
@@ -3198,6 +3206,9 @@ if [ -e "${this_script_path}/.woo.aras.enb" ]; then
 				exit 1
 			fi
 		done < "${my_tmp}"
+
+		# Allow ctrl-c
+		trap - SIGINT
 	else
 		if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 			echo "${yellow}*${reset} ${yellow}Couldn't find any updateable order now.${reset}"
@@ -3209,6 +3220,9 @@ if [ -e "${this_script_path}/.woo.aras.enb" ]; then
 
 	if [ -e "${this_script_path}/.two.way.enb" ]; then
 		if [ -s "$my_tmp_del" ]; then
+			# Run something important, no Ctrl-C allowed.
+			trap "" SIGINT
+
 			# For debugging purpose save the parsed data first
 			if [ ! -d "${this_script_path}/tmp" ]; then
 				mkdir "${this_script_path}/tmp"
@@ -3257,6 +3271,8 @@ if [ -e "${this_script_path}/.woo.aras.enb" ]; then
 					exit 1
 				fi
 			done < "${my_tmp_del}"
+			# Allow ctrl-c
+			trap - SIGINT
 		elif [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 			echo -e "\n${yellow}*${reset} ${yellow}Couldn't find any updateable order now.${reset}"
 			echo "$(timestamp): Couldn't find any updateable order now." >> "${access_log}"
