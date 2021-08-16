@@ -903,7 +903,7 @@ pre_check () {
 	column -t -s ' ' <<< "$(< "${this_script_path}/.msg.proc")" | $m_sed 's/^/  /'
 
 	# Quit
-	if [[ -n $awk_not_gnu || -n $sed_not_gnu || -n $awk_old || -n $sed_old || -n $woo_old || -n $jq_old || -n $bash_old || -n $word_old || "$ast_ver" == "false" ]]; then
+	if [[ -n $awk_not_gnu || -n $sed_not_gnu || -n $awk_old || -n $sed_old || -n $woo_old || -n $bash_old || -n $word_old || "$ast_ver" == "false" ]]; then
 		exit 1
 	fi
 }
@@ -1993,7 +1993,7 @@ while :; do
 	-d|--uninstall        ) un_install
 				exit
 				;;
-	*                     ) help; exit;;
+	*                     ) break;;
 	esac
 	shift
 done
