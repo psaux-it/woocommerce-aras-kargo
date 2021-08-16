@@ -121,7 +121,7 @@ send_mail_suc () {
 # =====================================================================
 
 # PID File
-PIDFILE=/var/run/woocommerce-aras-cargo.pid
+PIDFILE=/var/run/woo-aras/woocommerce-aras-cargo.pid
 
 # Determine script run by cron
 TEST_CRON="$(pstree -s $$ | grep -c cron 2>/dev/null)"
@@ -1395,6 +1395,17 @@ hard_reset () {
 			echo "$(timestamp): Uninstallation aborted, as file not writable: ${logrotate_conf}" >> "${error_log}"
 		fi
 	fi
+
+	if [[ -d /run/woo-aras ]]; then
+		if [[ -w /run/woo-aras ]]; then
+			rm -rf /run/woo-aras
+		else
+			echo -e "\n${red}*${reset} ${red}Uninstallation aborted, as folder not writable: /run/woo-aras${reset}"
+                        echo "${cyan}${m_tab}#####################################################${reset}"
+                        echo "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}"
+                        echo "$(timestamp): Uninstallation aborted, as folder not writable: /run/woo-aras" >> "${error_log}"
+		fi
+	fi
 }
 
 # Instead of uninstall just disable/inactivate script (for urgent cases & debugging purpose)
@@ -1475,6 +1486,7 @@ un_install () {
 		-e "${logrotate_dir}/${logrotate_filename}" ||
 		-e "${systemd_dir}/${timer_filename}" ||
 		-e "${tmpfiles_d}/${tmpfiles_f}" ||
+		-d /run/woo-aras ||
 		-e "${cron_dir}/${cron_filename_update}" ]]; then
 		hard_reset
 	fi
@@ -1533,6 +1545,7 @@ on_fly_enable () {
 			-e "${systemd_dir}/${service_filename}" ||
 			-e "${logrotate_dir}/${logrotate_filename}" ||
 			-e "${systemd_dir}/${timer_filename}" ||
+			-d /run/woo-aras ||
 			-e "${tmpfiles_d}/${tmpfiles_f}" ||
 			-e "${cron_dir}/${cron_filename_update}" ]]; then
 
@@ -2206,7 +2219,7 @@ add_logrotate () {
 			else
 				logrotate_installed="asfile"
 				cat <<- EOF > "${logrotate_dir:?}/${logrotate_filename:?}"
-				"${access_log%.*}.*" {
+				${access_log%.*}.* {
 				firstaction
 				${cron_script_full_path} --rotate > /dev/null 2>&1
 				endscript
@@ -2239,7 +2252,7 @@ add_logrotate () {
 
 			# Via WooCommerce - ARAS Cargo Integration Script
 			# Copyright 2021 Hasan ÇALIŞIR
-			"${access_log%.*}.*" {
+			${access_log%.*}.* {
 			firstaction
 			${cron_script_full_path} --rotate > /dev/null 2>&1
 			endscript
