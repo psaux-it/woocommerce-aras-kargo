@@ -137,7 +137,7 @@ create_pid_path () {
 	chown $user:$user /run/woo-aras
 }
 
-# We will deploy pid folder via /etc/tmpfiles.d/ or rc.local later
+# We will deploy pid folder (via --> /etc/tmpfiles.d/ || rc.local) later
 if [[ ! -d /run/woo-aras ]]; then
 	if [[ $SUDO_USER ]]; then
 		create_pid_path
@@ -146,7 +146,7 @@ if [[ ! -d /run/woo-aras ]]; then
 	else
 		echo -e "\n${yellow}*${reset} ${yellow}Cannot create PID, as folder not writable: /run${reset}\n"
 		echo "${cyan}${m_tab}#####################################################${reset}"
-		echo "${yellow}${m_tab}${yellow}Run as root or with sudo user to create path.${reset}"
+		echo "${yellow}${m_tab}${yellow}Run as root or with sudo user${reset}"
 		echo -e "${m_tab}${yellow}sudo ./woocommerce-aras-cargo.sh --help${reset}\n"
 		echo "$(timestamp): Cannot create PID, as folder not writable: /run" >> "${error_log}"
 		exit 1
@@ -159,7 +159,7 @@ PIDFILE=/var/run/woo-aras/woocommerce-aras-cargo.pid
 # Determine script run by cron
 TEST_CRON="$(pstree -s $$ | grep -c cron 2>/dev/null)"
 TEST_CRON_2=$([ -z "$TERM" ] || [ "$TERM" = "dumb" ] && echo '1' || echo '0')
-if [ "$TEST_CRON" == "1" ] || [ "$TEST_CRON_2" == "1" ]; then
+if [[ "$TEST_CRON" == "1" || "$TEST_CRON_2" == "1" ]]; then
 	RUNNING_FROM_CRON=1
 else
 	RUNNING_FROM_CRON=0
@@ -197,7 +197,7 @@ uniquepath () {
 		fi
 	done < <(echo "${PATH}" | tr ":" "\n")
 
-	[ -n "${path}" ] && [[ ${PATH} =~ /bin ]] && [[ ${PATH} =~ /sbin ]] && export PATH="${path}"
+	[[ -n "${path}" ]] && [[ ${PATH} =~ /bin ]] && [[ ${PATH} =~ /sbin ]] && export PATH="${path}"
 }
 uniquepath
 
@@ -206,7 +206,7 @@ path_pretty_error () {
 	if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 		echo -e "\n${red}*${reset} Could not determine script name and fullpath"
 		echo -e "${cyan}${m_tab}#####################################################${reset}\n"
-	elif [ $send_mail_err -eq 1 ]; then
+	elif [[ $send_mail_err -eq 1 ]]; then
 		send_mail_err <<< "Could not determine script name and fullpath" >/dev/null 2>&1
 	fi
         exit 1
@@ -231,20 +231,20 @@ else
 	path_pretty_error
 fi
 
-if [ -z "$this_script_full_path" ] || [ -z "$this_script_path" ] || [ -z "$this_script_name" ]; then
+if [[ -z "$this_script_full_path" || -z "$this_script_path" || -z "$this_script_name" ]]; then
 	path_pretty_error
 fi
 
 # Logrotation firstaction
 my_rotate () {
 	# Not logrotate while script running
-	if [ -f "${PIDFILE}" ]; then
+	if [[ -f "${PIDFILE}" ]]; then
 		exit 1
 	fi
 
 	# Not logrotate until all shipped orders flagged as delivered otherwise data loss
-	if [ -f "${this_script_path}/.two.way.enb" ]; then
-		if [ "$(grep -c "SHIPPED" "${access_log}")" -ne "$(grep -c "DELIVERED" "${access_log}")" ]; then
+	if [[ -f "${this_script_path}/.two.way.enb" ]]; then
+		if [[ "$(grep -c "SHIPPED" "${access_log}")" -ne "$(grep -c "DELIVERED" "${access_log}")" ]]; then
 			exit 1
 		fi
 	fi
@@ -271,7 +271,7 @@ pid_pretty_error () {
 	if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 		echo -e "\n${red}*${reset} ${red}FATAL ERROR: Cannot create PID${reset}"
 		echo -e "${cyan}${m_tab}#####################################################${reset}\n"
-	elif [ $send_mail_err -eq 1 ]; then
+	elif [[ $send_mail_err -eq 1 ]]; then
 		send_mail_err <<< "FATAL ERROR: Cannot create PID" >/dev/null 2>&1
 	fi
 }
@@ -452,12 +452,12 @@ if [[ "$OSTYPE" != "linux-gnu"* ]]; then
 fi
 
 # Force working in '/opt' folder
-# Prevent working in $HOME directory to eliminate complications (cron permissions)
+# Prevent working in $HOME directory for safety
 if [[ $this_script_path != /opt* ]]; then
 	echo -e "\n${red}*${reset} ${red}Working in $this_script_path not allowed${reset}"
 	echo "${cyan}${m_tab}#####################################################${reset}"
-	echo "${m_tab}${red}You have to work in /opt folder for eliminate complications${reset}"
-	echo -e "${m_tab}${red}git clone to /opt folder and re-run setup${reset}\n"
+	echo "${m_tab}${red}You adviced to work in /opt folder for safety${reset}"
+	echo -e "${m_tab}${red}sudo git clone to /opt folder and re-run setup${reset}\n"
 	echo "$(timestamp): Working in $this_script_path not allowed" >> "${error_log}"
 	exit 1
 fi
@@ -517,7 +517,7 @@ else
 fi
 
 # Check dependencies
-declare -a dependencies=("curl" "iconv" "openssl" "jq" "php" "perl" "awk" "sed" "pstree" "stat" "$send_mail_command" "whiptail" "logrotate" "paste" "column" "chattr" "zgrep" "mapfile" "readarray" "locale" "systemctl")
+declare -a dependencies=("curl" "iconv" "openssl" "jq" "php" "perl" "awk" "sed" "pstree" "stat" "$send_mail_command" "whiptail" "logrotate" "paste" "column" "zgrep" "mapfile" "readarray" "locale" "systemctl")
 for i in "${dependencies[@]}"
 do
 	if ! command -v "$i" > /dev/null 2>&1; then
@@ -1062,7 +1062,6 @@ simple_uninstall_twoway () {
 		fi
 	done
 
-	chattr -i "${this_script_path}/.two.way.enb" >/dev/null 2>&1
 	rm -f "${this_script_path:?}/.two.way.enb" >/dev/null 2>&1
 
 	echo -e "\n${yellow}*${reset} ${yellow}Two way fulfillment unistallation: ${reset}"
@@ -1314,7 +1313,7 @@ install_twoway () {
 						echo -e "\n${yellow}Two way fulfillment workflow installation aborted, recovery process completed.${reset}";
 						echo "$(timestamp): Two way fulfillment workflow installation aborted, recovery process completed." >> "${error_log}";
 						exit 1;;
-					[Cc]* ) depriv touch "${this_script_path}/.two.way.enb"; chattr +i "${this_script_path}/.two.way.enb" >/dev/null 2>&1; break;;
+					[Cc]* ) depriv touch "${this_script_path}/.two.way.enb";  break;;
 					* ) echo -e "\n${m_tab}${magenta}Please answer r or c${reset}"; echo "${cyan}${m_tab}#####################################################${reset}";;
 				esac
 			done
@@ -1434,7 +1433,6 @@ disable () {
 	if [[ -e "${this_script_path}/.woo.aras.set" ]]; then
 		if [[ -e "${this_script_path}/.woo.aras.enb" ]]; then
 			if [[ -w "${this_script_path}" ]]; then
-				chattr -i "${this_script_path}/.woo.aras.enb" >/dev/null 2>&1
 				rm -f "${this_script_path:?}/.woo.aras.enb" >/dev/null 2>&1 &&
 				echo -e "\n${green}*${reset} ${green}Aras-WooCommerce integration disabled.${reset}"
 				echo -e "${cyan}${m_tab}#####################################################${reset}\n"
@@ -1468,7 +1466,6 @@ enable () {
 		if [[ ! -e "${this_script_path}/.woo.aras.enb" ]]; then
 			if [[ -w "${this_script_path}" ]]; then
 				depriv touch "${this_script_path}/.woo.aras.enb" >/dev/null 2>&1
-				chattr +i "${this_script_path}/.woo.aras.enb" >/dev/null 2>&1
 				echo -e "\n${green}*${reset} ${green}Aras-WooCommerce integration enabled.${reset}"
 				echo -e "${cyan}${m_tab}#####################################################${reset}\n"
 			else
@@ -1527,8 +1524,6 @@ un_install () {
 	done
 	rm -rf "${this_script_path:?}"/.*lck >/dev/null 2>&1
 
-	chattr -i "${this_script_path}/.woo.aras.set" >/dev/null 2>&1
-	chattr -i "${this_script_path}/.woo.aras.enb" >/dev/null 2>&1
 	rm -f "${this_script_path:?}/.woo.aras.set" >/dev/null 2>&1
 	rm -f "${this_script_path:?}/.woo.aras.enb" >/dev/null 2>&1
 	rm -rf "${this_script_path:?}/tmp" >/dev/null 2>&1
@@ -1541,8 +1536,6 @@ un_install () {
 on_fly_disable () {
 	depriv touch "${this_script_path}/.woo.aras.set"
 	depriv touch "${this_script_path}/.woo.aras.enb"
-	chattr +i "${this_script_path}/.woo.aras.set" >/dev/null 2>&1
-	chattr +i "${this_script_path}/.woo.aras.enb" >/dev/null 2>&1
 }
 
 # Pre-setup operations
@@ -1555,8 +1548,6 @@ on_fly_enable () {
 		done
 		rm -rf "${this_script_path:?}"/.*lck >/dev/null 2>&1
 
-		chattr -i "${this_script_path}/.woo.aras.set" >/dev/null 2>&1
-		chattr -i "${this_script_path}/.woo.aras.enb" >/dev/null 2>&1
 		rm -f "${this_script_path:?}/.woo.aras.set" >/dev/null 2>&1
 		rm -f "${this_script_path:?}/.woo.aras.enb" >/dev/null 2>&1
 
@@ -1692,7 +1683,6 @@ twoway_enable () {
 		if [ ! -e "${this_script_path}/.two.way.enb" ]; then
 			if [ "$functions_mod" == "applied" ]; then
 				depriv touch "${this_script_path}/.two.way.enb"
-				chattr +i "${this_script_path}/.two.way.enb"
 				echo -e "\n${green}*${reset} ${green}Two way fulfillment workflow enabled successfully: ${reset}"
 				echo -e "${cyan}${m_tab}#####################################################${reset}\n"
 				echo "$(timestamp): Two way fulfillment workflow manually enabled successfully" >> "${access_log}"
@@ -1726,7 +1716,6 @@ twoway_disable () {
 	if [[ -e "${this_script_path}/.woo.aras.set" ]]; then
 		if [[ -e "${this_script_path}/.two.way.enb" ]]; then
 			if [[ -w "${this_script_path}" ]]; then
-				chattr -i "${this_script_path}/.two.way.enb" >/dev/null 2>&1
 				rm -f "${this_script_path:?}/.two.way.enb" >/dev/null 2>&1
 				echo -e "\n${green}*${reset} ${green}Two-way fulfillment workflow disabled.${reset}"
 				echo -e "${cyan}${m_tab}#####################################################${reset}\n"
