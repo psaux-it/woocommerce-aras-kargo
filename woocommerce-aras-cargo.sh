@@ -120,10 +120,19 @@ send_mail_suc () {
 # END
 # =====================================================================
 
+# Drop privileges back to non-root user if we got here with sudo
+# Working with non-root users always headache
+# On the other hand, saying runs only under root is pathetic, vulnerable and easy
 if [[ $SUDO_USER ]]; then user="$SUDO_USER"; else user="$(whoami)"; fi
+depriv () {
+	if [[ $SUDO_USER ]]; then
+		sudo -u "$SUDO_USER" -- "$@"
+	else
+		"$@"
+	fi
+}
+
 create_pid_path () {
-	# Working with non-root users always headache
-	# On the other hand, saying runs only under root is pathetic, vulnerable and easy
 	mkdir /run/woo-aras/ >/dev/null 2>&1
 	chown $user:$user /run/woo-aras
 }
@@ -1305,7 +1314,7 @@ install_twoway () {
 						echo -e "\n${yellow}Two way fulfillment workflow installation aborted, recovery process completed.${reset}";
 						echo "$(timestamp): Two way fulfillment workflow installation aborted, recovery process completed." >> "${error_log}";
 						exit 1;;
-					[Cc]* ) touch "${this_script_path}/.two.way.enb"; chattr +i "${this_script_path}/.two.way.enb" >/dev/null 2>&1; break;;
+					[Cc]* ) depriv touch "${this_script_path}/.two.way.enb"; chattr +i "${this_script_path}/.two.way.enb" >/dev/null 2>&1; break;;
 					* ) echo -e "\n${m_tab}${magenta}Please answer r or c${reset}"; echo "${cyan}${m_tab}#####################################################${reset}";;
 				esac
 			done
@@ -1458,7 +1467,7 @@ enable () {
 	if [[ -e "${this_script_path}/.woo.aras.set" ]]; then
 		if [[ ! -e "${this_script_path}/.woo.aras.enb" ]]; then
 			if [[ -w "${this_script_path}" ]]; then
-				touch "${this_script_path}/.woo.aras.enb" >/dev/null 2>&1
+				depriv touch "${this_script_path}/.woo.aras.enb" >/dev/null 2>&1
 				chattr +i "${this_script_path}/.woo.aras.enb" >/dev/null 2>&1
 				echo -e "\n${green}*${reset} ${green}Aras-WooCommerce integration enabled.${reset}"
 				echo -e "${cyan}${m_tab}#####################################################${reset}\n"
@@ -1530,8 +1539,8 @@ un_install () {
 
 # Disable setup after successful installation
 on_fly_disable () {
-	touch "${this_script_path}/.woo.aras.set"
-	touch "${this_script_path}/.woo.aras.enb"
+	depriv touch "${this_script_path}/.woo.aras.set"
+	depriv touch "${this_script_path}/.woo.aras.enb"
 	chattr +i "${this_script_path}/.woo.aras.set" >/dev/null 2>&1
 	chattr +i "${this_script_path}/.woo.aras.enb" >/dev/null 2>&1
 }
@@ -1682,7 +1691,7 @@ twoway_enable () {
 	if $exist; then
 		if [ ! -e "${this_script_path}/.two.way.enb" ]; then
 			if [ "$functions_mod" == "applied" ]; then
-				touch "${this_script_path}/.two.way.enb"
+				depriv touch "${this_script_path}/.two.way.enb"
 				chattr +i "${this_script_path}/.two.way.enb"
 				echo -e "\n${green}*${reset} ${green}Two way fulfillment workflow enabled successfully: ${reset}"
 				echo -e "${cyan}${m_tab}#####################################################${reset}\n"
