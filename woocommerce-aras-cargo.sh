@@ -517,7 +517,7 @@ else
 fi
 
 # Check dependencies
-declare -a dependencies=("curl" "iconv" "openssl" "jq" "php" "perl" "awk" "sed" "pstree" "stat" "$send_mail_command" "whiptail" "logrotate" "paste" "column" "zgrep" "mapfile" "readarray" "locale" "systemctl")
+declare -a dependencies=("curl" "iconv" "openssl" "jq" "php" "perl" "awk" "sed" "pstree" "stat" "$send_mail_command" "whiptail" "logrotate" "paste" "column" "zgrep" "mapfile" "readarray" "locale" "systemctl" "chattr")
 for i in "${dependencies[@]}"
 do
 	if ! command -v "$i" > /dev/null 2>&1; then
