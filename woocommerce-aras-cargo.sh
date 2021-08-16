@@ -1326,8 +1326,6 @@ hard_reset () {
 			echo "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}"
 			echo "$(timestamp): Uninstallation error: $cron_dir/$cron_filename not writeable" >> "${error_log}"
 		fi
-	else
-		cron_uninstall=0
 	fi
 
 	if [[ -s "${cron_dir}/${cron_filename_update}" ]]; then
@@ -1342,8 +1340,6 @@ hard_reset () {
 			echo "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}"
 			echo "$(timestamp): Uninstallation error: ${cron_dir}/${cron_filename_update} is not writeable" >> "${error_log}"
 		fi
-	else
-		cron_uninstall_update=0
 	fi
 
 
@@ -1363,8 +1359,6 @@ hard_reset () {
 			echo "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}"
 			echo "$(timestamp): Uninstallation error: $systemd_dir/$service_filename not writeable" >> "${error_log}"
 		fi
-	else
-		systemd_uninstall=0
 	fi
 
 	if [[ -s "${logrotate_dir}/${logrotate_filename}" ]]; then
@@ -1379,30 +1373,34 @@ hard_reset () {
 			echo "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}"
 			echo "$(timestamp): Uninstallation error: ${logrotate_dir}/${logrotate_filename} not writeable" >> "${error_log}"
 		fi
-	else
-		logrotate_uninstall=0
 	fi
 
 	if [[ -s "${tmpfiles_d}/${tmpfiles_f}" ]]; then
 		if [[ -w "${tmpfiles_d}/${tmpfiles_f}" ]]; then
 			rm -f "${tmpfiles_d:?}/${tmpfiles_f:?}" >/dev/null 2>&1
-			echo -e "\n${yellow}*${reset} ${yellow}tmpfiles mount config removed:${reset}"
+			echo -e "\n${yellow}*${reset} ${yellow}systemd_tmpfiles conf removed:${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			echo "${yellow}${m_tab}${tmpfiles_d}/${tmpfiles_f}${reset}"
 		else
-			echo -e "\n${red}*${reset} ${red}tmpfiles mount config uninstallation aborted, as file not writable: ${logrotate_dir}/${logrotate_filename}${reset}"
+			echo -e "\n${red}*${reset} ${red}Uninstallation aborted, as file not writable: ${tmpfiles_d}/${tmpfiles_f}${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			echo "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}"
-			echo "$(timestamp): Uninstallation error: ${tmpfiles_d}/${tmpfiles_f} not writeable" >> "${error_log}"
+			echo "$(timestamp): Uninstallation aborted, as file not writable: ${tmpfiles_d}/${tmpfiles_f}" >> "${error_log}"
 		fi
-	else
-		tmpfiles_uninstall=0
 	fi
 
-	if [[ -n $systemd_uninstall && -n $cron_uninstall && -n $cron_uninstall_update && -n $logrotate_uninstall && -n $tmpfiles_uninstall ]]; then
-		echo -e "\n${yellow}*${reset} ${yellow}Cron, systemd, logrotate not installed.${reset}"
-		echo "${cyan}${m_tab}#####################################################${reset}"
-		echo -e "${m_tab}${yellow}Nothing found to uninstall.${reset}\n"
+	if grep -q "ARAS Cargo" "${logrotate_conf}"; then
+		if [[ -w "${logrotate_conf}" ]]; then
+			$m_sed -n -e '/^# Via WooCommerce/,/^# END-WOOARAS/!p' -i "${logrotate_conf}" || { echo "Logrotate cannot removed, as sed failed"; exit 1; }
+			echo -e "\n${yellow}*${reset} ${yellow}Logrotate rules removed from:${reset}"
+			echo "${cyan}${m_tab}#####################################################${reset}"
+			echo "${yellow}${m_tab}${logrotate_conf}${reset}"
+		else
+			echo -e "\n${red}*${reset} ${red}Uninstallation aborted, as file not writable: ${logrotate_conf}${reset}"
+			echo "${cyan}${m_tab}#####################################################${reset}"
+			echo "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}"
+			echo "$(timestamp): Uninstallation aborted, as file not writable: ${logrotate_conf}" >> "${error_log}"
+		fi
 	fi
 }
 
@@ -1474,11 +1472,11 @@ enable () {
 
 un_install () {
 	# Remove twoway fulfillment workflow
-	if [ -e "${this_script_path}/.two.way.enb" ]; then
+	if [[ -e "${this_script_path}/.two.way.enb" ]]; then
 		uninstall_twoway
 	fi
 
-	# Removes install bundles aka cron jobs, systemd services, logrotate, tmpfiles
+	# Removes install bundles aka cron jobs, systemd services, logrotate, systemd_tmpfiles
 	if [[ -e "${cron_dir}/${cron_filename}" ||
 		-e "${systemd_dir}/${service_filename}" ||
 		-e "${logrotate_dir}/${logrotate_filename}" ||
@@ -1542,6 +1540,7 @@ on_fly_enable () {
 			-e "${systemd_dir}/${service_filename}" ||
 			-e "${logrotate_dir}/${logrotate_filename}" ||
 			-e "${systemd_dir}/${timer_filename}" ||
+			-e "${tmpfiles_d}/${tmpfiles_f}" ||
 			-e "${cron_dir}/${cron_filename_update}" ]]; then
 
 			while true
@@ -2019,6 +2018,9 @@ add_cron () {
 			# Set status
 			on_fly_disable
 
+			# Install systemd_tmpfiles
+			systemd_tmpfiles
+
 			# Add logrotate
 			if [[ -z "$logrotate_status" ]]; then
 				add_logrotate
@@ -2134,6 +2136,9 @@ add_systemd () {
 						# Set status
 						on_fly_disable
 
+						# Install systemd_tmpfiles
+						systemd_tmpfiles
+
 						# Add logrotate
 						if [[ -z "$logrotate_status" ]]; then
 							add_logrotate
@@ -2180,15 +2185,50 @@ add_systemd () {
 # Keeping log size small is important for performance
 add_logrotate () {
 	if grep -qFx "include ${logrotate_dir}" "${logrotate_conf}"; then
-		if [[ ! -w "$logrotate_dir" ]]; then
-			echo -e "\n${yellow}*${reset} ${yellow}WARNING: Logrotate cannot installed. $logrotate_dir is not writeable by user $user${reset}"
+		if [[ ! -e "${logrotate_dir}/${logrotate_filename}" ]]; then
+			if [[ ! -w "${logrotate_dir}" ]]; then
+				echo -e "\n${red}*${reset} ${red}Installation aborted, as folder not writeable: $logrotate_dir${reset}"
+				echo "${cyan}${m_tab}#####################################################${reset}"
+				echo -e "${m_tab}${yellow}You can run script as root or execute with sudo.${reset}\n"
+				echo "$(timestamp): Installation aborted, as folder not writeable: ${logrotate_dir}" >> "${error_log}"
+				exit 1
+			else
+				logrotate_installed="asfile"
+				cat <<- EOF > "${logrotate_dir:?}/${logrotate_filename:?}"
+				"${access_log%.*}.*" {
+				firstaction
+				${cron_script_full_path} --rotate > /dev/null 2>&1
+				endscript
+				daily
+				rotate 5
+				size ${l_maxsize}
+				missingok
+				compress
+				delaycompress
+				notifempty
+				create 0660 ${user} ${user}
+				lastaction
+				/bin/kill -HUP `cat ${PIDFILE}` 2>/dev/null || true
+				echo "Logrotation completed" >> ${access_log}
+				endscript
+				}
+				EOF
+			fi
+		fi
+	elif ! grep -q "ARAS Cargo" "${logrotate_conf}"; then
+		if [[ ! -w "${logrotate_conf}" ]]; then
+			echo -e "\n${red}*${reset} ${red}Installation aborted, as file not writeable: ${logrotate_conf}${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
-			echo "${m_tab}${yellow}You can run script as root or execute with sudo.${reset}"
-			echo "$(timestamp): Logrotate cannot installed. $logrotate_dir is not writeable by user $user" >> "${error_log}"
+			echo -e "${m_tab}${yellow}You can run script as root or execute with sudo.${reset}\n"
+			echo "$(timestamp): Installation aborted, as file not writeable: ${logrotate_conf}" >> "${error_log}"
+			exit 1
 		else
-			logrotate_installed="asfile"
-			cat <<- EOF > "${logrotate_dir:?}/${logrotate_filename:?}"
-			/var/log/woocommerce_aras.* {
+			logrotate_installed="conf"
+			cat <<- EOF >> "${logrotate_conf:?}"
+
+			# Via WooCommerce - ARAS Cargo Integration Script
+			# Copyright 2021 Hasan ÇALIŞIR
+			"${access_log%.*}.*" {
 			firstaction
 			${cron_script_full_path} --rotate > /dev/null 2>&1
 			endscript
@@ -2204,43 +2244,40 @@ add_logrotate () {
 			/bin/kill -HUP `cat ${PIDFILE}` 2>/dev/null || true
 			echo "Logrotation completed" >> ${access_log}
 			endscript
+			# END-WOOARAS
 			}
 			EOF
 		fi
-	else
-		logrotate_installed="conf"
-		cat <<- EOF >> "${logrotate_conf:?}"
-
-		/var/log/woocommerce_aras.* {
-		firstaction
-		${cron_script_full_path} --rotate > /dev/null 2>&1
-		endscript
-		daily
-		rotate 5
-		size ${l_maxsize}
-		missingok
-		compress
-		delaycompress
-		notifempty
-		create 0660 ${user} ${user}
-		lastaction
-		/bin/kill -HUP `cat ${PIDFILE}` 2>/dev/null || true
-		echo "Logrotation completed" >> ${access_log}
-		endscript
-		}
-		EOF
 	fi
 }
 
-run_tmpfiles () {
-	if [ ! -d /run/woo-aras ]; then
-		mkdir /run/woo-aras/ >/dev/null 2>&1
-		chown $user:$user /run/woo-aras
+systemd_tmpfiles () {
+	if [[ ! -d /run/woo-aras ]]; then
+		if [[ ! -w /run ]]; then
+			echo -e "\n${red}*${reset} ${red}Installation aborted, as folder not writable: /run${reset}"
+			echo "${cyan}${m_tab}#####################################################${reset}"
+			echo -e "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}\n"
+			echo "$(timestamp): SETUP: Installation aborted, as folder not writable: /run" >> "${error_log}"
+			exit 1
+		else
+			mkdir /run/woo-aras/ >/dev/null 2>&1
+			chown $user:$user /run/woo-aras
+		fi
 	fi
 
-	cat <<- EOF > "${tmpfiles_d:?}/${tmpfiles_f:?}"
-	d /run/woo-aras 0755 $user $user
-	EOF
+	if [[ ! -e "${tmpfiles_d}/${tmpfiles_f}" ]]; then
+		if [[ ! -w "${tmpfiles_d}" ]]; then
+			echo -e "\n${red}*${reset} ${red}Installation aborted, as folder not writable: ${tmpfiles_d}${reset}"
+			echo "${cyan}${m_tab}#####################################################${reset}"
+			echo -e "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}\n"
+			echo "$(timestamp): Installation aborted, as folder not writable: ${tmpfiles_d}" >> "${error_log}"
+			exit 1
+		else
+			cat <<- EOF > "${tmpfiles_d:?}/${tmpfiles_f:?}"
+			d /run/woo-aras 0755 $user $user
+			EOF
+		fi
+	fi
 }
 #=====================================================================
 
@@ -2289,6 +2326,7 @@ fi
 
 if [[ $- =~ x ]]; then debug=1; set +x; fi
 set +o history
+
 encrypt_wc_auth () {
 	if [[ ! -s "$this_script_path/.key.wc.lck" ]]; then
 		if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
