@@ -122,22 +122,24 @@ send_mail_suc () {
 
 if [[ $SUDO_USER ]]; then user="$SUDO_USER"; else user="$(whoami)"; fi
 create_pid_path () {
-	# For the first time we need to create folder manually
+	# Working with non-root users always headache
+	# On the other hand, saying runs only under root is pathetic, vulnerable and easy
 	mkdir /run/woo-aras/ >/dev/null 2>&1
 	chown $user:$user /run/woo-aras
 }
 
-# We will also add config to /etc/tmpfiles.d/ later to create folder automatically after reboot
+# We will deploy pid folder via /etc/tmpfiles.d/ or rc.local later
 if [[ ! -d /run/woo-aras ]]; then
 	if [[ $SUDO_USER ]]; then
 		create_pid_path
 	elif [[ $EUID -eq 0 ]]; then
 		create_pid_path
 	else
-		echo -e "\n${red}*${reset} ${red} Run setup as root or with sudo user.${reset}"
+		echo -e "\n${yellow}*${reset} ${yellow}Cannot create PID, as folder not writable: /run${reset}\n"
 		echo "${cyan}${m_tab}#####################################################${reset}"
-		echo -e "${m_tab}${red}sudo ./woocommerce-aras-cargo.sh --setup${reset}\n"
-		echo "$(timestamp): Installation aborted, as folder not writable: /run" >> "${error_log}"
+		echo "${yellow}${m_tab}${yellow}Run as root or with sudo user to create path.${reset}"
+		echo -e "${m_tab}${yellow}sudo ./woocommerce-aras-cargo.sh --help${reset}\n"
+		echo "$(timestamp): Cannot create PID, as folder not writable: /run" >> "${error_log}"
 		exit 1
 	fi
 fi
@@ -2284,17 +2286,29 @@ add_logrotate () {
 }
 
 systemd_tmpfiles () {
-	if [[ ! -e "${tmpfiles_d}/${tmpfiles_f}" ]]; then
-		if [[ ! -w "${tmpfiles_d}" ]]; then
-			echo -e "\n${red}*${reset} ${red}Installation aborted, as folder not writable: ${tmpfiles_d}${reset}"
+	if systemctl is-active --quiet "systemd-tmpfiles-setup.service"; then
+		if [[ ! -e "${tmpfiles_d}/${tmpfiles_f}" ]]; then
+			if [[ ! -w "${tmpfiles_d}" ]]; then
+				echo -e "\n${red}*${reset} ${red}Installation aborted, as folder not writable: ${tmpfiles_d}${reset}"
+				echo "${cyan}${m_tab}#####################################################${reset}"
+				echo -e "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}\n"
+				echo "$(timestamp): Installation aborted, as folder not writable: ${tmpfiles_d}" >> "${error_log}"
+				exit 1
+			else
+				cat <<- EOF > "${tmpfiles_d:?}/${tmpfiles_f:?}"
+				d /run/woo-aras 0755 $user $user
+				EOF
+			fi
+		fi
+	elif systemctl is-active --quiet "rc-local.service"; then
+		if [[ ! -w "/etc/rc.local" ]]; then
+			echo -e "\n${red}*${reset} ${red}Installation aborted, as file not writable: /etc/rc.local${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			echo -e "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}\n"
-			echo "$(timestamp): Installation aborted, as folder not writable: ${tmpfiles_d}" >> "${error_log}"
+			echo "$(timestamp): Installation aborted, as file not writable: /etc/rc.local" >> "${error_log}"
 			exit 1
 		else
-			cat <<- EOF > "${tmpfiles_d:?}/${tmpfiles_f:?}"
-			d /run/woo-aras 0755 $user $user
-			EOF
+			$m_sed -i -e '$i \mkdir /run/woo-aras/ && chown '"${user}:${user}"' /run/woo-aras\n' "/etc/rc.local"
 		fi
 	fi
 }
