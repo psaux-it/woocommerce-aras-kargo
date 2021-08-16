@@ -137,7 +137,8 @@ create_pid_path () {
 	chown $user:$user /run/woo-aras
 }
 
-# We will deploy pid folder (via --> /etc/tmpfiles.d/ || rc.local) later
+# We will deploy runtime folder (via --> /etc/tmpfiles.d/ || rc.local) for cron later
+# For systemd we will use 'RuntimeDirectory' so no need tmpfiles ops.
 if [[ ! -d /run/woo-aras ]]; then
 	if [[ $SUDO_USER ]]; then
 		create_pid_path
@@ -2057,7 +2058,7 @@ add_cron () {
 			# Add logrotate
 			add_logrotate
 
-			# Take ownership of script
+			# Take ownership of script & path
 			[[ $SUDO_USER ]] && { chown "${user}":"${user}" "${cron_script_full_path}"; chown "${user}":"${user}" "${this_script_path}"; }
 
 			# Set status
@@ -2124,6 +2125,8 @@ add_systemd () {
 		Type=oneshot
 		User=${systemd_user}
 		Group=${systemd_user}
+		RuntimeDirectory=woo-aras
+		RuntimeDirectoryMode=0775
 		Environment=RUNNING_FROM_SYSTEMD=1
 		StandardOutput=append:${access_log}
 		StandardError=append:${error_log}
@@ -2177,13 +2180,10 @@ add_systemd () {
 
 					result=$?
 					if [ "$result" -eq 0 ]; then
-						# Install systemd_tmpfiles
-						systemd_tmpfiles
-
 						# Add logrotate
 						add_logrotate
 
-						# Take ownership of script
+						# Take ownership of script & path
 						[[ $SUDO_USER ]] && { chown "${user}":"${user}" "${cron_script_full_path}"; chown "${user}":"${user}" "${this_script_path}"; }
 
 						# Set status
