@@ -484,7 +484,7 @@ else
 fi
 
 # Check dependencies
-declare -a dependencies=("curl" "iconv" "openssl" "jq" "php" "perl" "awk" "sed" "pstree" "stat" "$send_mail_command" "whiptail" "logrotate" "paste" "column" "chattr" "zgrep" "mapfile" "readarray" "locale")
+declare -a dependencies=("curl" "iconv" "openssl" "jq" "php" "perl" "awk" "sed" "pstree" "stat" "$send_mail_command" "whiptail" "logrotate" "paste" "column" "chattr" "zgrep" "mapfile" "readarray" "locale" "systemctl")
 for i in "${dependencies[@]}"
 do
 	if ! command -v "$i" > /dev/null 2>&1; then
@@ -504,13 +504,6 @@ do
 			if [ $check_mail_server -eq 0 ]; then
 				echo "$(timestamp): $i not found." >> "${error_log}"
 			fi
-		# Not break script but warn user about logrotate support
-		elif [ "$i" == "logrotate" ]; then
-			echo -e "\n${yellow}*${reset} ${yellow}Logrotate not found, there will be no logrotation support.${reset}"
-			echo "${cyan}${m_tab}#####################################################${reset}"
-			echo -e "${yellow}${m_tab}You can install logrotate from distro repo and re-start setup.${reset}\n"
-			echo "$(timestamp): Logrotate not found, there will be no logrotation support" >> "${error_log}"
-			logrotate_status="false"
 		else
 			# Exit for all other conditions
 			echo "${yellow}${m_tab}Please install necessary package from your linux repository and re-start setup.${reset}"
@@ -2022,9 +2015,7 @@ add_cron () {
 			systemd_tmpfiles
 
 			# Add logrotate
-			if [[ -z "$logrotate_status" ]]; then
-				add_logrotate
-			fi
+			add_logrotate
 
 			echo -e "\n${green}*${reset} ${green}Installation completed.${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
@@ -2140,9 +2131,7 @@ add_systemd () {
 						systemd_tmpfiles
 
 						# Add logrotate
-						if [[ -z "$logrotate_status" ]]; then
-							add_logrotate
-						fi
+						add_logrotate
 					else
 						echo -e "\n${red}*${reset} ${green}Installation failed.${reset}"
 						echo "${cyan}${m_tab}#####################################################${reset}"
