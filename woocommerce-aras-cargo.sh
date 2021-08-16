@@ -120,6 +120,28 @@ send_mail_suc () {
 # END
 # =====================================================================
 
+if [[ $SUDO_USER ]]; then user="$SUDO_USER"; else user="$(whoami)"; fi
+create_pid_path () {
+	# For the first time we need to create folder manually
+	mkdir /run/woo-aras/ >/dev/null 2>&1
+	chown $user:$user /run/woo-aras
+}
+
+# We will also add config to /etc/tmpfiles.d/ later to create folder automatically after reboot
+if [[ ! -d /run/woo-aras ]]; then
+	if [[ $SUDO_USER ]]; then
+		create_pid_path
+	elif [[ $EUID -eq 0 ]]; then
+		create_pid_path
+	else
+		echo -e "\n${red}*${reset} ${red} Run setup as root or with sudo user.${reset}"
+		echo "${cyan}${m_tab}#####################################################${reset}"
+		echo -e "${m_tab}${red}sudo ./woocommerce-aras-cargo.sh --setup${reset}\n"
+		echo "$(timestamp): Installation aborted, as folder not writable: /run" >> "${error_log}"
+		exit 1
+	fi
+fi
+
 # PID File
 PIDFILE=/var/run/woo-aras/woocommerce-aras-cargo.pid
 
@@ -565,7 +587,6 @@ fi
 # =====================================================================
 
 # Global variables
-if [ $SUDO_USER ]; then user="$SUDO_USER"; else user="$(whoami)"; fi
 cron_dir="/etc/cron.d"
 shopt -s extglob; cron_dir="${cron_dir%%+(/)}"
 cron_filename="woocommerce_aras"
@@ -1395,17 +1416,6 @@ hard_reset () {
 			echo "$(timestamp): Uninstallation aborted, as file not writable: ${logrotate_conf}" >> "${error_log}"
 		fi
 	fi
-
-	if [[ -d /run/woo-aras ]]; then
-		if [[ -w /run/woo-aras ]]; then
-			rm -rf /run/woo-aras
-		else
-			echo -e "\n${red}*${reset} ${red}Uninstallation aborted, as folder not writable: /run/woo-aras${reset}"
-                        echo "${cyan}${m_tab}#####################################################${reset}"
-                        echo "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}"
-                        echo "$(timestamp): Uninstallation aborted, as folder not writable: /run/woo-aras" >> "${error_log}"
-		fi
-	fi
 }
 
 # Instead of uninstall just disable/inactivate script (for urgent cases & debugging purpose)
@@ -1486,7 +1496,6 @@ un_install () {
 		-e "${logrotate_dir}/${logrotate_filename}" ||
 		-e "${systemd_dir}/${timer_filename}" ||
 		-e "${tmpfiles_d}/${tmpfiles_f}" ||
-		-d /run/woo-aras ||
 		-e "${cron_dir}/${cron_filename_update}" ]]; then
 		hard_reset
 	fi
@@ -1545,7 +1554,6 @@ on_fly_enable () {
 			-e "${systemd_dir}/${service_filename}" ||
 			-e "${logrotate_dir}/${logrotate_filename}" ||
 			-e "${systemd_dir}/${timer_filename}" ||
-			-d /run/woo-aras ||
 			-e "${tmpfiles_d}/${tmpfiles_f}" ||
 			-e "${cron_dir}/${cron_filename_update}" ]]; then
 
@@ -2276,19 +2284,6 @@ add_logrotate () {
 }
 
 systemd_tmpfiles () {
-	if [[ ! -d /run/woo-aras ]]; then
-		if [[ ! -w /run ]]; then
-			echo -e "\n${red}*${reset} ${red}Installation aborted, as folder not writable: /run${reset}"
-			echo "${cyan}${m_tab}#####################################################${reset}"
-			echo -e "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}\n"
-			echo "$(timestamp): SETUP: Installation aborted, as folder not writable: /run" >> "${error_log}"
-			exit 1
-		else
-			mkdir /run/woo-aras/ >/dev/null 2>&1
-			chown $user:$user /run/woo-aras
-		fi
-	fi
-
 	if [[ ! -e "${tmpfiles_d}/${tmpfiles_f}" ]]; then
 		if [[ ! -w "${tmpfiles_d}" ]]; then
 			echo -e "\n${red}*${reset} ${red}Installation aborted, as folder not writable: ${tmpfiles_d}${reset}"
