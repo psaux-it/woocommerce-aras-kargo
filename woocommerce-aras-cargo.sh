@@ -2075,7 +2075,7 @@ add_cron () {
 			add_logrotate
 
 			# Take ownership of script & path
-			[[ $SUDO_USER ]] && { chown "${user}":"${user}" "${cron_script_full_path}"; chown "${user}":"${user}" "${this_script_path}"; }
+			[[ $SUDO_USER ]] && { chown "${user}":"${user}" "${cron_script_full_path}"; chown "${user}":"${user}" "${this_script_path}"; chown -R "${user}":"${user}" ${access_log%.*}.*; }
 
 			# Set status
 			on_fly_disable
@@ -2200,7 +2200,7 @@ add_systemd () {
 						add_logrotate
 
 						# Take ownership of script & path
-						[[ $SUDO_USER ]] && { chown "${user}":"${user}" "${cron_script_full_path}"; chown "${user}":"${user}" "${this_script_path}"; }
+						[[ $SUDO_USER ]] && { chown "${user}":"${user}" "${cron_script_full_path}"; chown "${user}":"${user}" "${this_script_path}"; chown -R "${user}":"${user}" ${access_log%.*}.*; }
 
 						# Set status
 						on_fly_disable
