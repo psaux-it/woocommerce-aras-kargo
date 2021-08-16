@@ -1919,6 +1919,9 @@ download () {
 		echo -e "Upgrade completed. WooCommerce-aras integration script updated to version ${latest_version}\n${changelog_p}" | mail -s "$mail_subject_suc" -a "$mail_from" "$mail_to"
 	fi
 
+	# Clean-up
+	rm -rf ${this_script_path}/upgr.proc ${PIDFILE} || { echo "Temproray files cannot removed"; }
+
 	#remove the tmp script before exit
 	rm -f \$0
 	EOF
@@ -2090,16 +2093,16 @@ add_cron () {
 			fi
 			if [[ -n "$logrotate_installed" ]]; then
 				if [[ "$logrotate_installed" == "asfile" ]]; then
-					echo -e "${m_tab}${green}Logrotate installed to ${cyan}${logrotate_dir}/${logrotate_filename}${reset}\n"
+					echo "${m_tab}${green}Logrotate installed to ${cyan}${logrotate_dir}/${logrotate_filename}${reset}"
 				elif [[ "$logrotate_installed" == "conf" ]]; then
-					echo -e "${m_tab}${green}Logrotate rules inserted to ${cyan}${logrotate_conf}${reset}\n"
+					echo "${m_tab}${green}Logrotate rules inserted to ${cyan}${logrotate_conf}${reset}"
 				fi
 			fi
 			if [[ -n "$tmpfiles_installed" ]]; then
 				if [[ "$tmpfiles_installed" == "systemd" ]]; then
-					echo "${m_tab}${green}Runtime path deployed via ${cyan}${tmpfiles_d}/${tmpfiles_f}${reset}"
+					echo -e "${m_tab}${green}Runtime path deployed via ${cyan}${tmpfiles_d}/${tmpfiles_f}${reset}\n"
 				elif [[ "$tmpfiles_installed" == "rclocal" ]]; then
-					echo "${m_tab}${green}Runtime path deployed via ${cyan}/etc/rc.local${reset}"
+					echo -e "${m_tab}${green}Runtime path deployed via ${cyan}/etc/rc.local${reset}\n"
 				fi
 			fi
 			echo "$(timestamp): Installation completed." >> "${access_log}"
@@ -2229,13 +2232,6 @@ add_systemd () {
 					echo -e "${m_tab}${green}Logrotate installed to ${cyan}${logrotate_dir}/${logrotate_filename}${reset}\n"
 				elif [[ "$logrotate_installed" == "conf" ]]; then
 					echo -e "${m_tab}${green}Logrotate rules inserted to ${cyan}${logrotate_conf}${reset}\n"
-				fi
-			fi
-			if [[ -n "$tmpfiles_installed" ]]; then
-				if [[ "$tmpfiles_installed" == "systemd" ]]; then
-					echo "${m_tab}${green}Runtime path deployed via ${cyan}${tmpfiles_d}/${tmpfiles_f}${reset}"
-				elif [[ "$tmpfiles_installed" == "rclocal" ]]; then
-					echo "${m_tab}${green}Runtime path deployed via ${cyan}/etc/rc.local${reset}"
 				fi
 			fi
 			echo "$(timestamp): Installation completed." >> "${access_log}"
