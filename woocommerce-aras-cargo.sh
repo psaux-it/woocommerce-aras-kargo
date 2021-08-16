@@ -2097,9 +2097,9 @@ add_cron () {
 			fi
 			if [[ -n "$tmpfiles_installed" ]]; then
 				if [[ "$tmpfiles_installed" == "systemd" ]]; then
-					echo -e "${m_tab}${green}Runtime path deployed via ${cyan}${tmpfiles_d}/${tmpfiles_f}${reset}\n"
+					echo "${m_tab}${green}Runtime path deployed via ${cyan}${tmpfiles_d}/${tmpfiles_f}${reset}"
 				elif [[ "$tmpfiles_installed" == "rclocal" ]]; then
-					echo -e "${m_tab}${green}Runtime path deployed via ${cyan}/etc/rc.local${reset}\n"
+					echo "${m_tab}${green}Runtime path deployed via ${cyan}/etc/rc.local${reset}"
 				fi
 			fi
 			echo "$(timestamp): Installation completed." >> "${access_log}"
@@ -2233,9 +2233,9 @@ add_systemd () {
 			fi
 			if [[ -n "$tmpfiles_installed" ]]; then
 				if [[ "$tmpfiles_installed" == "systemd" ]]; then
-					echo -e "${m_tab}${green}Run path deployed via ${cyan}${tmpfiles_d}/${tmpfiles_f}${reset}\n"
+					echo "${m_tab}${green}Runtime path deployed via ${cyan}${tmpfiles_d}/${tmpfiles_f}${reset}"
 				elif [[ "$tmpfiles_installed" == "rclocal" ]]; then
-					echo -e "${m_tab}${green}Run path deployed via ${cyan}/etc/rc.local${reset}\n"
+					echo "${m_tab}${green}Runtime path deployed via ${cyan}/etc/rc.local${reset}"
 				fi
 			fi
 			echo "$(timestamp): Installation completed." >> "${access_log}"
@@ -2276,7 +2276,7 @@ add_logrotate () {
 				notifempty
 				create 0660 ${user} ${user}
 				lastaction
-				/bin/kill -HUP `cat ${PIDFILE}` 2>/dev/null || true
+				/bin/kill -HUP \`cat ${PIDFILE}\` 2>/dev/null || true
 				echo "Logrotation completed" >> ${access_log}
 				endscript
 				}
@@ -2309,7 +2309,7 @@ add_logrotate () {
 			notifempty
 			create 0660 ${user} ${user}
 			lastaction
-			/bin/kill -HUP `cat ${PIDFILE}` 2>/dev/null || true
+			/bin/kill -HUP \`cat ${PIDFILE}\` 2>/dev/null || true
 			echo "Logrotation completed" >> ${access_log}
 			endscript
 			# END-WOOARAS
