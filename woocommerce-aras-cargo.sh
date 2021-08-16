@@ -137,26 +137,6 @@ create_pid_path () {
 	chown $user:$user /run/woo-aras
 }
 
-# We will deploy runtime folder (via --> /etc/tmpfiles.d/ || rc.local) for cron later
-# For systemd we will use 'RuntimeDirectory' so no need tmpfiles ops.
-if [[ ! -d /run/woo-aras ]]; then
-	if [[ $SUDO_USER ]]; then
-		create_pid_path
-	elif [[ $EUID -eq 0 ]]; then
-		create_pid_path
-	else
-		echo -e "\n${yellow}*${reset} ${yellow}Cannot create PID, as folder not writable: /run${reset}\n"
-		echo "${cyan}${m_tab}#####################################################${reset}"
-		echo "${yellow}${m_tab}${yellow}Run as root or with sudo user${reset}"
-		echo -e "${m_tab}${yellow}sudo ./woocommerce-aras-cargo.sh --help${reset}\n"
-		echo "$(timestamp): Cannot create PID, as folder not writable: /run" >> "${error_log}"
-		exit 1
-	fi
-fi
-
-# PID File
-PIDFILE=/var/run/woo-aras/woocommerce-aras-cargo.pid
-
 # Determine script run by cron
 TEST_CRON="$(pstree -s $$ | grep -c cron 2>/dev/null)"
 TEST_CRON_2=$([ -z "$TERM" ] || [ "$TERM" = "dumb" ] && echo '1' || echo '0')
@@ -184,6 +164,25 @@ if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 	EC=$'\e[0m'
 	m_tab='  '
 	m_tab_3=' '
+fi
+
+# We will deploy runtime folder (via --> /etc/tmpfiles.d/ || rc.local) for cron later
+# For systemd we will use 'RuntimeDirectory' so no need tmpfiles ops.
+if [[ ! -d /run/woo-aras ]]; then
+	if [[ $SUDO_USER ]]; then
+		create_pid_path
+	elif [[ $EUID -eq 0 ]]; then
+		create_pid_path
+	elif [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
+		echo -e "\n${yellow}*${reset} ${yellow}Cannot create PID, as runtime folder not writable: /run${reset}\n"
+		echo "${cyan}${m_tab}#####################################################${reset}"
+		echo "${yellow}${m_tab}${yellow}Run once as root or with sudo user to create runtime folder${reset}"
+		echo -e "${m_tab}${yellow}sudo ./woocommerce-aras-cargo.sh --help${reset}\n"
+		exit 1
+	elif [ $send_mail_err -eq 1 ]; then
+		send_mail_err <<< "Cannot create PID, as runtime folder not writable: /run --> run once manually as root or with sudo user to create runtime folder." >/dev/null 2>&1
+		exit 1
+	fi
 fi
 
 # Add local PATHS to deal with cron errors.
@@ -236,7 +235,7 @@ if [[ -z "$this_script_full_path" || -z "$this_script_path" || -z "$this_script_
 	path_pretty_error
 fi
 
-# Logrotation firstaction
+# Logrotation firstaction rules
 my_rotate () {
 	# Not logrotate while script running
 	if [[ -f "${PIDFILE}" ]]; then
@@ -266,6 +265,9 @@ my_rotate () {
 if [[ "$1" == "--rotate" ]]; then
 	my_rotate
 fi
+
+# PID File
+PIDFILE="/var/run/woo-aras/woocommerce-aras-cargo.pid"
 
 # Pid pretty error
 pid_pretty_error () {
@@ -1427,6 +1429,20 @@ hard_reset () {
 			echo "$(timestamp): Uninstallation aborted, as file not writable: ${logrotate_conf}" >> "${error_log}"
 		fi
 	fi
+
+	if grep -q "woo-aras" "/etc/rc.local"; then
+		if [[ -w "/etc/rc.local" ]]; then
+			$m_sed -i '/^woo-aras/d' "/etc/rc.local" || { echo "rc.local rule cannot removed, as sed failed"; exit 1; }
+			echo -e "\n${yellow}*${reset} ${yellow}rc.local rule removed from:${reset}"
+			echo "${cyan}${m_tab}#####################################################${reset}"
+			echo "${yellow}${m_tab}/etc/rc.local${reset}"
+		else
+			echo -e "\n${red}*${reset} ${red}Uninstallation aborted, as file not writable: /etc/rc.local${reset}"
+                        echo "${cyan}${m_tab}#####################################################${reset}"
+                        echo "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}"
+                        echo "$(timestamp): Uninstallation aborted, as file not writable: /etc/rc.local" >> "${error_log}"
+		fi
+	fi
 }
 
 # Instead of uninstall just disable/inactivate script (for urgent cases & debugging purpose)
@@ -2081,9 +2097,9 @@ add_cron () {
 			fi
 			if [[ -n "$tmpfiles_installed" ]]; then
 				if [[ "$tmpfiles_installed" == "systemd" ]]; then
-					echo -e "${m_tab}${green}Run path deployed via ${cyan}${tmpfiles_d}/${tmpfiles_f}${reset}\n"
+					echo -e "${m_tab}${green}Runtime path deployed via ${cyan}${tmpfiles_d}/${tmpfiles_f}${reset}\n"
 				elif [[ "$tmpfiles_installed" == "rclocal" ]]; then
-					echo -e "${m_tab}${green}Run path deployed via ${cyan}/etc/rc.local${reset}\n"
+					echo -e "${m_tab}${green}Runtime path deployed via ${cyan}/etc/rc.local${reset}\n"
 				fi
 			fi
 			echo "$(timestamp): Installation completed." >> "${access_log}"
