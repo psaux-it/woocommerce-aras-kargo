@@ -160,8 +160,8 @@ Critical part such as success mails, fronted&admin side custom order status labe
 - ARAS SOAP Query Type (restricted to 12/13)
 
 ## User Defined Settings
-Please set below settings manually in the script. While auto update triggers we always keep these settings.
-So it is enough to set one time. For shop manager & system admin mail notifications you need working mail server like postfix with 'mail' command which comes with mailutils linux package.
+Please check and modify below settings before starting the setup. You can read the code comments in the script. We always keep these settings.
+So it is enough to set one time, no need the re-adjust after upgrade. For mail notifications you need working mail server like postfix with 'mail' command which comes with mailutils linux package.
 If you use mutt, ssmtp, sendmail etc. please edit mail function as you wish. You can find detailed info about below settings in script comments.
 
 - delivery_time
@@ -173,6 +173,10 @@ If you use mutt, ssmtp, sendmail etc. please edit mail function as you wish. You
 - access_log
 - company_name
 - company_domain
+- send_mail_command
+- send_mail_err
+- maxsize
+- l_maxsize
 - mail_to
 - mail_from
 - mail_subject_suc
@@ -187,8 +191,8 @@ If you use mutt, ssmtp, sendmail etc. please edit mail function as you wish. You
 - Adjust user defined settings such as mail_to, company_name as mentioned before
 - Clear wordpress cache for some security checks
 - Be sure you have some data both on woocommerce and ARAS for validations (if not create test orders)
-- Clone repo in /opt folder ```git clone https://github.com/hsntgm/woocommerce-aras-kargo.git``` (Never manually copy/paste script)
-- In /opt folder execute script as 'root' or with sudo 
+- Clone repo in /opt folder ```sudo git clone https://github.com/hsntgm/woocommerce-aras-kargo.git``` (Never manually copy/paste script)
+- In /opt folder execute script as 'root' or sudo user
 - ```sudo ./woocommerce-aras-cargo.sh --setup```
 
 ![woocommerce-aras-help](https://user-images.githubusercontent.com/25556606/127486809-ede139f7-4903-4779-8dbb-06f38f3ea7b4.png)
