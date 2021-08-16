@@ -1795,6 +1795,10 @@ download () {
 		OCTAL_MODE="$(stat -f '%p' "${cron_script_full_path}")"
 	fi
 
+	# Copy over ownership from old version
+	U_GROUP_OWNER="$(stat --format "%G" "${cron_script_full_path}" 2> /dev/null)"
+	U_USER_OWNER="$(stat --format "%U" "${cron_script_full_path}" 2> /dev/null)"
+
 	# Generate the update script
 	cat > "${this_script_path}/${update_script}" <<- EOF
 	#!/usr/bin/env bash
@@ -1834,6 +1838,24 @@ download () {
 			 echo "Upgrade failed: Unable to set permissions on ${cron_script_full_path}" | mail -s "$mail_subject_err" -a "$mail_from" "$mail_to"
 		fi
 
+		#remove the tmp script before exit
+		rm -f \$0
+		exit 1
+	fi
+
+	# Replace ownership
+	if ! chown "$U_USER_OWNER":"$U_GROUP_OWNER" "${cron_script_full_path}"; then
+		if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
+			echo -e "\\n\$(tput setaf 1)*\$(tput sgr0) \$(tput setaf 1)Upgrade failed:\$(tput sgr0)"
+			echo "\$(tput setaf 6)${m_tab}#####################################################\$(tput sgr0)"
+			echo -e "${m_tab}\$(tput setaf 1)Unable to set ownership on ${cron_script_full_path}\$(tput sgr0)\\n"
+			echo "$(timestamp): Upgrade failed: Unable to set ownership on ${cron_script_full_path}" >> "${error_log}"
+		else
+			echo "$(timestamp): Upgrade failed: Unable to set ownership on ${cron_script_full_path}" >> "${error_log}"
+		fi
+		if [ $send_mail_err -eq 1 ]; then
+			echo "Upgrade failed: Unable to set ownership on ${cron_script_full_path}" | mail -s "$mail_subject_err" -a "$mail_from" "$mail_to"
+		fi
 		#remove the tmp script before exit
 		rm -f \$0
 		exit 1
