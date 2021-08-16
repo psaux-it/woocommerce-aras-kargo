@@ -1534,8 +1534,8 @@ un_install () {
 
 # Disable setup after successful installation
 on_fly_disable () {
-	depriv "${this_script_path}/.woo.aras.set"
-	depriv "${this_script_path}/.woo.aras.enb"
+	depriv "${this_script_path}/.woo.aras.set" || { echo "Installation failed, as cannot create ${this_script_path}/.woo.aras.set"; exit 1; }
+	depriv "${this_script_path}/.woo.aras.enb" || { echo "Installation failed, as cannot create ${this_script_path}/.woo.aras.enb"; exit 1; }
 }
 
 # Pre-setup operations
@@ -2051,14 +2051,17 @@ add_cron () {
 
 		result=$?
 		if [ "$result" -eq 0 ]; then
-			# Set status
-			on_fly_disable
-
 			# Install systemd_tmpfiles
 			systemd_tmpfiles
 
 			# Add logrotate
 			add_logrotate
+
+			# Take ownership of script
+			[[ $SUDO_USER ]] && { chown "${user}":"${user}" "${cron_script_full_path}"; chown "${user}":"${user}" "${this_script_path}"; }
+
+			# Set status
+			on_fly_disable
 
 			echo -e "\n${green}*${reset} ${green}Installation completed.${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
@@ -2073,6 +2076,13 @@ add_cron () {
 					echo -e "${m_tab}${green}Logrotate installed to ${cyan}${logrotate_dir}/${logrotate_filename}${reset}\n"
 				elif [[ "$logrotate_installed" == "conf" ]]; then
 					echo -e "${m_tab}${green}Logrotate rules inserted to ${cyan}${logrotate_conf}${reset}\n"
+				fi
+			fi
+			if [[ -n "$tmpfiles_installed" ]]; then
+				if [[ "$tmpfiles_installed" == "systemd" ]]; then
+					echo -e "${m_tab}${green}Run path deployed via ${cyan}${tmpfiles_d}/${tmpfiles_f}${reset}\n"
+				elif [[ "$tmpfiles_installed" == "rclocal" ]]; then
+					echo -e "${m_tab}${green}Run path deployed via ${cyan}/etc/rc.local${reset}\n"
 				fi
 			fi
 			echo "$(timestamp): Installation completed." >> "${access_log}"
@@ -2167,14 +2177,17 @@ add_systemd () {
 
 					result=$?
 					if [ "$result" -eq 0 ]; then
-						# Set status
-						on_fly_disable
-
 						# Install systemd_tmpfiles
 						systemd_tmpfiles
 
 						# Add logrotate
 						add_logrotate
+
+						# Take ownership of script
+						[[ $SUDO_USER ]] && { chown "${user}":"${user}" "${cron_script_full_path}"; chown "${user}":"${user}" "${this_script_path}"; }
+
+						# Set status
+						on_fly_disable
 					else
 						echo -e "\n${red}*${reset} ${green}Installation failed.${reset}"
 						echo "${cyan}${m_tab}#####################################################${reset}"
@@ -2200,6 +2213,13 @@ add_systemd () {
 					echo -e "${m_tab}${green}Logrotate installed to ${cyan}${logrotate_dir}/${logrotate_filename}${reset}\n"
 				elif [[ "$logrotate_installed" == "conf" ]]; then
 					echo -e "${m_tab}${green}Logrotate rules inserted to ${cyan}${logrotate_conf}${reset}\n"
+				fi
+			fi
+			if [[ -n "$tmpfiles_installed" ]]; then
+				if [[ "$tmpfiles_installed" == "systemd" ]]; then
+					echo -e "${m_tab}${green}Run path deployed via ${cyan}${tmpfiles_d}/${tmpfiles_f}${reset}\n"
+				elif [[ "$tmpfiles_installed" == "rclocal" ]]; then
+					echo -e "${m_tab}${green}Run path deployed via ${cyan}/etc/rc.local${reset}\n"
 				fi
 			fi
 			echo "$(timestamp): Installation completed." >> "${access_log}"
@@ -2296,6 +2316,17 @@ systemd_tmpfiles () {
 				cat <<- EOF > "${tmpfiles_d:?}/${tmpfiles_f:?}"
 				d /run/woo-aras 0755 $user $user
 				EOF
+
+				result=$?
+				if [ "$result" -eq 0 ]; then
+					tmpfiles_installed="systemd"
+				else
+					echo -e "\n${red}*${reset} ${red}Installation aborted, as file not writable: ${tmpfiles_d}/${tmpfiles_f}${reset}"
+					echo "${cyan}${m_tab}#####################################################${reset}"
+					echo -e "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}\n"
+					echo "$(timestamp): Installation aborted, as file not writable: ${tmpfiles_d}/${tmpfiles_f}" >> "${error_log}"
+					exit 1
+				fi
 			fi
 		fi
 	elif systemctl is-active --quiet "rc-local.service"; then
@@ -2306,7 +2337,9 @@ systemd_tmpfiles () {
 			echo "$(timestamp): Installation aborted, as file not writable: /etc/rc.local" >> "${error_log}"
 			exit 1
 		else
-			$m_sed -i -e '$i \mkdir /run/woo-aras/ && chown '"${user}:${user}"' /run/woo-aras\n' "/etc/rc.local"
+			$m_sed -i -e '$i \mkdir /run/woo-aras/ && chown '"${user}:${user}"' /run/woo-aras\n' "/etc/rc.local" &&
+			tmpfiles_installed="rclocal" ||
+			{ echo "Installation failed, as sed failed"; exit 1; }
 		fi
 	fi
 }
