@@ -1432,7 +1432,7 @@ hard_reset () {
 
 	if grep -q "woo-aras" "/etc/rc.local"; then
 		if [[ -w "/etc/rc.local" ]]; then
-			$m_sed -i '/^woo-aras/d' "/etc/rc.local" || { echo "rc.local rule cannot removed, as sed failed"; exit 1; }
+			$m_sed -i '/woo-aras/d' "/etc/rc.local" || { echo "rc.local rule cannot removed, as sed failed"; exit 1; }
 			echo -e "\n${yellow}*${reset} ${yellow}rc.local rule removed from:${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			echo "${yellow}${m_tab}/etc/rc.local${reset}"
