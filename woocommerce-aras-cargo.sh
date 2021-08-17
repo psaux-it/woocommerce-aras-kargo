@@ -121,6 +121,7 @@ send_mail_suc () {
 
 # PID File
 PIDFILE="/var/run/woo-aras/woocommerce-aras-cargo.pid"
+runtime_path="${PIDFILE#/var}"
 
 # Drop privileges back to non-root user if we got here with sudo
 # Working with non-root users is always headache
@@ -138,7 +139,6 @@ depriv () {
 }
 
 create_runtime_path () {
-	runtime_path="${PIDFILE#/var}"
 	mkdir "${runtime_path%/*}" >/dev/null 2>&1 || { echo "Cannot create runtime path"; exit 1; }
 	chown "${user}":"${user}" "${runtime_path%/*}"
 }
@@ -2356,6 +2356,7 @@ systemd_tmpfiles () {
 			else
 				cat <<- EOF > "${tmpfiles_d:?}/${tmpfiles_f:?}"
 				d ${runtime_path%/*} 0755 $user $user
+				d ${wooaras_log%/*} 0755 $user $user
 				EOF
 
 				result=$?
@@ -2378,9 +2379,10 @@ systemd_tmpfiles () {
 			echo "$(timestamp): Installation aborted, as file not writable: /etc/rc.local" >> "${wooaras_log}"
 			exit 1
 		else
-			$m_sed -i -e '$i \mkdir -p '"${runtime_path%/*}"' && chown '"${user}:${user}"' '"${runtime_path%/*}"'\n' "/etc/rc.local" &&
-			tmpfiles_installed="rclocal" ||
-			{ echo "Installation failed, as sed failed"; exit 1; }
+			sed -i \
+				-e '$i \mkdir -p '"${runtime_path%/*}"' && chown '"${user}:${user}"' '"${runtime_path%/*}"'' \
+				-e '$i \mkdir -p '"${wooaras_log%/*}"' && chown '"${user}:${user}"' '"${wooaras_log%/*}"'' \
+				"/etc/rc.local" && tmpfiles_installed="rclocal" || { echo "Installation failed, as sed failed"; exit 1; }
 		fi
 	fi
 }
@@ -3022,7 +3024,7 @@ if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 		while true
 		do
 			echo "${m_tab}${cyan}#####################################################${reset}"
-			read -r -n 1 -p "${m_tab}${BC}c for crontab, s for systemd, q for quit${EC} " cs < /dev/tty
+			read -r -n 1 -p "${m_tab}${BC}c for crontab, s for systemd(recommended), q for quit${EC} " cs < /dev/tty
 			echo ""
 			case "${cs}" in
 				[Cc]* ) add_cron; break;;
