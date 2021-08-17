@@ -80,7 +80,7 @@ maxsize="35"
 l_maxsize="35k"
 
 # Logging paths
-wooaras_log="/var/log/woocommerce_aras.log"
+wooaras_log="/var/log/woo-aras/woocommerce_aras.log"
 
 # Need for html mail template
 company_name="E-Commerce Company"
@@ -119,21 +119,34 @@ send_mail_suc () {
 # END
 # =====================================================================
 
+# PID File
+PIDFILE="/var/run/woo-aras/woocommerce-aras-cargo.pid"
+
 # Drop privileges back to non-root user if we got here with sudo
-# Working with non-root users always headache
-# On the other hand, saying runs only under root is pathetic, vulnerable and easy
+# Working with non-root users is always headache
+# On the other hand, working under root is pathetic, vulnerable and easy
 if [[ $SUDO_USER ]]; then user="$SUDO_USER"; else user="$(whoami)"; fi
 depriv () {
 	if [[ $SUDO_USER ]]; then
-		touch "${1}" && chown "$user":"$user" "${1}"
-	else
-		touch "${1}"
+		if [[ ! -f "${1}" ]]; then
+			touch "${1}" >/dev/null 2>&1
+		fi
+		chown "$user":"$user" "${1}"
+	elif [[ ! -f "${1}" ]]; then
+		touch "${1}" >/dev/null 2>&1 || { echo "Cannot create ${1}"; exit 1; }
 	fi
 }
 
-create_pid_path () {
-	mkdir /run/woo-aras/ >/dev/null 2>&1
-	chown $user:$user /run/woo-aras
+create_runtime_path () {
+	runtime_path="${PIDFILE#/var}"
+	mkdir "${runtime_path%/*}" >/dev/null 2>&1 || { echo "Cannot create runtime path"; exit 1; }
+	chown "${user}":"${user}" "${runtime_path%/*}"
+}
+
+create_log_path () {
+	mkdir "${wooaras_log%/*}" >/dev/null 2>&1 || { echo "Cannot create log path"; exit 1; }
+	chown "$user":"$user" "${wooaras_log%/*}"
+	depriv "${wooaras_log}"
 }
 
 # Determine script run by cron
@@ -167,11 +180,11 @@ fi
 
 # We will deploy runtime folder (via --> /etc/tmpfiles.d/ || rc.local) for cron later
 # For systemd we will use 'RuntimeDirectory' so no need tmpfiles ops.
-if [[ ! -d /run/woo-aras ]]; then
+if [[ ! -d "${runtime_path%/*}" ]]; then
 	if [[ $SUDO_USER ]]; then
-		create_pid_path
+		create_runtime_path
 	elif [[ $EUID -eq 0 ]]; then
-		create_pid_path
+		create_runtime_path
 	elif [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 		echo -e "\n${yellow}*${reset} ${yellow}Runtime path not writable: /run${reset}\n"
 		echo "${cyan}${m_tab}#####################################################${reset}"
@@ -179,7 +192,25 @@ if [[ ! -d /run/woo-aras ]]; then
 		echo -e "${m_tab}${yellow}sudo ./woocommerce-aras-cargo.sh --help${reset}\n"
 		exit 1
 	elif [ $send_mail_err -eq 1 ]; then
-		send_mail_err <<< "Runtime folder not writable: /run --> run once manually as root or with sudo user to create runtime path." >/dev/null 2>&1
+		send_mail_err <<< "Runtime path not writable: /run --> run once manually as root or with sudo user to create runtime path." >/dev/null 2>&1
+		exit 1
+	fi
+fi
+
+# Drop ownership of log path & log file to sudo user
+if [[ ! -d "${wooaras_log%/*}" ]]; then
+	if [[ $SUDO_USER ]]; then
+		create_log_path
+	elif [[ $EUID -eq 0 ]]; then
+		create_log_path
+	elif [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
+		echo -e "\n${yellow}*${reset} ${yellow}Log path not writable: /var/log${reset}\n"
+		echo "${cyan}${m_tab}#####################################################${reset}"
+		echo "${yellow}${m_tab}${yellow}Run once as root or with sudo user to create log path${reset}"
+		echo -e "${m_tab}${yellow}sudo ./woocommerce-aras-cargo.sh --help${reset}\n"
+		exit 1
+	elif [ $send_mail_err -eq 1 ]; then
+		send_mail_err <<< "Log path not writable: /var/log --> run once manually as root or with sudo user to create log path." >/dev/null 2>&1
 		exit 1
 	fi
 fi
@@ -234,7 +265,7 @@ if [[ -z "$this_script_full_path" || -z "$this_script_path" || -z "$this_script_
 	path_pretty_error
 fi
 
-# Logrotation firstaction rules
+# Logrotation prerotate rules
 my_rotate () {
 	# Not logrotate while script running
 	if [[ -f "${PIDFILE}" ]]; then
@@ -269,9 +300,6 @@ my_rotate () {
 if [[ "$1" == "--rotate" ]]; then
 	my_rotate
 fi
-
-# PID File
-PIDFILE="/var/run/woo-aras/woocommerce-aras-cargo.pid"
 
 # Pid pretty error
 pid_pretty_error () {
@@ -2081,7 +2109,7 @@ add_cron () {
 			# Add logrotate
 			add_logrotate
 
-			# Take ownership of script & path
+			# Drop ownership of script & script path & log path to sudo user
 			[[ $SUDO_USER ]] && { chown "${user}":"${user}" "${cron_script_full_path}"; chown "${user}":"${user}" "${this_script_path}"; chown "${user}":"${user}" "${wooaras_log}"; }
 
 			# Set status
