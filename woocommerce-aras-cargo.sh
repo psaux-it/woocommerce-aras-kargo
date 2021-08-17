@@ -174,13 +174,13 @@ if [[ ! -d /run/woo-aras ]]; then
 	elif [[ $EUID -eq 0 ]]; then
 		create_pid_path
 	elif [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
-		echo -e "\n${yellow}*${reset} ${yellow}Cannot create PID, as runtime folder not writable: /run${reset}\n"
+		echo -e "\n${yellow}*${reset} ${yellow}Runtime path not writable: /run${reset}\n"
 		echo "${cyan}${m_tab}#####################################################${reset}"
-		echo "${yellow}${m_tab}${yellow}Run once as root or with sudo user to create runtime folder${reset}"
+		echo "${yellow}${m_tab}${yellow}Run once as root or with sudo user to create runtime path${reset}"
 		echo -e "${m_tab}${yellow}sudo ./woocommerce-aras-cargo.sh --help${reset}\n"
 		exit 1
 	elif [ $send_mail_err -eq 1 ]; then
-		send_mail_err <<< "Cannot create PID, as runtime folder not writable: /run --> run once manually as root or with sudo user to create runtime folder." >/dev/null 2>&1
+		send_mail_err <<< "Runtime folder not writable: /run --> run once manually as root or with sudo user to create runtime path." >/dev/null 2>&1
 		exit 1
 	fi
 fi
@@ -249,11 +249,16 @@ my_rotate () {
 		fi
 	fi
 
-	# Create dummy process (PID will kill by logrotate) to prevent executing script while logrotation triggering
-	filesize="$(du -k "${access_log}" | cut -f1)"
-	if (( filesize > maxsize )); then
-		perl -MPOSIX -e '$0="wooaras"; pause' &
-		echo $! > "${PIDFILE}"
+	if [[ -s "${access_log}" ]]; then
+		filesize="$(du -k "${access_log}" | cut -f1)"
+		if (( filesize > maxsize )); then
+			# Create dummy background process silently (PID will kill by logrotate)
+			# prevent executing script while logrotation triggering
+			{ perl -MPOSIX -e '$0="wooaras"; pause' & } 2>/dev/null
+			echo $! > "${PIDFILE}"
+		else
+			exit 1
+		fi
 	else
 		exit 1
 	fi
@@ -2259,19 +2264,17 @@ add_logrotate () {
 			else
 				logrotate_installed="asfile"
 				cat <<- EOF > "${logrotate_dir:?}/${logrotate_filename:?}"
-				${access_log%.*}.* {
-				firstaction
-				${cron_script_full_path} --rotate > /dev/null 2>&1
+				${access_log} {
+				prerotate
+				${cron_script_full_path} --rotate >/dev/null 2>&1
+				exit \$?
 				endscript
 				daily
 				rotate 5
 				size ${l_maxsize}
-				missingok
 				compress
-				delaycompress
-				notifempty
 				create 0660 ${user} ${user}
-				lastaction
+				postrotate
 				/bin/kill -HUP \`cat ${PIDFILE}\` 2>/dev/null || true
 				echo "Logrotation completed" >> ${access_log}
 				endscript
@@ -2292,19 +2295,17 @@ add_logrotate () {
 
 			# Via WooCommerce - ARAS Cargo Integration Script
 			# Copyright 2021 Hasan ÇALIŞIR
-			${access_log%.*}.* {
-			firstaction
-			${cron_script_full_path} --rotate > /dev/null 2>&1
+			${access_log} {
+			prerotate
+			${cron_script_full_path} --rotate >/dev/null 2>&1
+			exit \$?
 			endscript
 			daily
 			rotate 5
 			size ${l_maxsize}
-			missingok
 			compress
-			delaycompress
-			notifempty
 			create 0660 ${user} ${user}
-			lastaction
+			postrotate
 			/bin/kill -HUP \`cat ${PIDFILE}\` 2>/dev/null || true
 			echo "Logrotation completed" >> ${access_log}
 			endscript
