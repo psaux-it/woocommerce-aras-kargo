@@ -3341,9 +3341,6 @@ fi
 # ARAS Tracking number will be sent to customer.
 if [ -e "${this_script_path}/.woo.aras.enb" ]; then
 	if [ -s "$my_tmp" ]; then
-		# Run something important, no Ctrl-C allowed.
-		trap "" SIGINT
-
 		# For debugging purpose save the parsed data first
 		if [ ! -d "${this_script_path}/tmp" ]; then
 			mkdir "${this_script_path}/tmp"
@@ -3392,9 +3389,6 @@ if [ -e "${this_script_path}/.woo.aras.enb" ]; then
 				exit 1
 			fi
 		done < "${my_tmp}"
-
-		# Allow ctrl-c
-		trap - SIGINT
 	else
 		if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 			echo "${yellow}*${reset} ${yellow}Couldn't find any updateable order now.${reset}"
@@ -3406,9 +3400,6 @@ if [ -e "${this_script_path}/.woo.aras.enb" ]; then
 
 	if [ -e "${this_script_path}/.two.way.enb" ]; then
 		if [ -s "$my_tmp_del" ]; then
-			# Run something important, no Ctrl-C allowed.
-			trap "" SIGINT
-
 			# For debugging purpose save the parsed data first
 			if [ ! -d "${this_script_path}/tmp" ]; then
 				mkdir "${this_script_path}/tmp"
@@ -3457,8 +3448,6 @@ if [ -e "${this_script_path}/.woo.aras.enb" ]; then
 					exit 1
 				fi
 			done < "${my_tmp_del}"
-			# Allow ctrl-c
-			trap - SIGINT
 		elif [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 			echo -e "\n${yellow}*${reset} ${yellow}Couldn't find any updateable order now.${reset}"
 			echo "$(timestamp): Couldn't find any updateable order now." >> "${wooaras_log}"
