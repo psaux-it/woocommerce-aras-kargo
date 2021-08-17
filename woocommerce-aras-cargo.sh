@@ -2180,6 +2180,8 @@ add_systemd () {
 		RuntimeDirectoryMode=0775
 		Environment=RUNNING_FROM_SYSTEMD=1
 		StandardOutput=append:${wooaras_log}
+		ExecStartPre=+/bin/mkdir -p ${wooaras_log%/*}
+		ExecStartPre=+/bin/chown -R ${systemd_user}:${systemd_user} ${wooaras_log%/*}
 		ExecStart=${my_bash} ${systemd_script_full_path}
 
 		[Install]
@@ -2344,7 +2346,7 @@ add_logrotate () {
 
 systemd_tmpfiles () {
 	if systemctl is-active --quiet "systemd-tmpfiles-setup.service"; then
-		if [[ ! -e "${tmpfiles_d}/${tmpfiles_f}" ]]; then
+		if [[ ! -f "${tmpfiles_d}/${tmpfiles_f}" ]]; then
 			if [[ ! -w "${tmpfiles_d}" ]]; then
 				echo -e "\n${red}*${reset} ${red}Installation aborted, as folder not writable: ${tmpfiles_d}${reset}"
 				echo "${cyan}${m_tab}#####################################################${reset}"
@@ -2353,7 +2355,7 @@ systemd_tmpfiles () {
 				exit 1
 			else
 				cat <<- EOF > "${tmpfiles_d:?}/${tmpfiles_f:?}"
-				d /run/woo-aras 0755 $user $user
+				d ${runtime_path%/*} 0755 $user $user
 				EOF
 
 				result=$?
@@ -2376,7 +2378,7 @@ systemd_tmpfiles () {
 			echo "$(timestamp): Installation aborted, as file not writable: /etc/rc.local" >> "${wooaras_log}"
 			exit 1
 		else
-			$m_sed -i -e '$i \mkdir /run/woo-aras/ && chown '"${user}:${user}"' /run/woo-aras\n' "/etc/rc.local" &&
+			$m_sed -i -e '$i \mkdir -p '"${runtime_path%/*}"' && chown '"${user}:${user}"' '"${runtime_path%/*}"'\n' "/etc/rc.local" &&
 			tmpfiles_installed="rclocal" ||
 			{ echo "Installation failed, as sed failed"; exit 1; }
 		fi
