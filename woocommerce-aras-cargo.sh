@@ -80,8 +80,7 @@ maxsize="35"
 l_maxsize="35k"
 
 # Logging paths
-error_log="/var/log/woocommerce_aras.err"
-access_log="/var/log/woocommerce_aras.log"
+wooaras_log="/var/log/woocommerce_aras.log"
 
 # Need for html mail template
 company_name="E-Commerce Company"
@@ -244,13 +243,13 @@ my_rotate () {
 
 	# Not logrotate until all shipped orders flagged as delivered otherwise data loss
 	if [[ -f "${this_script_path}/.two.way.enb" ]]; then
-		if [[ "$(grep -c "SHIPPED" "${access_log}")" -ne "$(grep -c "DELIVERED" "${access_log}")" ]]; then
+		if [[ "$(grep -c "SHIPPED" "${wooaras_log}")" -ne "$(grep -c "DELIVERED" "${wooaras_log}")" ]]; then
 			exit 1
 		fi
 	fi
 
-	if [[ -s "${access_log}" ]]; then
-		filesize="$(du -k "${access_log}" | cut -f1)"
+	if [[ -s "${wooaras_log}" ]]; then
+		filesize="$(du -k "${wooaras_log}" | cut -f1)"
 		if (( filesize > maxsize )); then
 			# Create dummy background process silently (PID will kill by logrotate)
 			# prevent executing script while logrotation triggering
@@ -341,9 +340,9 @@ if [ "$(tail -n 1 "${0}" | head -n 1 | cut -c 1-7)" != "exit \$?" ]; then
 	if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 		echo -e "\n${red}*${reset} ${red}Script is incomplete, please re-download (force upgrade manually)${reset}"
 		echo -e "${cyan}${m_tab}#####################################################${reset}\n"
-		echo "$(timestamp): Script is incomplete, please re-download (force upgrade manually)" >> "${error_log}"
+		echo "$(timestamp): Script is incomplete, please re-download (force upgrade manually)" >> "${wooaras_log}"
 	else
-		echo "$(timestamp): Script is incomplete, please re-download (force upgrade manually)" >> "${error_log}"
+		echo "$(timestamp): Script is incomplete, please re-download (force upgrade manually)" >> "${wooaras_log}"
 	fi
 
 	if [ $send_mail_err -eq 1 ]; then
@@ -455,7 +454,7 @@ if [[ "$OSTYPE" != "linux-gnu"* ]]; then
 	echo -e "\n${red}*${reset} ${red}Unsupported operating system${reset}"
 	echo "${cyan}${m_tab}#####################################################${reset}"
 	echo -e "${m_tab}${red}Please check dependencies via --dependencies${reset}\n"
-	echo "$(timestamp): Unsupported operating system $OSTYPE" >> "${error_log}"
+	echo "$(timestamp): Unsupported operating system $OSTYPE" >> "${wooaras_log}"
 	exit 1
 fi
 
@@ -466,7 +465,7 @@ if [[ $this_script_path != /opt* ]]; then
 	echo "${cyan}${m_tab}#####################################################${reset}"
 	echo "${m_tab}${red}You adviced to work in /opt folder for safety${reset}"
 	echo -e "${m_tab}${red}sudo git clone to /opt folder and re-run setup${reset}\n"
-	echo "$(timestamp): Working in $this_script_path not allowed" >> "${error_log}"
+	echo "$(timestamp): Working in $this_script_path not allowed" >> "${wooaras_log}"
 	exit 1
 fi
 
@@ -475,9 +474,9 @@ if ! : >/dev/tcp/8.8.8.8/53; then
 	if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 		echo -e "\n${red}*${reset} ${red}There is no internet connection.${reset}"
 		echo -e "${cyan}${m_tab}#####################################################${reset}\n"
-		echo "$(timestamp): There is no internet connection." >> "${error_log}"
+		echo "$(timestamp): There is no internet connection." >> "${wooaras_log}"
 	else
-		echo "$(timestamp): There is no internet connection." >> "${error_log}"
+		echo "$(timestamp): There is no internet connection." >> "${wooaras_log}"
 	fi
 
 	if [ $send_mail_err -eq 1 ]; then
@@ -538,18 +537,18 @@ do
 				# Disable send mail
 				send_mail_err="0"
 				echo "${yellow}${m_tab}Mail server not configured as SMTP port 587 is closed or not listening.${reset}"
-				echo "$(timestamp): Mail server not configured as SMTP port 587 is closed or not listening, $i command not found." >> "${error_log}"
+				echo "$(timestamp): Mail server not configured as SMTP port 587 is closed or not listening, $i command not found." >> "${wooaras_log}"
 			fi
 			echo "${yellow}${m_tab}'mail' command is part of mailutils package.${reset}"
 			echo -e "${yellow}${m_tab}You can continue the setup but you cannot get important mail alerts${reset}\n"
 			if [ $check_mail_server -eq 0 ]; then
-				echo "$(timestamp): $i not found." >> "${error_log}"
+				echo "$(timestamp): $i not found." >> "${wooaras_log}"
 			fi
 		else
 			# Exit for all other conditions
 			echo "${yellow}${m_tab}Please install necessary package from your linux repository and re-start setup.${reset}"
 			echo -e "${yellow}${m_tab}If package installed but binary not in your PATH: add PATH to ~/.bash_profile, ~/.bashrc or profile.${reset}\n"
-			echo "$(timestamp): $i not found." >> "${error_log}"
+			echo "$(timestamp): $i not found." >> "${wooaras_log}"
 			exit 1
 		fi
 	elif [ "$i" == "php" ]; then
@@ -559,7 +558,7 @@ do
 			echo -e "\n${red}*${reset} ${red}php-soap module not found.${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			echo -e "${yellow}${m_tab}Need for creating SOAP client to get data from ARAS${reset}\n"
-			echo "$(timestamp): php-soap module not found, need for creating SOAP client to get data from ARAS" >> "${error_log}"
+			echo "$(timestamp): php-soap module not found, need for creating SOAP client to get data from ARAS" >> "${wooaras_log}"
 			exit 1
 		fi
 	elif [ "$i" == "perl" ]; then
@@ -569,7 +568,7 @@ do
 			echo -e "\n${red}*${reset} ${red}Text::Fuzzy PERL module not found.${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			echo -e "${yellow}${m_tab}Use distro repo or CPAN (https://metacpan.org/pod/Text::Fuzzy) to install${reset}\n"
-			echo "$(timestamp): Text::Fuzzy PERL module not found." >> "${error_log}"
+			echo "$(timestamp): Text::Fuzzy PERL module not found." >> "${wooaras_log}"
 			exit 1
                 fi
 	else
@@ -599,7 +598,7 @@ if [ "$m_ctype" != "en" ]; then
 		echo "${cyan}${m_tab}#####################################################${reset}"
 		echo "${red}${m_tab}Please add support on English locale for your shell environment.${reset}"
 		echo -e "${red}${m_tab}e.g. for ubuntu -> apt-get -y install language-pack-en${reset}\n"
-		echo "$(timestamp): English locale not found." >> "${error_log}"
+		echo "$(timestamp): English locale not found." >> "${wooaras_log}"
 		exit 1
 	fi
 fi
@@ -712,7 +711,7 @@ my_status () {
 	fi
 
 	# Total processed order status
-	total_processed="$(zgrep -ci "SHIPPED" "${access_log}")"
+	total_processed="$(zgrep -ci "SHIPPED" "${wooaras_log}")"
 	echo "${green}Total_Processed_Orders: $total_processed${reset}"
 
 	} > "${this_script_path}/.status.proc" # End redirection to file
@@ -728,7 +727,7 @@ twoway_pretty_error () {
 	echo "${cyan}${m_tab}#####################################################${reset}"
 	echo "${m_tab}${red}Cannot copy ${i##*/} to${reset}"
 	echo "${m_tab}${red}${i%/*}${reset}"
-	echo "$(timestamp): Cannot copy ${i##*/} to ${i%/*}" >> "${error_log}"
+	echo "$(timestamp): Cannot copy ${i##*/} to ${i%/*}" >> "${wooaras_log}"
 	exit 1
 }
 
@@ -973,7 +972,7 @@ find_child_path () {
 			echo "${m_tab}${red}If the problem still persists complete setup without twoway-workflow,${reset}"
 			echo "${m_tab}${red}And follow manual implementation instructions on github${reset}"
 			echo -e "${m_tab}${red}Expected in $theme_path/themes/${reset}\n"
-			echo "$(timestamp): Could not found child theme path: Expected in $theme_path/themes/" >> "${error_log}"
+			echo "$(timestamp): Could not found child theme path: Expected in $theme_path/themes/" >> "${wooaras_log}"
 			exit 1
 		else
 			echo -e "\n${green}*${reset} ${green}ATTENTION: Please validate child theme path.${reset}"
@@ -1007,7 +1006,7 @@ find_child_path () {
 		echo "${cyan}${m_tab}#####################################################${reset}"
 		echo "${m_tab}${red}You have no activated child theme${reset}"
 		echo "${m_tab}${red}Without active child theme we cannot implement two way fulfillment workflow.${reset}"
-		echo "$(timestamp): You have no activated child theme. Without child theme we cannot implement two way fulfillment workflow" >> "${error_log}"
+		echo "$(timestamp): You have no activated child theme. Without child theme we cannot implement two way fulfillment workflow" >> "${wooaras_log}"
 		exit 1
 	fi
 }
@@ -1021,7 +1020,7 @@ simple_uninstall_twoway () {
 			echo -e "\n${red}*${reset} ${red}Two way fulfillment unistallation aborted: ${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			echo -e "${m_tab}${red}Expected string not found in function.php. Did you manually modified file after installation?${reset}\n"
-			echo "$(timestamp): Expected string not found in function.php. Did you manually modified functions.php after installation? $absolute_child_path/functions.php" >> "${error_log}"
+			echo "$(timestamp): Expected string not found in function.php. Did you manually modified functions.php after installation? $absolute_child_path/functions.php" >> "${wooaras_log}"
 			exit 1
 		fi
 	else
@@ -1029,7 +1028,7 @@ simple_uninstall_twoway () {
 		echo "${cyan}${m_tab}#####################################################${reset}"
 		echo "${m_tab}${red}$absolute_child_path/functions.php${reset}"
 		echo -e "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}\n"
-		echo "$(timestamp): Twoway fulfillment uninstallation aborted, as file not writeable: $absolute_child_path/functions.php" >> "${error_log}"
+		echo "$(timestamp): Twoway fulfillment uninstallation aborted, as file not writeable: $absolute_child_path/functions.php" >> "${wooaras_log}"
 		exit 1
 	fi
 
@@ -1044,7 +1043,7 @@ simple_uninstall_twoway () {
 				echo -e "\n${red}*${reset} ${red}Two way fulfillment unistallation aborted: ${reset}"
 				echo "${cyan}${m_tab}#####################################################${reset}"
 				echo -e "${m_tab}${red}Expected string not found in $i. Did you manually modified file after installation?${reset}\n"
-				echo "$(timestamp): Expected string not found in $i. Did you manually modified $i after installation?" >> "${error_log}"
+				echo "$(timestamp): Expected string not found in $i. Did you manually modified $i after installation?" >> "${wooaras_log}"
 				exit 1
 			fi
 		else
@@ -1052,7 +1051,7 @@ simple_uninstall_twoway () {
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			echo "${m_tab}${red}$i${reset}"
 			echo -e "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}\n"
-			echo "$(timestamp): Twoway fulfillment uninstallation aborted, as file not writeable: $i" >> "${error_log}"
+			echo "$(timestamp): Twoway fulfillment uninstallation aborted, as file not writeable: $i" >> "${wooaras_log}"
 			exit 1
 		fi
 	done
@@ -1065,7 +1064,7 @@ simple_uninstall_twoway () {
 			echo -e "\n${red}*${reset} ${red}Two way fulfillment unistallation aborted: ${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			echo -e "${m_tab}${red}Incorrect path, $i is not the expected path to remove files${reset}\n"
-			echo "$(timestamp): Incorrect path, $i is not the expected path to remove files$" >> "${error_log}"
+			echo "$(timestamp): Incorrect path, $i is not the expected path to remove files$" >> "${wooaras_log}"
 			exit 1
 		fi
 	done
@@ -1076,7 +1075,7 @@ simple_uninstall_twoway () {
 	echo "${cyan}${m_tab}#####################################################${reset}"
 	echo "${m_tab}${yellow}Uninstallation completed.${reset}"
 	echo "${m_tab}${yellow}Please check your website for functionality${reset}"
-	echo "$(timestamp): Two way fulfillment unistallation: Uninstallation completed." >> "${access_log}"
+	echo "$(timestamp): Two way fulfillment unistallation: Uninstallation completed." >> "${wooaras_log}"
 }
 
 uninstall_twoway () {
@@ -1095,7 +1094,7 @@ uninstall_twoway () {
 						echo -e "\n${red}*${reset} ${red}Two way fulfillment unistallation aborted: ${reset}";
 						echo "${cyan}${m_tab}#####################################################${reset}";
 						echo -e "${m_tab}${red}Could not unhook woocommerce order status completed notification${reset}\n";
-						echo "$(timestamp): Could not unhook woocommerce order status completed notification" >> "${error_log}";
+						echo "$(timestamp): Could not unhook woocommerce order status completed notification" >> "${wooaras_log}";
 						exit 1;
 						}
 
@@ -1116,7 +1115,7 @@ uninstall_twoway () {
 								echo "${m_tab}${cyan}#####################################################${reset}"
 								echo "${red}*${reset} ${red}Cannot update order:$id status 'delivered --> completed'${reset}"
 								echo -e "${red}*${reset} ${red}Wrong Order ID caused by corrupt data or wocommerce endpoint error${reset}\n"
-								echo "$(timestamp): Cannot update order:$id status 'delivered --> completed'. Wrong Order ID caused by corrupt data or WooCommerce endpoint error" >> "${error_log}"
+								echo "$(timestamp): Cannot update order:$id status 'delivered --> completed'. Wrong Order ID caused by corrupt data or WooCommerce endpoint error" >> "${wooaras_log}"
 								exit 1
 							fi
 						done
@@ -1127,7 +1126,7 @@ uninstall_twoway () {
 						echo -e "\n${red}*${reset} ${red}Two way fulfillment unistallation aborted: ${reset}"
 						echo "${cyan}${m_tab}#####################################################${reset}"
 						echo -e "${m_tab}${red}Expected string not found in function.php. Did you manually modified file after installation?${reset}\n"
-						echo "$(timestamp): Expected string not found in function.php. Did you manually modified functions.php after installation? $absolute_child_path/functions.php" >> "${error_log}"
+						echo "$(timestamp): Expected string not found in function.php. Did you manually modified functions.php after installation? $absolute_child_path/functions.php" >> "${wooaras_log}"
 						exit 1
 					fi
 
@@ -1140,14 +1139,14 @@ uninstall_twoway () {
 			echo -e "\n${red}*${reset} ${red}Two way fulfillment unistallation aborted: ${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			echo -e "${m_tab}${red}Couldn't find twoway fulfillment installation${reset}\n"
-			echo "$(timestamp): Couldn't find twoway fulfillment installation" >> "${error_log}"
+			echo "$(timestamp): Couldn't find twoway fulfillment installation" >> "${wooaras_log}"
 			exit 1
 		fi
 	else
 		echo -e "\n${red}*${reset} ${red}Two way fulfillment unistallation aborted: ${reset}"
 		echo "${cyan}${m_tab}#####################################################${reset}"
 		echo -e "${m_tab}${red}Default installation not completed${reset}\n"
-		echo "$(timestamp): Two way fulfillment unistallation aborted: default installation not completed" >> "${error_log}"
+		echo "$(timestamp): Two way fulfillment unistallation aborted: default installation not completed" >> "${wooaras_log}"
 		exit 1
 	fi
 }
@@ -1167,7 +1166,7 @@ install_twoway () {
 				echo "${cyan}${m_tab}#####################################################${reset}"
 				echo "${m_tab}${red}$absolute_child_path/functions.php${reset}"
 				echo -e "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}\n"
-				echo "$(timestamp): Installation aborted, as file not readable: $absolute_child_path/functions.php" >> "${error_log}"
+				echo "$(timestamp): Installation aborted, as file not readable: $absolute_child_path/functions.php" >> "${wooaras_log}"
 				exit 1
 			fi
 		elif [ -r "$theme_path/index.php" ]; then
@@ -1178,7 +1177,7 @@ install_twoway () {
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			echo "${m_tab}${red}$theme_path/index.php${reset}"
 			echo -e "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}\n"
-			echo "$(timestamp): Installation aborted, as file not readable: $theme_path/index.php" >> "${error_log}"
+			echo "$(timestamp): Installation aborted, as file not readable: $theme_path/index.php" >> "${wooaras_log}"
 			exit 1
 		fi
 
@@ -1193,7 +1192,7 @@ install_twoway () {
 					echo -e "\n${red}*${reset} ${red}Installation aborted, as file cannot modified: ${reset}";
 					echo "${cyan}${m_tab}#####################################################${reset}";
 					echo -e "${m_tab}${red}$absolute_child_path/functions.php${reset}\n";
-					echo "$(timestamp): Installation aborted, as file cannot modified: $absolute_child_path/functions.php" >> "${error_log}";
+					echo "$(timestamp): Installation aborted, as file cannot modified: $absolute_child_path/functions.php" >> "${wooaras_log}";
 					exit 1;
 					}
 				else
@@ -1201,7 +1200,7 @@ install_twoway () {
 					echo "${cyan}${m_tab}#####################################################${reset}"
 					echo "${m_tab}${red}$absolute_child_path/functions.php${reset}"
 					echo -e "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}\n"
-					echo "$(timestamp): Installation aborted, as file not writeable: $absolute_child_path/functions.php" >> "${error_log}"
+					echo "$(timestamp): Installation aborted, as file not writeable: $absolute_child_path/functions.php" >> "${wooaras_log}"
 					exit 1
 				fi
 			elif [ -w "$absolute_child_path/functions.php" ]; then
@@ -1213,7 +1212,7 @@ install_twoway () {
 					echo -e "\n${red}*${reset} ${red}Two way fulfillment workflow installation aborted: ${reset}";
 					echo "${cyan}${m_tab}#####################################################${reset}";
 					echo -e "${m_tab}${red}Cannot take backup of $absolute_child_path/functions.php${reset}\n";
-					echo "$(timestamp): Two way fulfillment workflow installation aborted: Cannot take backup of $absolute_child_path/functions.php" >> "${error_log}";
+					echo "$(timestamp): Two way fulfillment workflow installation aborted: Cannot take backup of $absolute_child_path/functions.php" >> "${wooaras_log}";
 					exit 1;
 					}
 
@@ -1225,7 +1224,7 @@ install_twoway () {
 							echo "${cyan}${m_tab}#####################################################${reset}"
 							echo "${m_tab}${red}Cannot recognise your child theme function.php, expected php shebang at line 1${reset}"
 							echo -e "${magenta}$absolute_child_path/functions.php${reset}\n"
-							echo "$(timestamp): Cannot recognise your child theme function.php, expected php shebang at line 1 $absolute_child_path/functions.php" >> "${error_log}"
+							echo "$(timestamp): Cannot recognise your child theme function.php, expected php shebang at line 1 $absolute_child_path/functions.php" >> "${wooaras_log}"
 							exit 1
 						fi
 					fi
@@ -1235,7 +1234,7 @@ install_twoway () {
 				echo "${cyan}${m_tab}#####################################################${reset}"
 				echo "${m_tab}${red}$absolute_child_path/functions.php${reset}"
 				echo -e "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}\n"
-				echo "$(timestamp): Installation aborted, as file not writeable: $absolute_child_path/functions.php" >> "${error_log}"
+				echo "$(timestamp): Installation aborted, as file not writeable: $absolute_child_path/functions.php" >> "${wooaras_log}"
 				exit 1
 			fi
 
@@ -1250,7 +1249,7 @@ install_twoway () {
 						echo -e "\n${red}*${reset} ${red}Two way fulfillment workflow Installation aborted: ${reset}";
 						echo "${cyan}${m_tab}#####################################################${reset}";
 						echo "${m_tab}${red}Cannot create folder: $i${reset}";
-						echo "$(timestamp): Cannot create folder $i" >> "${error_log}";
+						echo "$(timestamp): Cannot create folder $i" >> "${wooaras_log}";
 						exit 1;
 						}
 					fi
@@ -1279,14 +1278,14 @@ install_twoway () {
 				echo "${cyan}${m_tab}#####################################################${reset}"
 				echo "${m_tab}${red}$absolute_child_path/functions.php${reset}"
 				echo -e "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}\n"
-				echo "$(timestamp): Installation aborted, as file not writeable: $absolute_child_path/functions.php" >> "${error_log}"
+				echo "$(timestamp): Installation aborted, as file not writeable: $absolute_child_path/functions.php" >> "${wooaras_log}"
 				exit 1
 			fi
 		else
 			echo -e "\n${red}*${reset} ${red}Installation aborted, could not read file permissions: ${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			echo -e "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}\n"
-			echo "$(timestamp): Installation aborted, could not read file permissions" >> "${error_log}"
+			echo "$(timestamp): Installation aborted, could not read file permissions" >> "${wooaras_log}"
 			exit 1
 		fi
 
@@ -1295,7 +1294,7 @@ install_twoway () {
 			echo -e "\n${red}*${reset} ${red}Two way fulfillment workflow installation aborted: ${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			echo "${m_tab}${red}Missing file(s) $(validate_twoway)${reset}"
-			echo "$(timestamp): Missing file(s) $(validate_twoway)" >> "${error_log}"
+			echo "$(timestamp): Missing file(s) $(validate_twoway)" >> "${wooaras_log}"
 			exit 1;
 		else
 			# Time to enable functions.php modifications
@@ -1319,7 +1318,7 @@ install_twoway () {
 				case "${cs}" in
 					[Rr]* ) $m_sed -i '/aras_woo_enabled/c \/\/aras_woo_include( get_stylesheet_directory() .'"'/woocommerce/aras-woo-delivered.php'"');' "${absolute_child_path}/functions.php";
 						echo -e "\n${yellow}Two way fulfillment workflow installation aborted, recovery process completed.${reset}";
-						echo "$(timestamp): Two way fulfillment workflow installation aborted, recovery process completed." >> "${error_log}";
+						echo "$(timestamp): Two way fulfillment workflow installation aborted, recovery process completed." >> "${wooaras_log}";
 						exit 1;;
 					[Cc]* ) depriv "${this_script_path}/.two.way.enb";  break;;
 					* ) echo -e "\n${m_tab}${magenta}Please answer r or c${reset}"; echo "${cyan}${m_tab}#####################################################${reset}";;
@@ -1329,7 +1328,7 @@ install_twoway () {
 			echo -e "\n${green}*${reset} ${green}Two way fulfillment workflow installation: ${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			echo "${m_tab}${green}Completed${reset}"
-			echo "$(timestamp): Two way fulfillment workflow installation completed" >> "${access_log}"
+			echo "$(timestamp): Two way fulfillment workflow installation completed" >> "${wooaras_log}"
 		fi
 	fi
 }
@@ -1356,7 +1355,7 @@ hard_reset () {
 			echo -e "\n${red}*${reset} ${red}Cron uninstall aborted, as file not writable: ${cron_dir}/${cron_filename}${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			echo "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}"
-			echo "$(timestamp): Uninstallation error: $cron_dir/$cron_filename not writeable" >> "${error_log}"
+			echo "$(timestamp): Uninstallation error: $cron_dir/$cron_filename not writeable" >> "${wooaras_log}"
 		fi
 	fi
 
@@ -1370,7 +1369,7 @@ hard_reset () {
 			echo -e "\n${red}*${reset} ${red}Updater cron job uninstallation aborted, as file not writable: ${cron_dir}/${cron_filename_update}${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			echo "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}"
-			echo "$(timestamp): Uninstallation error: ${cron_dir}/${cron_filename_update} is not writeable" >> "${error_log}"
+			echo "$(timestamp): Uninstallation error: ${cron_dir}/${cron_filename_update} is not writeable" >> "${wooaras_log}"
 		fi
 	fi
 
@@ -1389,7 +1388,7 @@ hard_reset () {
 			echo -e "\n${red}*${reset} ${red}Systemd uninstall aborted, as directory not writable: $systemd_dir${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			echo "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}"
-			echo "$(timestamp): Uninstallation error: $systemd_dir/$service_filename not writeable" >> "${error_log}"
+			echo "$(timestamp): Uninstallation error: $systemd_dir/$service_filename not writeable" >> "${wooaras_log}"
 		fi
 	fi
 
@@ -1403,7 +1402,7 @@ hard_reset () {
 			echo -e "\n${red}*${reset} ${red}Logrotate uninstall aborted, as file not writable: ${logrotate_dir}/${logrotate_filename}${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			echo "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}"
-			echo "$(timestamp): Uninstallation error: ${logrotate_dir}/${logrotate_filename} not writeable" >> "${error_log}"
+			echo "$(timestamp): Uninstallation error: ${logrotate_dir}/${logrotate_filename} not writeable" >> "${wooaras_log}"
 		fi
 	fi
 
@@ -1417,7 +1416,7 @@ hard_reset () {
 			echo -e "\n${red}*${reset} ${red}Uninstallation aborted, as file not writable: ${tmpfiles_d}/${tmpfiles_f}${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			echo "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}"
-			echo "$(timestamp): Uninstallation aborted, as file not writable: ${tmpfiles_d}/${tmpfiles_f}" >> "${error_log}"
+			echo "$(timestamp): Uninstallation aborted, as file not writable: ${tmpfiles_d}/${tmpfiles_f}" >> "${wooaras_log}"
 		fi
 	fi
 
@@ -1431,7 +1430,7 @@ hard_reset () {
 			echo -e "\n${red}*${reset} ${red}Uninstallation aborted, as file not writable: ${logrotate_conf}${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			echo "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}"
-			echo "$(timestamp): Uninstallation aborted, as file not writable: ${logrotate_conf}" >> "${error_log}"
+			echo "$(timestamp): Uninstallation aborted, as file not writable: ${logrotate_conf}" >> "${wooaras_log}"
 		fi
 	fi
 
@@ -1445,7 +1444,7 @@ hard_reset () {
 			echo -e "\n${red}*${reset} ${red}Uninstallation aborted, as file not writable: /etc/rc.local${reset}"
                         echo "${cyan}${m_tab}#####################################################${reset}"
                         echo "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}"
-                        echo "$(timestamp): Uninstallation aborted, as file not writable: /etc/rc.local" >> "${error_log}"
+                        echo "$(timestamp): Uninstallation aborted, as file not writable: /etc/rc.local" >> "${wooaras_log}"
 		fi
 	fi
 }
@@ -1463,21 +1462,21 @@ disable () {
 				echo "${cyan}${m_tab}#####################################################${reset}"
 				echo "${m_tab}${red}As folder not writeable ${this_script_path}${reset}"
 				echo -e "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}\n"
-				echo "$(timestamp): Cannot disable Aras-WooCommerce integration: as folder not writeable ${this_script_path}" >> "${error_log}"
+				echo "$(timestamp): Cannot disable Aras-WooCommerce integration: as folder not writeable ${this_script_path}" >> "${wooaras_log}"
 				exit 1
 			fi
 		else
 			echo -e "\n${red}*${reset} ${red}Cannot disable Aras-WooCommerce integration: ${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			echo -e "${m_tab}${red}Integration already disabled.${reset}\n"
-			echo "$(timestamp): Cannot disable Aras-WooCommerce integration: already disabled" >> "${error_log}"
+			echo "$(timestamp): Cannot disable Aras-WooCommerce integration: already disabled" >> "${wooaras_log}"
 			exit 1
 		fi
 	else
 		echo -e "\n${red}*${reset} ${red}Cannot disable Aras-WooCommerce integration: ${reset}"
 		echo "${cyan}${m_tab}#####################################################${reset}"
 		echo -e "${m_tab}${red}Default installation not completed${reset}\n"
-		echo "$(timestamp): Cannot disable Aras-WooCommerce integration: default installation not completed" >> "${error_log}"
+		echo "$(timestamp): Cannot disable Aras-WooCommerce integration: default installation not completed" >> "${wooaras_log}"
 		exit 1
 	fi
 }
@@ -1495,21 +1494,21 @@ enable () {
 				echo "${cyan}${m_tab}#####################################################${reset}"
 				echo "${m_tab}${red}As folder not writeable ${this_script_path}${reset}"
 				echo -e "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}\n"
-				echo "$(timestamp): Cannot enable Aras-WooCommerce integration: as folder not writeable ${this_script_path}" >> "${error_log}"
+				echo "$(timestamp): Cannot enable Aras-WooCommerce integration: as folder not writeable ${this_script_path}" >> "${wooaras_log}"
 				exit 1
 			fi
 		else
 			echo -e "\n${red}*${reset} ${red}Cannot enable Aras-WooCommerce integration: ${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			echo -e "${m_tab}${red}Integration already enabled.${reset}\n"
-			echo "$(timestamp): Cannot disable Aras-WooCommerce integration: already enabled " >> "${error_log}"
+			echo "$(timestamp): Cannot disable Aras-WooCommerce integration: already enabled " >> "${wooaras_log}"
 			exit 1
 		fi
 	else
 		echo -e "\n${red}*${reset} ${red}Cannot enable Aras-WooCommerce integration: ${reset}"
 		echo "${cyan}${m_tab}#####################################################${reset}"
 		echo -e "${m_tab}${red}Default installation not completed${reset}\n"
-		echo "$(timestamp): Cannot enable Aras-WooCommerce integration: default installation not completed" >> "${error_log}"
+		echo "$(timestamp): Cannot enable Aras-WooCommerce integration: default installation not completed" >> "${wooaras_log}"
 		exit 1
 	fi
 }
@@ -1531,12 +1530,11 @@ un_install () {
 	fi
 
 	# Remove logs
-	if [[ -e "${error_log}" || -e "${access_log}" ]]; then
-		rm -rf "${error_log:?}" "${access_log:?}" >/dev/null 2>&1
+	if [[ -e "${wooaras_log}" ]]; then
+		rm -f "${wooaras_log:?}" >/dev/null 2>&1
 		echo -e "\n${yellow}*${reset} ${yellow}Logs removed:${reset}"
 		echo "${cyan}${m_tab}#####################################################${reset}"
-		echo "${yellow}${m_tab}${error_log}${reset}"
-		echo -e "${yellow}${m_tab}${access_log}${reset}\n"
+		echo -e "${yellow}${m_tab}${wooaras_log}${reset}\n"
 	fi
 
 	# Remove immutable bit & lock files
@@ -1675,7 +1673,7 @@ twoway_enable () {
 		echo -e "\n${red}*${reset} ${red}Two way fulfillment cannot enable: ${reset}"
 		echo "${cyan}${m_tab}#####################################################${reset}"
 		echo -e "${m_tab}${red}Default installation not completed${reset}\n"
-		echo "$(timestamp): Two way fulfillment cannot enabled: default installation not completed" >> "${error_log}"
+		echo "$(timestamp): Two way fulfillment cannot enabled: default installation not completed" >> "${wooaras_log}"
 		exit 1
 	fi
 
@@ -1707,20 +1705,20 @@ twoway_enable () {
 				depriv "${this_script_path}/.two.way.enb"
 				echo -e "\n${green}*${reset} ${green}Two way fulfillment workflow enabled successfully: ${reset}"
 				echo -e "${cyan}${m_tab}#####################################################${reset}\n"
-				echo "$(timestamp): Two way fulfillment workflow manually enabled successfully" >> "${access_log}"
+				echo "$(timestamp): Two way fulfillment workflow manually enabled successfully" >> "${wooaras_log}"
 			else
 				echo -e "\n${red}*${reset} ${red}Cannot enable two way fulfillment workflow: ${reset}"
 				echo "${cyan}${m_tab}#####################################################${reset}"
 				echo "${m_tab}${red}Couldn't find necessary modifications in:${reset}"
 				echo "${m_tab}${magenta}$absolute_child_path/functions.php${reset}"
 				echo -e "${m_tab}${red}Follow the guideline 'Two-way workflow installation' on github${reset}\n"
-				echo "$(timestamp): Cannot enable two way fulfillment workflow: Couldn't find necessary modifications in $absolute_child_path/functions.php" >> "${error_log}"
+				echo "$(timestamp): Cannot enable two way fulfillment workflow: Couldn't find necessary modifications in $absolute_child_path/functions.php" >> "${wooaras_log}"
 				exit 1
 			fi
 		else
 			echo -e "\n${green}*${reset} ${green}Two way fulfillment workflow has been already enabled: ${reset}"
 			echo -e "${cyan}${m_tab}#####################################################${reset}\n"
-			echo "$(timestamp): Two way fulfillment workflow has been already enabled:" >> "${access_log}"
+			echo "$(timestamp): Two way fulfillment workflow has been already enabled:" >> "${wooaras_log}"
 			exit 0
 		fi
 	else
@@ -1729,7 +1727,7 @@ twoway_enable () {
 		echo "${m_tab}${red}Couldn't find necessary files, please check your setup${reset}"
 		echo "${m_tab}${magenta}$missing_t${reset}"
 		echo -e "${m_tab}${red}Follow the guideline 'Two Way Fulfillment Manual Setup' on github${reset}\n"
-		echo "$(timestamp): Cannot enable two way fulfillment workflow: couldn't find necessary files $missing_t, please check your setup" >> "${error_log}"
+		echo "$(timestamp): Cannot enable two way fulfillment workflow: couldn't find necessary files $missing_t, please check your setup" >> "${wooaras_log}"
 		exit 1
 	fi
 }
@@ -1746,21 +1744,21 @@ twoway_disable () {
 				echo "${cyan}${m_tab}#####################################################${reset}"
 				echo "${m_tab}${red}As folder not writeable ${this_script_path}${reset}"
 				echo -e "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}\n"
-				echo "$(timestamp): Cannot disable two-way workflow: as folder not writeable ${this_script_path}" >> "${error_log}"
+				echo "$(timestamp): Cannot disable two-way workflow: as folder not writeable ${this_script_path}" >> "${wooaras_log}"
 				exit 1
 			fi
 		else
 			echo -e "\n${red}*${reset} ${red}Cannot disable two-way workflow: ${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			echo -e "${m_tab}${red}Two-way workflow already disabled.${reset}\n"
-			echo "$(timestamp): Cannot disable two-way workflow: already disabled" >> "${error_log}"
+			echo "$(timestamp): Cannot disable two-way workflow: already disabled" >> "${wooaras_log}"
 			exit 1
 		fi
 	else
 		echo -e "\n${red}*${reset} ${red}Cannot disable two-way workflow: ${reset}"
 		echo "${cyan}${m_tab}#####################################################${reset}"
 		echo -e "${m_tab}${red}Default installation not completed${reset}\n"
-		echo "$(timestamp): Cannot disable two-way workflow: default installation not completed" >> "${error_log}"
+		echo "$(timestamp): Cannot disable two-way workflow: default installation not completed" >> "${wooaras_log}"
 		exit 1
 	fi
 }
@@ -1774,9 +1772,9 @@ download () {
 			echo -e "\n${red}*${reset} ${red}Upgrade failed:${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			echo "${m_tab}${red}Could not download: $sh_github${reset}"
-			echo "$(timestamp): Upgrade failed, could not download: $sh_github" >> "${error_log}"
+			echo "$(timestamp): Upgrade failed, could not download: $sh_github" >> "${wooaras_log}"
 		else
-			echo "$(timestamp): Upgrade failed, could not download: $sh_github" >> "${error_log}"
+			echo "$(timestamp): Upgrade failed, could not download: $sh_github" >> "${wooaras_log}"
 		fi
 
 		if [ $send_mail_err -eq 1 ]; then
@@ -1791,9 +1789,9 @@ download () {
 			echo -e "\n${red}*${reset} ${red}Upgrade failed:${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			echo "${m_tab}${red}Downloaded $sh_output is incomplete, please re-run${reset}"
-			echo "$(timestamp): Upgrade failed, cannot verify downloaded script, please re-run." >> "${error_log}"
+			echo "$(timestamp): Upgrade failed, cannot verify downloaded script, please re-run." >> "${wooaras_log}"
 		else
-			echo "$(timestamp): Upgrade failed, cannot verify downloaded script, please re-run." >> "${error_log}"
+			echo "$(timestamp): Upgrade failed, cannot verify downloaded script, please re-run." >> "${wooaras_log}"
 		fi
 
 		if [ $send_mail_err -eq 1 ]; then
@@ -1805,9 +1803,10 @@ download () {
 	# Keep user defined settings before upgrading
 	declare -A keeped
 	declare -a getold=("mail_to" "mail_from" "mail_subject_suc" "mail_subject_err"
-			   "e_date" "s_date" "e_date" "error_log" "access_log" "send_mail_err"
+			   "t_date" "s_date" "e_date" "wooaras_log" "send_mail_err"
 			   "company_name" "company_domain" "cron_minute" "cron_minute_update"
-			   "on_calendar" "delivery_time" "max_distance" "send_mail_command")
+			   "on_calendar" "delivery_time" "max_distance" "send_mail_command"
+			   "maxsize" "l_maxsize")
 
 	for i in "${getold[@]}"
 	do
@@ -1852,9 +1851,9 @@ download () {
 			echo -e "\\n\$(tput setaf 1)*\$(tput sgr0) \$(tput setaf 1)Upgrade failed:\$(tput sgr0)"
 			echo "\$(tput setaf 6)${m_tab}#####################################################\$(tput sgr0)"
 			echo -e "${m_tab}\$(tput setaf 1)Failed moving ${sh_output} to ${cron_script_full_path}\$(tput sgr0)\\n"
-			echo "$(timestamp): Upgrade failed: failed moving ${sh_output} to ${cron_script_full_path}" >> "${error_log}"
+			echo "$(timestamp): Upgrade failed: failed moving ${sh_output} to ${cron_script_full_path}" >> "${wooaras_log}"
 		else
-			echo "$(timestamp): Upgrade failed: failed moving ${sh_output} to ${cron_script_full_path}" >> "${error_log}"
+			echo "$(timestamp): Upgrade failed: failed moving ${sh_output} to ${cron_script_full_path}" >> "${wooaras_log}"
 		fi
 
 		if [ $send_mail_err -eq 1 ]; then
@@ -1872,9 +1871,9 @@ download () {
 			echo -e "\\n\$(tput setaf 1)*\$(tput sgr0) \$(tput setaf 1)Upgrade failed:\$(tput sgr0)"
 			echo "\$(tput setaf 6)${m_tab}#####################################################\$(tput sgr0)"
 			echo -e "${m_tab}\$(tput setaf 1)Unable to set permissions on ${cron_script_full_path}\$(tput sgr0)\\n"
-			echo "$(timestamp): Upgrade failed: Unable to set permissions on ${cron_script_full_path}" >> "${error_log}"
+			echo "$(timestamp): Upgrade failed: Unable to set permissions on ${cron_script_full_path}" >> "${wooaras_log}"
 		else
-			echo "$(timestamp): Upgrade failed: Unable to set permissions on ${cron_script_full_path}" >> "${error_log}"
+			echo "$(timestamp): Upgrade failed: Unable to set permissions on ${cron_script_full_path}" >> "${wooaras_log}"
 		fi
 
 		if [ $send_mail_err -eq 1 ]; then
@@ -1892,9 +1891,9 @@ download () {
 			echo -e "\\n\$(tput setaf 1)*\$(tput sgr0) \$(tput setaf 1)Upgrade failed:\$(tput sgr0)"
 			echo "\$(tput setaf 6)${m_tab}#####################################################\$(tput sgr0)"
 			echo -e "${m_tab}\$(tput setaf 1)Unable to set ownership on ${cron_script_full_path}\$(tput sgr0)\\n"
-			echo "$(timestamp): Upgrade failed: Unable to set ownership on ${cron_script_full_path}" >> "${error_log}"
+			echo "$(timestamp): Upgrade failed: Unable to set ownership on ${cron_script_full_path}" >> "${wooaras_log}"
 		else
-			echo "$(timestamp): Upgrade failed: Unable to set ownership on ${cron_script_full_path}" >> "${error_log}"
+			echo "$(timestamp): Upgrade failed: Unable to set ownership on ${cron_script_full_path}" >> "${wooaras_log}"
 		fi
 		if [ $send_mail_err -eq 1 ]; then
 			echo "Upgrade failed: Unable to set ownership on ${cron_script_full_path}" | mail -s "$mail_subject_err" -a "$mail_from" "$mail_to"
@@ -1912,9 +1911,9 @@ download () {
 		fi
 		echo "\$(tput setaf 6)${m_tab}#####################################################\$(tput sgr0)"
 		echo -e "${m_tab}\$(tput setaf 2)Script updated to version ${latest_version}\$(tput sgr0)\\n"
-		echo "$(timestamp): Upgrade completed. Script updated to version ${latest_version}" >> "${access_log}"
+		echo "$(timestamp): Upgrade completed. Script updated to version ${latest_version}" >> "${wooaras_log}"
 	else
-		echo "$(timestamp): Upgrade completed. Script updated to version ${latest_version}" >> "${access_log}"
+		echo "$(timestamp): Upgrade completed. Script updated to version ${latest_version}" >> "${wooaras_log}"
 	fi
 
 	# Send success mail
@@ -1961,9 +1960,9 @@ upgrade () {
 		elif [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 			echo -e "\n${yellow}*${reset} ${yellow}There is no update!${reset}"
 			echo -e "${cyan}${m_tab}#####################################################${reset}\n"
-			echo "$(timestamp): Update process started: There is no new update." >> "${access_log}"
+			echo "$(timestamp): Update process started: There is no new update." >> "${wooaras_log}"
 		else
-			echo "$(timestamp): Update process started: There is no new update." >> "${access_log}"
+			echo "$(timestamp): Update process started: There is no new update." >> "${wooaras_log}"
 
 		fi
 
@@ -1983,12 +1982,12 @@ upgrade () {
 	elif [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 		echo -e "\n${red}*${reset} ${red}Upgrade failed! Could not find upgrade content${reset}"
 		echo -e "${cyan}${m_tab}#####################################################${reset}\n"
-		echo "$(timestamp): Upgrade failed. Could not find upgrade content" >> "${error_log}"
+		echo "$(timestamp): Upgrade failed. Could not find upgrade content" >> "${wooaras_log}"
 	elif [ $send_mail_err -eq 1 ]; then
 		send_mail_err <<< "Upgrade failed. Could not find upgrade content" >/dev/null 2>&1
-		echo "$(timestamp): Upgrade failed. Could not find upgrade content" >> "${error_log}"
+		echo "$(timestamp): Upgrade failed. Could not find upgrade content" >> "${wooaras_log}"
 	else
-		echo "$(timestamp): Upgrade failed. Could not find upgrade content" >> "${error_log}"
+		echo "$(timestamp): Upgrade failed. Could not find upgrade content" >> "${wooaras_log}"
 	fi
 }
 
@@ -2033,7 +2032,7 @@ add_cron () {
 			{
 			echo -e "\n${red}*${reset} Cron install aborted, cannot create directory ${cron_dir}";
 			echo -e "${cyan}${m_tab}#####################################################${reset}\n";
-			echo "$(timestamp): SETUP: Cron install aborted, as cannot create directory ${cron_dir}" >> "${error_log}";
+			echo "$(timestamp): SETUP: Cron install aborted, as cannot create directory ${cron_dir}" >> "${wooaras_log}";
 			exit 1;
 			}
 		else
@@ -2041,7 +2040,7 @@ add_cron () {
 			{
                         echo -e "\n${red}*${reset} Cron install aborted, cannot create ${cron_dir}/${cron_filename}";
 			echo -e "${cyan}${m_tab}#####################################################${reset}\n";
-                        echo "$(timestamp): SETUP: could not create cron ${cron_filename}" >> "${error_log}";
+                        echo "$(timestamp): SETUP: could not create cron ${cron_filename}" >> "${wooaras_log}";
                         exit 1;
                         }
 		fi
@@ -2051,7 +2050,7 @@ add_cron () {
 		echo -e "\n${red}*${reset} Cron install aborted, as file not writable: ${cron_dir}/${cron_filename}"
 		echo "${cyan}${m_tab}#####################################################${reset}"
 		echo -e "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}\n"
-		echo "$(timestamp): SETUP: Cron install aborted, as file not writable: ${cron_dir}/${cron_filename}." >> "${error_log}"
+		echo "$(timestamp): SETUP: Cron install aborted, as file not writable: ${cron_dir}/${cron_filename}." >> "${wooaras_log}"
 		exit 1
 	else
 		if [ "$auto_update" -eq 1 ]; then
@@ -2083,7 +2082,7 @@ add_cron () {
 			add_logrotate
 
 			# Take ownership of script & path
-			[[ $SUDO_USER ]] && { chown "${user}":"${user}" "${cron_script_full_path}"; chown "${user}":"${user}" "${this_script_path}"; chown -R "${user}":"${user}" ${access_log%.*}.*; }
+			[[ $SUDO_USER ]] && { chown "${user}":"${user}" "${cron_script_full_path}"; chown "${user}":"${user}" "${this_script_path}"; chown "${user}":"${user}" "${wooaras_log}"; }
 
 			# Set status
 			on_fly_disable
@@ -2110,12 +2109,12 @@ add_cron () {
 					echo -e "${m_tab}${green}Runtime path deployed via ${cyan}/etc/rc.local${reset}\n"
 				fi
 			fi
-			echo "$(timestamp): Installation completed." >> "${access_log}"
+			echo "$(timestamp): Installation completed." >> "${wooaras_log}"
 		else
 			echo -e "\n${red}*${reset} ${green}Installation failed.${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			echo "${m_tab}${red}Could not create cron {cron_dir}/${cron_filename}.${reset}"
-			echo "$(timestamp): Installation failed, could not create cron {cron_dir}/${cron_filename}" >> "${error_log}"
+			echo "$(timestamp): Installation failed, could not create cron {cron_dir}/${cron_filename}" >> "${wooaras_log}"
 			exit 1
 		fi
 	fi
@@ -2138,7 +2137,7 @@ add_systemd () {
 		echo -e "\n${red}*${reset} ${red}Systemd install aborted, as file not writable:${reset} ${green}${systemd_dir}/${service_filename}${reset}"
 		echo "${cyan}${m_tab}#####################################################${reset}"
 		echo -e "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}\n"
-		echo "$(timestamp): Systemd install aborted, as file not writable: ${systemd_dir}/${service_filename}" >> "${error_log}"
+		echo "$(timestamp): Systemd install aborted, as file not writable: ${systemd_dir}/${service_filename}" >> "${wooaras_log}"
 		exit 1
 	else
 		cat <<- EOF > "${systemd_dir:?}/${service_filename:?}"
@@ -2152,8 +2151,7 @@ add_systemd () {
 		RuntimeDirectory=woo-aras
 		RuntimeDirectoryMode=0775
 		Environment=RUNNING_FROM_SYSTEMD=1
-		StandardOutput=append:${access_log}
-		StandardError=append:${error_log}
+		StandardOutput=append:${wooaras_log}
 		ExecStart=${my_bash} ${systemd_script_full_path}
 
 		[Install]
@@ -2182,14 +2180,14 @@ add_systemd () {
 			if [ ! -e "${cron_dir}/${cron_filename_update}" ]; then
 				mkdir -p "$cron_dir" /dev/null 2>&1
 				touch "${cron_dir}/${cron_filename_update}" /dev/null 2>&1 ||
-				{ echo "could not create cron ${cron_filename_update}";  echo "$(timestamp): SETUP: could not create cron ${cron_filename_update}" >> "${error_log}";  exit 1; }
+				{ echo "could not create cron ${cron_filename_update}";  echo "$(timestamp): SETUP: could not create cron ${cron_filename_update}" >> "${wooaras_log}";  exit 1; }
 			fi
 
 			if [ ! -w "${cron_dir}/${cron_filename_update}" ]; then
 				echo -e "\n${red}*${reset} Updater cron install aborted, as file not writable: ${cron_dir}/${cron_filename_update}"
 				echo "${cyan}${m_tab}#####################################################${reset}"
 				echo -e "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}\n"
-				echo "$(timestamp): SETUP: Cron install aborted, as file not writable: ${cron_dir}/${cron_filename_update}." >> "${error_log}"
+				echo "$(timestamp): SETUP: Cron install aborted, as file not writable: ${cron_dir}/${cron_filename_update}." >> "${wooaras_log}"
 				exit 1
 			else
 				if [ "$auto_update" -eq 1 ]; then
@@ -2208,7 +2206,7 @@ add_systemd () {
 						add_logrotate
 
 						# Take ownership of script & path
-						[[ $SUDO_USER ]] && { chown "${user}":"${user}" "${cron_script_full_path}"; chown "${user}":"${user}" "${this_script_path}"; chown -R "${user}":"${user}" ${access_log%.*}.*; }
+						[[ $SUDO_USER ]] && { chown "${user}":"${user}" "${cron_script_full_path}"; chown "${user}":"${user}" "${this_script_path}"; chown "${user}":"${user}" "${wooaras_log}"; }
 
 						# Set status
 						on_fly_disable
@@ -2216,7 +2214,7 @@ add_systemd () {
 						echo -e "\n${red}*${reset} ${green}Installation failed.${reset}"
 						echo "${cyan}${m_tab}#####################################################${reset}"
 						echo "${m_tab}${red}Could not create updater cron {cron_dir}/${cron_filename_update}.${reset}"
-						echo "$(timestamp): Installation failed, could not create cron {cron_dir}/${cron_filename_update}" >> "${error_log}"
+						echo "$(timestamp): Installation failed, could not create cron {cron_dir}/${cron_filename_update}" >> "${wooaras_log}"
 						exit 1
 					fi
 				fi
@@ -2239,12 +2237,12 @@ add_systemd () {
 					echo -e "${m_tab}${green}Logrotate rules inserted to ${cyan}${logrotate_conf}${reset}\n"
 				fi
 			fi
-			echo "$(timestamp): Installation completed." >> "${access_log}"
+			echo "$(timestamp): Installation completed." >> "${wooaras_log}"
 		else
 			echo -e "\n${red}*${reset} ${green}Installation failed.${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			echo "${m_tab}${red}Cannot enable/start ${timer_filename} systemd service.${reset}"
-			echo "$(timestamp): Installation failed, cannot start ${timer_filename} service." >> "${error_log}"
+			echo "$(timestamp): Installation failed, cannot start ${timer_filename} service." >> "${wooaras_log}"
 			exit 1
 		fi
 	fi
@@ -2259,12 +2257,12 @@ add_logrotate () {
 				echo -e "\n${red}*${reset} ${red}Installation aborted, as folder not writeable: $logrotate_dir${reset}"
 				echo "${cyan}${m_tab}#####################################################${reset}"
 				echo -e "${m_tab}${yellow}You can run script as root or execute with sudo.${reset}\n"
-				echo "$(timestamp): Installation aborted, as folder not writeable: ${logrotate_dir}" >> "${error_log}"
+				echo "$(timestamp): Installation aborted, as folder not writeable: ${logrotate_dir}" >> "${wooaras_log}"
 				exit 1
 			else
 				logrotate_installed="asfile"
 				cat <<- EOF > "${logrotate_dir:?}/${logrotate_filename:?}"
-				${access_log} {
+				${wooaras_log} {
 				prerotate
 				${cron_script_full_path} --rotate >/dev/null 2>&1
 				exit \$?
@@ -2276,7 +2274,7 @@ add_logrotate () {
 				create 0660 ${user} ${user}
 				postrotate
 				/bin/kill -HUP \`cat ${PIDFILE}\` 2>/dev/null || true
-				echo "Logrotation completed" >> ${access_log}
+				echo "Logrotation completed" >> ${wooaras_log}
 				endscript
 				}
 				EOF
@@ -2287,7 +2285,7 @@ add_logrotate () {
 			echo -e "\n${red}*${reset} ${red}Installation aborted, as file not writeable: ${logrotate_conf}${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			echo -e "${m_tab}${yellow}You can run script as root or execute with sudo.${reset}\n"
-			echo "$(timestamp): Installation aborted, as file not writeable: ${logrotate_conf}" >> "${error_log}"
+			echo "$(timestamp): Installation aborted, as file not writeable: ${logrotate_conf}" >> "${wooaras_log}"
 			exit 1
 		else
 			logrotate_installed="conf"
@@ -2295,7 +2293,7 @@ add_logrotate () {
 
 			# Via WooCommerce - ARAS Cargo Integration Script
 			# Copyright 2021 Hasan ÇALIŞIR
-			${access_log} {
+			${wooaras_log} {
 			prerotate
 			${cron_script_full_path} --rotate >/dev/null 2>&1
 			exit \$?
@@ -2307,7 +2305,7 @@ add_logrotate () {
 			create 0660 ${user} ${user}
 			postrotate
 			/bin/kill -HUP \`cat ${PIDFILE}\` 2>/dev/null || true
-			echo "Logrotation completed" >> ${access_log}
+			echo "Logrotation completed" >> ${wooaras_log}
 			endscript
 			# END-WOOARAS
 			}
@@ -2323,7 +2321,7 @@ systemd_tmpfiles () {
 				echo -e "\n${red}*${reset} ${red}Installation aborted, as folder not writable: ${tmpfiles_d}${reset}"
 				echo "${cyan}${m_tab}#####################################################${reset}"
 				echo -e "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}\n"
-				echo "$(timestamp): Installation aborted, as folder not writable: ${tmpfiles_d}" >> "${error_log}"
+				echo "$(timestamp): Installation aborted, as folder not writable: ${tmpfiles_d}" >> "${wooaras_log}"
 				exit 1
 			else
 				cat <<- EOF > "${tmpfiles_d:?}/${tmpfiles_f:?}"
@@ -2337,7 +2335,7 @@ systemd_tmpfiles () {
 					echo -e "\n${red}*${reset} ${red}Installation aborted, as file not writable: ${tmpfiles_d}/${tmpfiles_f}${reset}"
 					echo "${cyan}${m_tab}#####################################################${reset}"
 					echo -e "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}\n"
-					echo "$(timestamp): Installation aborted, as file not writable: ${tmpfiles_d}/${tmpfiles_f}" >> "${error_log}"
+					echo "$(timestamp): Installation aborted, as file not writable: ${tmpfiles_d}/${tmpfiles_f}" >> "${wooaras_log}"
 					exit 1
 				fi
 			fi
@@ -2347,7 +2345,7 @@ systemd_tmpfiles () {
 			echo -e "\n${red}*${reset} ${red}Installation aborted, as file not writable: /etc/rc.local${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			echo -e "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}\n"
-			echo "$(timestamp): Installation aborted, as file not writable: /etc/rc.local" >> "${error_log}"
+			echo "$(timestamp): Installation aborted, as file not writable: /etc/rc.local" >> "${wooaras_log}"
 			exit 1
 		else
 			$m_sed -i -e '$i \mkdir /run/woo-aras/ && chown '"${user}:${user}"' /run/woo-aras\n' "/etc/rc.local" &&
@@ -2417,7 +2415,7 @@ encrypt_wc_auth () {
 			if [ $send_mail_err -eq 1 ]; then
 				send_mail_err <<< "Woocommerce-Aras Cargo integration error. Missing file .key.wc.lck. Please re-start setup manually." >/dev/null 2>&1
 			fi
-			echo "$(timestamp): Missing file $this_script_path/.key.wc.lck" >> "${error_log}"
+			echo "$(timestamp): Missing file $this_script_path/.key.wc.lck" >> "${wooaras_log}"
 			exit 1
 		fi
 	fi
@@ -2433,7 +2431,7 @@ encrypt_wc_auth () {
 			if [ $send_mail_err -eq 1 ]; then
 				send_mail_err <<< "Woocommerce-Aras Cargo integration error. Missing file .secret.wc.lck . Please re-start setup manually." >/dev/null 2>&1
 			fi
-			echo "$(timestamp): Missing file $this_script_path/.secret.wc.lck" >> "${error_log}"
+			echo "$(timestamp): Missing file $this_script_path/.secret.wc.lck" >> "${wooaras_log}"
 			exit 1
 		fi
 	fi
@@ -2453,7 +2451,7 @@ encrypt_wc_end () {
 			if [ $send_mail_err -eq 1 ]; then
 				send_mail_err <<< "Woocommerce-Aras Cargo integration error. Missing file .end.wc.lck. Please re-start setup manually." >/dev/null 2>&1
 			fi
-			echo "$(timestamp): Missing file $this_script_path/.end.wc.lck" >> "${error_log}"
+			echo "$(timestamp): Missing file $this_script_path/.end.wc.lck" >> "${wooaras_log}"
 			exit 1
 		fi
 	fi
@@ -2472,7 +2470,7 @@ encrypt_aras_auth () {
 			if [ $send_mail_err -eq 1 ]; then
 				send_mail_err <<< "Woocommerce-Aras Cargo integration error. Missing file .key.aras.lck. Please re-start setup manually." >/dev/null 2>&1
 			fi
-			echo "$(timestamp): Missing file $this_script_path/.key.aras.lck" >> "${error_log}"
+			echo "$(timestamp): Missing file $this_script_path/.key.aras.lck" >> "${wooaras_log}"
 			exit 1
 		fi
 	fi
@@ -2488,7 +2486,7 @@ encrypt_aras_auth () {
 			if [ $send_mail_err -eq 1 ]; then
 				send_mail_err <<< "Woocommerce-Aras Cargo integration error. Missing file .usr.aras.lck. Please re-start setup manually." >/dev/null 2>&1
 			fi
-			echo "$(timestamp): Missing file $this_script_path/.usr.aras.lck" >> "${error_log}"
+			echo "$(timestamp): Missing file $this_script_path/.usr.aras.lck" >> "${wooaras_log}"
 			exit 1
 		fi
 	fi
@@ -2511,7 +2509,7 @@ encrypt_aras_auth () {
 			if [ $send_mail_err -eq 1 ]; then
 				send_mail_err <<< "Woocommerce-Aras Cargo integration error. Missing file .mrc.aras.lck. Please re-start setup manually." >/dev/null 2>&1
 			fi
-			echo "$(timestamp): Missing file $this_script_path/.mrc.aras.lck" >> "${error_log}"
+			echo "$(timestamp): Missing file $this_script_path/.mrc.aras.lck" >> "${wooaras_log}"
 			exit 1
 		fi
 	fi
@@ -2530,7 +2528,7 @@ encrypt_aras_end () {
 			if [ $send_mail_err -eq 1 ]; then
 				send_mail_err <<< "Woocommerce-Aras Cargo integration error. Missing file .end.aras.lck. Please re-start setup manually." >/dev/null 2>&1
 			fi
-			echo "$(timestamp): Missing file $this_script_path/.end.aras.lck" >> "${error_log}"
+			echo "$(timestamp): Missing file $this_script_path/.end.aras.lck" >> "${wooaras_log}"
 			exit 1
 		fi
 	fi
@@ -2556,7 +2554,7 @@ encrypt_aras_qry () {
 			if [ $send_mail_err -eq 1 ]; then
 				send_mail_err <<< "Woocommerce-Aras Cargo integration error. Missing file .qry.aras.lck. Please re-start setup manually." >/dev/null 2>&1
 			fi
-			echo "$(timestamp): Missing file $this_script_path/.qry.aras.lck" >> "${error_log}"
+			echo "$(timestamp): Missing file $this_script_path/.qry.aras.lck" >> "${wooaras_log}"
 			exit 1
 		fi
 	fi
@@ -2566,7 +2564,7 @@ encrypt_wc_auth && encrypt_wc_end && encrypt_aras_auth && encrypt_aras_end && en
 {
 echo -e "\n${red}*${reset} ${red}Encrypt Error: ${reset}";
 echo -e "${cyan}${m_tab}#####################################################${reset}\n";
-echo "$(timestamp): Encrypt error." >> "${error_log}";
+echo "$(timestamp): Encrypt error." >> "${wooaras_log}";
 exit 1;
 }
 
@@ -2594,7 +2592,7 @@ decrypt_aras_auth && decrypt_aras_end && decrypt_wc_auth && decrypt_wc_end ||
 {
 echo -e "\n${red}*${reset} ${red}Decrypt Error: ${reset}";
 echo -e "${cyan}${m_tab}#####################################################${reset}\n";
-echo "$(timestamp): Decrypt error." >> "${error_log}";
+echo "$(timestamp): Decrypt error." >> "${wooaras_log}";
 exit 1;
 }
 
@@ -2635,12 +2633,12 @@ if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 	while grep -q "Could not resolve host" "$this_script_path/curl.proc"
 	do
 		try=$((try+1))
-		[[ $try -eq 3 ]] && { echo -e "\n${red}>${m_tab}Too many bad try. Cannot connect WooCommerce REST API.${reset}\n"; echo "$(timestamp): Too many bad try. Cannot connect WooCommerce REST API." >> "${error_log}"; exit 1; }
+		[[ $try -eq 3 ]] && { echo -e "\n${red}>${m_tab}Too many bad try. Cannot connect WooCommerce REST API.${reset}\n"; echo "$(timestamp): Too many bad try. Cannot connect WooCommerce REST API." >> "${wooaras_log}"; exit 1; }
 		echo ""
 		echo -e "\n${red}*${reset} ${red}Could not resolve host${reset}"
 		echo "${cyan}${m_tab}#####################################################${reset}"
 		echo  "${m_tab}${red}Is your Wordpress domain ${magenta}$api_endpoint${reset} ${red}correct?${reset}"
-		echo "$(timestamp): Could not resolve host! Check your DNS/Web server." >> "${error_log}"
+		echo "$(timestamp): Could not resolve host! Check your DNS/Web server." >> "${wooaras_log}"
 		while true
 		do
 			echo -e "\n${m_tab}${cyan}##################################################################${reset}"
@@ -2660,7 +2658,7 @@ elif grep -q "Could not resolve host" "$this_script_path/curl.proc"; then
 	if [ $send_mail_err -eq 1 ]; then
 		send_mail_err <<< "Could not resolve host! Is your DNS/Web server up?" >/dev/null 2>&1
 	fi
-	echo "$(timestamp): Could not resolve host! Check your DNS/Web server." >> "${error_log}"
+	echo "$(timestamp): Could not resolve host! Check your DNS/Web server." >> "${wooaras_log}"
 	exit 1
 fi
 
@@ -2671,14 +2669,14 @@ if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 		echo "${cyan}${m_tab}#####################################################${reset}"
 		echo "${m_tab}${red}Is${reset} ${green}$api_endpoint${reset} ${red}is correct?${reset} ${red}Then enable WooCommerce,"
 		echo "${m_tab}${red}Enable REST API and restart setup.${reset}"
-		echo "$(timestamp): WooCommerce REST API Connection Error. Check WooCommerce plugin installed and REST API enabled." >> "${error_log}"
+		echo "$(timestamp): WooCommerce REST API Connection Error. Check WooCommerce plugin installed and REST API enabled." >> "${wooaras_log}"
 		exit 1
 	fi
 elif grep -q  "404\|400" "$this_script_path/curl.proc"; then
 	if [ $send_mail_err -eq 1 ]; then
 		send_mail_err <<< "WooCommerce REST API Connection Error. Is WooCommerce plugin installed and REST API enabled?" >/dev/null 2>&1
 	fi
-	echo "$(timestamp): WooCommerce REST API Connection Error. Check WooCommerce plugin installed and REST API enabled." >> "${error_log}"
+	echo "$(timestamp): WooCommerce REST API Connection Error. Check WooCommerce plugin installed and REST API enabled." >> "${wooaras_log}"
 	exit 1
 fi
 
@@ -2690,14 +2688,14 @@ if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 		echo "${m_tab}${red}Cannot connect destination from $my_ip.${reset}"
 		echo "${m_tab}${red}Check your firewall settings and webserver restrictions.${reset}"
 		echo -e "${m_tab}${red}Please give allow to $my_ip on your end and restart setup.${reset}\n"
-		echo "$(timestamp): WooCommerce REST API Authorization error. Cannot connect destination from $my_ip." >> "${error_log}"
+		echo "$(timestamp): WooCommerce REST API Authorization error. Cannot connect destination from $my_ip." >> "${wooaras_log}"
 		exit 1
 	fi
 elif grep -q "403" "$this_script_path/curl.proc"; then
 	if [ $send_mail_err -eq 1 ]; then
 		send_mail_err <<< "WooCommerce REST API Authorization error. Cannot connect destination from $my_ip. Check your firewall settings and webserver restrictions." >/dev/null 2>&1
 	fi
-	echo "$(timestamp): WooCommerce REST API Authorization error. Cannot connect destination from $my_ip." >> "${error_log}"
+	echo "$(timestamp): WooCommerce REST API Authorization error. Cannot connect destination from $my_ip." >> "${wooaras_log}"
 	exit 1
 fi
 
@@ -2707,11 +2705,11 @@ if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 	while grep -q "woocommerce_rest_authentication_error\|woocommerce_rest_cannot_view\|401" "$this_script_path/curl.proc"
 	do
 		try=$((try+1))
-		[[ $try -eq 3 ]] && { echo -e "\n${red}>${m_tab}Too many bad try. Cannot connect REST API. Check your credentials.${reset}\n"; echo "$(timestamp): Too many bad try. Cannot connect REST API. Check your credentials." >> "${error_log}"; exit 1; }
+		[[ $try -eq 3 ]] && { echo -e "\n${red}>${m_tab}Too many bad try. Cannot connect REST API. Check your credentials.${reset}\n"; echo "$(timestamp): Too many bad try. Cannot connect REST API. Check your credentials." >> "${wooaras_log}"; exit 1; }
 		echo -e "\n${red}*${reset} ${red}WooCommerce REST API Authentication error${reset}"
 		echo "${cyan}${m_tab}#####################################################${reset}"
 		echo -e "${m_tab}${red}Is your WooCommerce REST API credentials correct?${reset}\n"
-		echo "$(timestamp): WooCommerce REST API Authentication Error. Check your WooCommerce REST API credentials." >> "${error_log}"
+		echo "$(timestamp): WooCommerce REST API Authentication Error. Check your WooCommerce REST API credentials." >> "${wooaras_log}"
 		while true
 		do
 			echo "${m_tab}${cyan}###########################################################################${reset}"
@@ -2731,7 +2729,7 @@ elif grep -q "woocommerce_rest_authentication_error\|woocommerce_rest_cannot_vie
 	if [ $send_mail_err -eq 1 ]; then
 		send_mail_err <<< "WooCommerce REST API Authentication Error. Check your WooCommerce REST API credentials." >/dev/null 2>&1
 	fi
-	echo "$(timestamp): WooCommerce REST API Authentication Error. Check your WooCommerce REST API credentials." >> "${error_log}"
+	echo "$(timestamp): WooCommerce REST API Authentication Error. Check your WooCommerce REST API credentials." >> "${wooaras_log}"
 	exit 1
 fi
 
@@ -2746,7 +2744,7 @@ if ! grep -q "401" "$this_script_path/curl.proc"; then
         echo "${m_tab}${red}Check your wordpress caching plugin configuration and be sure wp-json exluded.${reset}"
         echo "${m_tab}${red}If you have server side caching setup,${reset}"
 	echo "${m_tab}${red}like fastcgi cache skip caching json requests.${reset}"
-	echo "$(timestamp): You are caching wp-json requests." >> "${error_log}"
+	echo "$(timestamp): You are caching wp-json requests." >> "${wooaras_log}"
 	exit 1
 fi
 
@@ -2797,13 +2795,13 @@ if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 	while grep -q "error_4625264224" "$this_script_path/aras.json"
 	do
 		try=$((try+1))
-		[[ $try -eq 3 ]] && { echo -e "\n${red}Too many bad try. Cannot connect ARAS SOAP API.${reset}\n"; echo "$(timestamp): Too many bad try. Cannot connect ARAS SOAP API. Check your ARAS endpoint URL." >> "${error_log}";  exit 1; }
+		[[ $try -eq 3 ]] && { echo -e "\n${red}Too many bad try. Cannot connect ARAS SOAP API.${reset}\n"; echo "$(timestamp): Too many bad try. Cannot connect ARAS SOAP API. Check your ARAS endpoint URL." >> "${wooaras_log}";  exit 1; }
 		echo ""
 		echo -e "\n${red}*${reset} ${red}ARAS SOAP Endpoint error${reset}"
 		echo "${cyan}${m_tab}#####################################################${reset}"
 		echo "${m_tab}${red}Is your ARAS endpoint URL correct?${reset}"
 		echo -e "${m_tab}${magenta}$api_end_aras${reset}\n"
-		echo "$(timestamp): ARAS SOAP Endpoint Error! Check your ARAS endpoint URL." >> "${error_log}"
+		echo "$(timestamp): ARAS SOAP Endpoint Error! Check your ARAS endpoint URL." >> "${wooaras_log}"
 		while true
 		do
 			echo "${m_tab}${cyan}###########################################################################${reset}"
@@ -2824,7 +2822,7 @@ elif grep -q "error_4625264224" "$this_script_path/aras.json"; then
 	if [ $send_mail_err -eq 1 ]; then
 		send_mail_err <<< "ARAS SOAP Endpoint Error! Check your ARAS endpoint URL. Please re-start setup manually." >/dev/null 2>&1
 	fi
-	echo "$(timestamp): ARAS SOAP Endpoint Error! Check your ARAS endpoint URL." >> "${error_log}"
+	echo "$(timestamp): ARAS SOAP Endpoint Error! Check your ARAS endpoint URL." >> "${wooaras_log}"
 	exit 1
 fi
 
@@ -2834,12 +2832,12 @@ if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 	while grep -q "error_75546475052" "$this_script_path/aras.json"
 	do
 		try=$((try+1))
-		[[ $try -eq 3 ]] && { echo -e "\n${red}Too many bad try. Cannot connect ARAS SOAP API.${reset}\n"; echo "$(timestamp): Too many bad try. Cannot connect ARAS SOAP API. Check your login credentials." >> "${error_log}";  exit 1; }
+		[[ $try -eq 3 ]] && { echo -e "\n${red}Too many bad try. Cannot connect ARAS SOAP API.${reset}\n"; echo "$(timestamp): Too many bad try. Cannot connect ARAS SOAP API. Check your login credentials." >> "${wooaras_log}";  exit 1; }
 		echo ""
                 echo -e "\n${red}*${reset} ${red}ARAS SOAP Authentication error${reset}"
                 echo "${cyan}${m_tab}#####################################################${reset}"
                 echo -e "${m_tab}${red}Is your ARAS SOAP API credentials correct?${reset}\n"
-		echo "$(timestamp): ARAS SOAP Authentication Error! Check your login credentials." >> "${error_log}"
+		echo "$(timestamp): ARAS SOAP Authentication Error! Check your login credentials." >> "${wooaras_log}"
 		while true
 		do
 			echo "${m_tab}${cyan}###########################################################################${reset}"
@@ -2864,7 +2862,7 @@ elif grep -q "error_75546475052" "$this_script_path/aras.json"; then
 	if [ $send_mail_err -eq 1 ]; then
 		send_mail_err <<< "ARAS SOAP Authentication Error! Check your login credentials." >/dev/null 2>&1
 	fi
-	echo "$(timestamp): ARAS SOAP Authentication Error! Check your login credentials." >> "${error_log}"
+	echo "$(timestamp): ARAS SOAP Authentication Error! Check your login credentials." >> "${wooaras_log}"
 	exit 1
 fi
 
@@ -2896,7 +2894,7 @@ if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			echo "${m_tab}${red}You can simply create a test order if throw in error here.${reset}"
 			echo "${m_tab}${red}Without data validation by user we cannot go for production.${reset}"
-			echo "$(timestamp): Couldn't find any woocommerce order data to validate. You can simply create a test order." >> "${error_log}"
+			echo "$(timestamp): Couldn't find any woocommerce order data to validate. You can simply create a test order." >> "${wooaras_log}"
 			exit 1
 		else
 			echo -e "${m_tab}${green}Done${reset}"
@@ -2929,7 +2927,7 @@ if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 			echo "${m_tab}${red}You can simply set wide time range to get cargo data${reset}"
 			echo "${m_tab}${red}Set 'start_date' 'end_date' variables in script.${reset}"
 			echo "${m_tab}${red}Without data validation by user we cannot go for production.${reset}"
-			echo "$(timestamp): Couldn't find any ARAS cargo data to validate" >> "${error_log}"
+			echo "$(timestamp): Couldn't find any ARAS cargo data to validate" >> "${wooaras_log}"
 			exit 1
 		else
 			echo -e "\n${green}${m_tab}Please validate Tracking_Number & Customer_Info.${reset}"
@@ -3025,14 +3023,14 @@ elif [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 	echo -e "\n${red}*${reset}${red} WooCommerce REST API Connection Error${reset}"
 	echo "${cyan}${m_tab}#####################################################${reset}"
 	echo -e "${m_tab}${red}This can be temporary connection error${reset}\n"
-	echo "$(timestamp): WooCommerce REST API connection error, this can be temporary connection error" >> "${error_log}"
+	echo "$(timestamp): WooCommerce REST API connection error, this can be temporary connection error" >> "${wooaras_log}"
 	exit 1
 elif [ $send_mail_err -eq 1 ]; then
 	send_mail_err <<< "WooCommerce REST API connection error, this can be temporary connection error" >/dev/null 2>&1
-	echo "$(timestamp): WooCommerce REST API connection error, this can be temporary connection error" >> "${error_log}"
+	echo "$(timestamp): WooCommerce REST API connection error, this can be temporary connection error" >> "${wooaras_log}"
 	exit 1
 else
-	echo "$(timestamp): WooCommerce REST API connection error, this can be temporary connection error" >> "${error_log}"
+	echo "$(timestamp): WooCommerce REST API connection error, this can be temporary connection error" >> "${wooaras_log}"
 	exit 1
 fi
 
@@ -3042,8 +3040,8 @@ if [ -e "${this_script_path}/.two.way.enb" ]; then
 	declare -A check_status_del_new
 
 	# Parse access log to get shipped order data
-	if [ -e "${access_log}" ]; then
-		grep "SHIPPED" "${access_log}" | $m_awk '{print $1,$6,$8}' | tr = ' ' | $m_awk '{print $1,$3,$5}' | $m_sed "s|^|$(date +"%T,%d-%b-%Y") |" | $m_awk '{print $3,$4,$1,$2}' |
+	if [ -e "${wooaras_log}" ]; then
+		grep "SHIPPED" "${wooaras_log}" | $m_awk '{print $1,$6,$8}' | tr = ' ' | $m_awk '{print $1,$3,$5}' | $m_sed "s|^|$(date +"%T,%d-%b-%Y") |" | $m_awk '{print $3,$4,$1,$2}' |
 		$m_awk '
 		BEGIN{
   			num=split("jan,feb,mar,apr,may,jun,jul,aug,sep,oct,nov,dec",month,",")
@@ -3066,15 +3064,15 @@ if [ -e "${this_script_path}/.two.way.enb" ]; then
 		' |
 		$m_awk '{print $1,$2,$5}' | tr : ' ' | $m_awk '{print $1,$2,$3/24}' | tr . ' ' | $m_awk '{print $3,$2,$1}' | $m_awk '(NR>0) && ($1 <= '"$delivery_time"')' | cut -f2- -d ' ' > "$this_script_path/wc.proc.del"
 	elif [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
-		echo -e "\n${yellow}*${reset}${yellow} ${access_log} is not exist${reset}"
+		echo -e "\n${yellow}*${reset}${yellow} ${wooaras_log} is not exist${reset}"
 		echo "${cyan}${m_tab}#####################################################${reset}"
 		echo "${m_tab}${yellow}Two-way workflow not working as expected, please check script logging correctly."
-		echo "$(timestamp): ${access_log} is not exist, two-way workflow not working as expected. Please check script logging correctly." >> "${error_log}"
+		echo "$(timestamp): ${wooaras_log} is not exist, two-way workflow not working as expected. Please check script logging correctly." >> "${wooaras_log}"
 	elif [ $send_mail_err -eq 1 ]; then
-		send_mail_err <<< "${access_log} is not exist, two-way workflow not working as expected. Please check script logging correctly." >/dev/null 2>&1
-		echo "$(timestamp): ${access_log} is not exist, two-way workflow not working as expected. Please check script logging correctly." >> "${error_log}"
+		send_mail_err <<< "${wooaras_log} is not exist, two-way workflow not working as expected. Please check script logging correctly." >/dev/null 2>&1
+		echo "$(timestamp): ${wooaras_log} is not exist, two-way workflow not working as expected. Please check script logging correctly." >> "${wooaras_log}"
 	else
-		echo "$(timestamp): ${access_log} is not exist, two-way workflow not working as expected. Please check script logging correctly." >> "${error_log}"
+		echo "$(timestamp): ${wooaras_log} is not exist, two-way workflow not working as expected. Please check script logging correctly." >> "${wooaras_log}"
 	fi
 
 	# Verify columns of file
@@ -3109,14 +3107,14 @@ if [ -e "${this_script_path}/.two.way.enb" ]; then
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			echo "${m_tab}${red}File $this_script_path/wc.proc.del.tmp{1} is still exist."
 			echo -e "${m_tab}${red}Trap couldn't catch signal to remove file on previous run${reset}\n"
-			echo "$(timestamp): Trap cannot catch signal to remove file $this_script_path/wc.proc.del.tmp{1} on previous run" >> "${error_log}"
+			echo "$(timestamp): Trap cannot catch signal to remove file $this_script_path/wc.proc.del.tmp{1} on previous run" >> "${wooaras_log}"
 			exit 1
 		elif [ $send_mail_err -eq 1 ]; then
 			send_mail_err <<< "Trap couldn't catch signal to remove file $this_script_path/wc.proc.del.tmp{1} on previous run. Stopped.." >/dev/null 2>&1
-			echo "$(timestamp): Trap couldn't catch signal to remove file $this_script_path/wc.proc.del.tmp{1} on previous run" >> "${error_log}"
+			echo "$(timestamp): Trap couldn't catch signal to remove file $this_script_path/wc.proc.del.tmp{1} on previous run" >> "${wooaras_log}"
 			exit 1
 		else
-			echo "$(timestamp): Trap couldn't catch signal to remove file $this_script_path/wc.proc.del.tmp{1} on previous run" >> "${error_log}"
+			echo "$(timestamp): Trap couldn't catch signal to remove file $this_script_path/wc.proc.del.tmp{1} on previous run" >> "${wooaras_log}"
 			exit 1
 		fi
 	fi
@@ -3223,14 +3221,14 @@ if [[ "${#aras_array[@]}" -gt 0 && "${#wc_array[@]}" -gt 0 ]]; then # Check leng
 		echo "${m_tab}${red}File ${this_script_path}/.lvn.all.cus is still exist.${reset}"
 		echo "${m_tab}${red}Trap couldn't catch signal to remove file on previous run${reset}"
 		echo -e "${m_tab}${red}Or you disabled trap signal catch in script${reset}\n"
-		echo "$(timestamp): Trap cannot catch signal to remove file ${this_script_path}/.lvn.stn on previous run" >> "${error_log}"
+		echo "$(timestamp): Trap cannot catch signal to remove file ${this_script_path}/.lvn.stn on previous run" >> "${wooaras_log}"
 		exit 1
 	elif [ $send_mail_err -eq 1 ]; then
 		send_mail_err <<< "Trap couldn't catch signal to remove file ${this_script_path}/.lvn.stn on previous run. Stopped.." >/dev/null 2>&1
-		echo "$(timestamp): Trap couldn't catch signal to remove file ${this_script_path}/.lvn.stn on previous run" >> "${error_log}"
+		echo "$(timestamp): Trap couldn't catch signal to remove file ${this_script_path}/.lvn.stn on previous run" >> "${wooaras_log}"
 		exit 1
 	else
-		echo "$(timestamp): Trap couldn't catch signal to remove file ${this_script_path}/.lvn.stn on previous run" >> "${error_log}"
+		echo "$(timestamp): Trap couldn't catch signal to remove file ${this_script_path}/.lvn.stn on previous run" >> "${wooaras_log}"
 		exit 1
 	fi
 fi
@@ -3249,14 +3247,14 @@ if [ -s "${this_script_path}/.lvn.all.cus" ]; then
 		echo "${m_tab}${red}File ${this_script_path}/.lvn.stn is still exist.${reset}"
 		echo "${m_tab}${red}Trap couldn't catch signal to remove file on previous run${reset}"
 		echo -e "${m_tab}${red}Or you disabled trap signal catch in script${reset}\n"
-		echo "$(timestamp): Trap couldn't catch signal to remove file ${this_script_path}/.lvn.stn on previous run" >> "${error_log}"
+		echo "$(timestamp): Trap couldn't catch signal to remove file ${this_script_path}/.lvn.stn on previous run" >> "${wooaras_log}"
 		exit 1
 	elif [ $send_mail_err -eq 1 ]; then
 		send_mail_err <<< "Trap couldn't catch signal to remove file ${this_script_path}/.lvn.stn on previous run. Stopped.." >/dev/null 2>&1
-		echo "$(timestamp): Trap couldn't catch signal to remove file ${this_script_path}/.lvn.stn on previous run" >> "${error_log}"
+		echo "$(timestamp): Trap couldn't catch signal to remove file ${this_script_path}/.lvn.stn on previous run" >> "${wooaras_log}"
 		exit 1
 	else
-		echo "$(timestamp): Trap couldn't catch signal to remove file ${this_script_path}/.lvn.stn on previous run" >> "${error_log}"
+		echo "$(timestamp): Trap couldn't catch signal to remove file ${this_script_path}/.lvn.stn on previous run" >> "${wooaras_log}"
 		exit 1
 	fi
 
@@ -3278,14 +3276,14 @@ if [ -s "${this_script_path}/.lvn.all.cus" ]; then
 			echo "${m_tab}${red}File ${this_script_path}/.lvn.mytmp2 is still exist.${reset}"
 			echo "${m_tab}${red}Trap couldn't catch signal to remove file on previous run${reset}"
 			echo -e "${m_tab}${red}Or you disabled trap signal catch in script${reset}\n"
-			echo "$(timestamp): Trap couldn't catch signal to remove file ${this_script_path}/.lvn.mytmp2 on previous run" >> "${error_log}"
+			echo "$(timestamp): Trap couldn't catch signal to remove file ${this_script_path}/.lvn.mytmp2 on previous run" >> "${wooaras_log}"
 			exit 1
 		elif [ $send_mail_err -eq 1 ]; then
 			send_mail_err <<< "Trap couldn't catch signal to remove file ${this_script_path}/.lvn.mytmp2 on previous run. Stopped.." >/dev/null 2>&1
-			echo "$(timestamp): Trap couldn't catch signal to remove file ${this_script_path}/.lvn.mytmp2 on previous run" >> "${error_log}"
+			echo "$(timestamp): Trap couldn't catch signal to remove file ${this_script_path}/.lvn.mytmp2 on previous run" >> "${wooaras_log}"
 			exit 1
 		else
-			echo "$(timestamp): Trap couldn't catch signal to remove file ${this_script_path}/.lvn.mytmp2 on previous run" >> "${error_log}"
+			echo "$(timestamp): Trap couldn't catch signal to remove file ${this_script_path}/.lvn.mytmp2 on previous run" >> "${wooaras_log}"
 			exit 1
 		fi
 	fi
@@ -3338,7 +3336,7 @@ if [ -e "${this_script_path}/.woo.aras.enb" ]; then
 				send_mail_suc <<- EOF >/dev/null 2>&1
 				<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd"><html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"/></head><body><table id="v1template_container" style="background-color: #ffffff; border: 1px solid #dedede; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1); border-radius: 3px;" border="0" width="600" cellspacing="0" cellpadding="0"><tbody><tr><td align="center" valign="top"><table id="v1template_header" style="background-color: #567d46; color: #ffffff; border-bottom: 0; font-weight: bold; line-height: 100%; vertical-align: middle; font-family: 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif; border-radius: 3px 3px 0 0;" border="0" width="100%" cellspacing="0" cellpadding="0"><tbody><tr><td id="v1header_wrapper" style="padding: 36px 48px; display: block;"><h2 style="font-family: 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif; font-size: 30px; font-weight: 300; line-height: 150%; margin: 0px; text-shadow: #78976b 0px 1px 0px; color: #ffffff; background-color: inherit; text-align: center;">Aras Kargo Otomatik Güncelleme: $id - $order_number</h2></td></tr></tbody></table></td></tr><tr><td align="center" valign="top"><table id="v1template_body" border="0" width="600" cellspacing="0" cellpadding="0"><tbody><tr><td id="v1body_content" style="background-color: #ffffff;" valign="top"><table border="0" width="100%" cellspacing="0" cellpadding="20"><tbody><tr><td style="padding: 48px 48px 32px;" valign="top"><div id="v1body_content_inner" style="color: #636363; font-family: 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif; font-size: 14px; line-height: 150%; text-align: left;"><p style="margin: 0 0 16px;">Merhaba $company_name, $c_name siparişi kargoya verildi ve sipariş durumu tamamlandı olarak güncellendi: Müşteriye kargo takip kodunu da içeren bir bilgilendirme maili gönderildi.</p><h2 style="color: #567d46; display: block; font-family: 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif; font-size: 18px; font-weight: bold; line-height: 130%; margin: 0 0 18px; text-align: left;"><a class="v1link" style="font-weight: normal; text-decoration: underline; color: #567d46;" href="#" target="_blank" rel="noreferrer">[Sipariş #$id]</a> ($t_date)</h2><div style="margin-bottom: 40px;"><table class="v1td" style="color: #636363; border: 1px solid #e5e5e5; vertical-align: middle; width: 100%; font-family: 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif;" border="1" cellspacing="0" cellpadding="6"><thead><tr><th class="v1td" style="color: #636363; border: 1px solid #e5e5e5; vertical-align: middle; padding: 12px; text-align: left;">KARGO</th><th class="v1td" style="color: #636363; border: 1px solid #e5e5e5; vertical-align: middle; padding: 12px; text-align: left;">İSİM</th><th class="v1td" style="color: #636363; border: 1px solid #e5e5e5; vertical-align: middle; padding: 12px; text-align: left;">TAKİP KODU</th></tr></thead><tbody><tr class="v1order_item"><td class="v1td" style="color: #636363; border: 1px solid #e5e5e5; padding: 12px; text-align: left; vertical-align: middle; font-family: 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif; word-wrap: break-word;">ARAS KARGO</td><td class="v1td" style="color: #636363; border: 1px solid #e5e5e5; padding: 12px; text-align: left; vertical-align: middle; font-family: 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif;">$c_name</td><td class="v1td" style="color: #636363; border: 1px solid #e5e5e5; padding: 12px; text-align: left; vertical-align: middle; font-family: 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif;">$track</td></tr></tbody></table></div></div></td></tr></tbody></table></td></tr></tbody></table></td></tr></tbody></table></body></html>
 				EOF
-				echo "$(date +"%T,%d-%b-%Y"): ORDER MARKED AS SHIPPED: Order_Id=$id Order_Number=$order_number Aras_Tracking_Number=$track Customer_Info=$c_name" >> "${access_log}"
+				echo "$(date +"%T,%d-%b-%Y"): ORDER MARKED AS SHIPPED: Order_Id=$id Order_Number=$order_number Aras_Tracking_Number=$track Customer_Info=$c_name" >> "${wooaras_log}"
 				if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 					echo "${green}*${reset} ${green}ORDER UPDATED AS COMPLETED: Order_Id=$id Order_Number=$order_number Aras_Tracking_Number=$track Customer_Info=$c_name${reset}"
 				fi
@@ -3351,14 +3349,14 @@ if [ -e "${this_script_path}/.woo.aras.enb" ]; then
 				echo "${m_tab}${cyan}#####################################################${reset}"
 				echo "${m_tab}${red}Wrong Order ID(corrupt data) or AST REST endpoint error.${reset}"
 				echo -e "${m_tab}${red}Check $my_tmp_folder/$(date +%d-%m-%Y)-main.$$ to validate data.${reset}\n"
-				echo "$(timestamp): Cannot update order=$id status as completed. Wrong Order ID(corrupt data) or AST REST endpoint error. Check $my_tmp_folder/$(date +%d-%m-%Y)-main.$$ to validate data." >> "${error_log}"
+				echo "$(timestamp): Cannot update order=$id status as completed. Wrong Order ID(corrupt data) or AST REST endpoint error. Check $my_tmp_folder/$(date +%d-%m-%Y)-main.$$ to validate data." >> "${wooaras_log}"
 				exit 1
 			elif [ $send_mail_err -eq 1 ]; then
 				send_mail_err <<< "Cannot update order=$id status as completed. Wrong Order ID(corrupt data) or AST REST endpoint error. Check $my_tmp_folder/$(date +%d-%m-%Y)-main.$$ to validate data." >/dev/null 2>&1
-				echo "$(timestamp): Cannot update order=$id status as completed. Wrong Order ID(corrupt data) or AST REST endpoint error. Check $my_tmp_folder/$(date +%d-%m-%Y)-main.$$ to validate data." >> "${error_log}"
+				echo "$(timestamp): Cannot update order=$id status as completed. Wrong Order ID(corrupt data) or AST REST endpoint error. Check $my_tmp_folder/$(date +%d-%m-%Y)-main.$$ to validate data." >> "${wooaras_log}"
 				exit 1
 			else
-				echo "$(timestamp): Cannot update order=$id status as completed. Wrong Order ID(corrupt data) or WooCommerce endpoint error. Check $my_tmp_folder/$(date +%d-%m-%Y)-main.del to validate data.$$" >> "${error_log}"
+				echo "$(timestamp): Cannot update order=$id status as completed. Wrong Order ID(corrupt data) or WooCommerce endpoint error. Check $my_tmp_folder/$(date +%d-%m-%Y)-main.del to validate data.$$" >> "${wooaras_log}"
 				exit 1
 			fi
 		done < "${my_tmp}"
@@ -3368,9 +3366,9 @@ if [ -e "${this_script_path}/.woo.aras.enb" ]; then
 	else
 		if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 			echo "${yellow}*${reset} ${yellow}Couldn't find any updateable order now.${reset}"
-			echo "$(timestamp): Couldn't find any updateable order now." >> "${access_log}"
+			echo "$(timestamp): Couldn't find any updateable order now." >> "${wooaras_log}"
 		else
-			echo "$(timestamp): Couldn't find any updateable order now." >> "${access_log}"
+			echo "$(timestamp): Couldn't find any updateable order now." >> "${wooaras_log}"
 		fi
 	fi
 
@@ -3403,7 +3401,7 @@ if [ -e "${this_script_path}/.woo.aras.enb" ]; then
 					send_mail_suc <<- EOF >/dev/null 2>&1
 					<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd"><html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"/></head><body><table id="v1template_container" style="background-color: #ffffff; border: 1px solid #dedede; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1); border-radius: 3px;" border="0" width="600" cellspacing="0" cellpadding="0"><tbody><tr><td align="center" valign="top"><table id="v1template_header" style="background-color: #567d46; color: #ffffff; border-bottom: 0; font-weight: bold; line-height: 100%; vertical-align: middle; font-family: 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif; border-radius: 3px 3px 0 0;" border="0" width="100%" cellspacing="0" cellpadding="0"><tbody><tr><td id="v1header_wrapper" style="padding: 36px 48px; display: block;"><h2 style="font-family: 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif; font-size: 30px; font-weight: 300; line-height: 150%; margin: 0px; text-shadow: #78976b 0px 1px 0px; color: #ffffff; background-color: inherit; text-align: center;">Aras Kargo Otomatik Güncelleme: $id - $order_number</h2></td></tr></tbody></table></td></tr><tr><td align="center" valign="top"><table id="v1template_body" border="0" width="600" cellspacing="0" cellpadding="0"><tbody><tr><td id="v1body_content" style="background-color: #ffffff;" valign="top"><table border="0" width="100%" cellspacing="0" cellpadding="20"><tbody><tr><td style="padding: 48px 48px 32px;" valign="top"><div id="v1body_content_inner" style="color: #636363; font-family: 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif; font-size: 14px; line-height: 150%; text-align: left;"><p style="margin: 0 0 16px;">Merhaba <strong>$company_name</strong>, <strong>$c_name</strong> siparişi müşteriye ulaştı ve sipariş durumu <strong>Teslim Edildi</strong> olarak güncellendi. Müşteriye sipariş durumunu içeren bir bilgilendirme e-mail'i gönderildi.</p><h2 style="color: #567d46; display: block; font-family: 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif; font-size: 18px; font-weight: bold; line-height: 130%; margin: 0 0 18px; text-align: left;"><a class="v1link" style="font-weight: normal; text-decoration: underline; color: #567d46;" href="#" target="_blank" rel="noopener noreferrer">[Sipariş #$id]</a> ($t_date)</h2><div style="margin-bottom: 40px;">&nbsp;</div></div></td></tr></tbody></table></td></tr></tbody></table></td></tr></tbody></table></body></html>
 					EOF
-					echo "$(date +"%T,%d-%b-%Y"): ORDER MARKED AS DELIVERED: Order_Id=$id Order_Number=$order_number Customer_Info=$c_name" >> "${access_log}"
+					echo "$(date +"%T,%d-%b-%Y"): ORDER MARKED AS DELIVERED: Order_Id=$id Order_Number=$order_number Customer_Info=$c_name" >> "${wooaras_log}"
 					if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 						echo "${green}*${reset} ${green}ORDER UPDATED AS DELIVERED: Order_Id=$id Order_Number=$order_number Customer_Info=$c_name${reset}"
 					fi
@@ -3416,14 +3414,14 @@ if [ -e "${this_script_path}/.woo.aras.enb" ]; then
 					echo "${m_tab}${cyan}#####################################################${reset}"
 					echo "${m_tab}${red}Wrong Order ID(corrupt data) or WooCommerce endpoint error.${reset}"
 					echo -e "${m_tab}${red}Check $my_tmp_folder/$(date +%d-%m-%Y)-main.del to validate data.${reset}\n"
-					echo "$(timestamp): Cannot update order=$id status as delivered. Wrong Order ID(corrupt data) or WooCommerce endpoint error. Check $my_tmp_folder/$(date +%d-%m-%Y)-main.$$" >> "${error_log}"
+					echo "$(timestamp): Cannot update order=$id status as delivered. Wrong Order ID(corrupt data) or WooCommerce endpoint error. Check $my_tmp_folder/$(date +%d-%m-%Y)-main.$$" >> "${wooaras_log}"
 					exit 1
 				elif [ $send_mail_err -eq 1 ]; then
 					send_mail_err <<< "Cannot update order=$id status as delivered. Wrong Order ID(corrupt data) or WooCommerce endpoint error. Check $my_tmp_folder/$(date +%d-%m-%Y)-main.del to validate data.$$" >/dev/null 2>&1
-					echo "$(timestamp): Cannot update order=$id status as delivered. Wrong Order ID(corrupt data) or WooCommerce endpoint error. Check $my_tmp_folder/$(date +%d-%m-%Y)-main.del to validate data.$$" >> "${error_log}"
+					echo "$(timestamp): Cannot update order=$id status as delivered. Wrong Order ID(corrupt data) or WooCommerce endpoint error. Check $my_tmp_folder/$(date +%d-%m-%Y)-main.del to validate data.$$" >> "${wooaras_log}"
 					exit 1
 				else
-					echo "$(timestamp): Cannot update order=$id status as delivered. Wrong Order ID(corrupt data) or WooCommerce endpoint error. Check $my_tmp_folder/$(date +%d-%m-%Y)-main.del to validate data.$$" >> "${error_log}"
+					echo "$(timestamp): Cannot update order=$id status as delivered. Wrong Order ID(corrupt data) or WooCommerce endpoint error. Check $my_tmp_folder/$(date +%d-%m-%Y)-main.del to validate data.$$" >> "${wooaras_log}"
 					exit 1
 				fi
 			done < "${my_tmp_del}"
@@ -3431,9 +3429,9 @@ if [ -e "${this_script_path}/.woo.aras.enb" ]; then
 			trap - SIGINT
 		elif [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 			echo -e "\n${yellow}*${reset} ${yellow}Couldn't find any updateable order now.${reset}"
-			echo "$(timestamp): Couldn't find any updateable order now." >> "${access_log}"
+			echo "$(timestamp): Couldn't find any updateable order now." >> "${wooaras_log}"
 		else
-			echo "$(timestamp): Couldn't find any updateable order now." >> "${access_log}"
+			echo "$(timestamp): Couldn't find any updateable order now." >> "${wooaras_log}"
 		fi
 	fi
 fi
