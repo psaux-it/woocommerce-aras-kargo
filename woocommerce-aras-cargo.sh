@@ -346,14 +346,25 @@ elif ! echo $$ > "${PIDFILE}"; then
 	exit 1
 fi
 
+# Create temporary files
+my_tmp=$(mktemp)
+my_tmp_del=$(mktemp)
+
 # Listen exit signals to destroy temporary files
 trap clean_up 0 1 2 3 6 15
 clean_up () {
+	rm -rf ${my_tmp:?} ${my_tmp_del:?}
 	rm -rf ${PIDFILE:?} "${this_script_path:?}"/aras_request.php >/dev/null 2>&1
 	rm -rf "${this_script_path:?}"/*.en >/dev/null 2>&1
 	rm -rf "${this_script_path:?}"/{*proc*,.*proc} >/dev/null 2>&1
 	rm -rf "${this_script_path:?}"/{*json*,.*json} >/dev/null 2>&1
 	rm -rf "${this_script_path:?}"/.lvn* >/dev/null 2>&1
+
+	# Unset locale if setted before
+	if [[ -n $lang_setted ]]; then
+		unset LC_ALL
+		unset LC_CTYPE
+	fi
 }
 
 # Log timestamp
@@ -612,14 +623,9 @@ done
 m_ctype=$(locale | grep LC_CTYPE | cut -d= -f2 | cut -d_ -f1 | tr -d '"')
 if [ "$m_ctype" != "en" ]; then
 	if locale -a | grep -iq "en_US.utf8"; then
-		unset_locale () {
-			unset LC_ALL
-			unset LC_CTYPE
-		}
-		trap unset_locale 0 1 2 3 6 15
-
 		export LC_ALL=en_US.UTF-8
 		export LC_CTYPE=en_US.UTF-8
+		lang_setted=1
 	else
 		echo -e "\n${red}*${reset} ${red}English locale not found${reset}"
 		echo "${cyan}${m_tab}#####################################################${reset}"
@@ -3037,13 +3043,6 @@ fi
 
 # MAIN STRING MATCHING LOGIC
 # =============================================================================================
-my_tmp=$(mktemp)
-my_tmp_del=$(mktemp)
-
-clean_up_tmp () {
-	rm -rf ${my_tmp:?} ${my_tmp_del:?}
-}
-trap clean_up_tmp 0 1 2 3 6 15
 
 # Get WC order's ID (processing status) & WC customer info
 # As of 2021 max 100 orders fetchable with one query
@@ -3340,9 +3339,6 @@ fi
 # ARAS Tracking number will be sent to customer.
 if [ -e "${this_script_path}/.woo.aras.enb" ]; then
 	if [ -s "$my_tmp" ]; then
-		# Run something important, no Ctrl-C allowed.
-		trap '' SIGINT SIGQUIT
-
 		# For debugging purpose save the parsed data first
 		if [ ! -d "${this_script_path}/tmp" ]; then
 			mkdir "${this_script_path}/tmp"
@@ -3391,8 +3387,6 @@ if [ -e "${this_script_path}/.woo.aras.enb" ]; then
 				exit 1
 			fi
 		done < "${my_tmp}"
-		# Allow ctrl-c
-		trap - SIGINT SIGQUIT
 	else
 		if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 			echo "${yellow}*${reset} ${yellow}Couldn't find any updateable order now.${reset}"
@@ -3404,9 +3398,6 @@ if [ -e "${this_script_path}/.woo.aras.enb" ]; then
 
 	if [ -e "${this_script_path}/.two.way.enb" ]; then
 		if [ -s "$my_tmp_del" ]; then
-			# Running something important, no Ctrl-C allowed.
-			trap '' SIGINT SIGQUIT
-
 			# For debugging purpose save the parsed data first
 			if [ ! -d "${this_script_path}/tmp" ]; then
 				mkdir "${this_script_path}/tmp"
@@ -3455,8 +3446,6 @@ if [ -e "${this_script_path}/.woo.aras.enb" ]; then
 					exit 1
 				fi
 			done < "${my_tmp_del}"
-			# Allow ctrl-c
-			trap - SIGINT SIGQUIT
 		elif [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 			echo -e "\n${yellow}*${reset} ${yellow}Couldn't find any updateable order now.${reset}"
 			echo "$(timestamp): Couldn't find any updateable order now." >> "${wooaras_log}"
