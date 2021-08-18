@@ -493,7 +493,7 @@ while :; do
 				;;
 	-U|--usage	      ) usage
 				exit
-				}}
+				;;
 	-p|--dependencies     ) dependencies
 				exit
 				;;
