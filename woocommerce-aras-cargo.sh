@@ -178,43 +178,6 @@ if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 	m_tab_3=' '
 fi
 
-# We will deploy runtime folder (via --> /etc/tmpfiles.d/ || rc.local) for cron later
-# For systemd we will use 'RuntimeDirectory' so no need tmpfiles ops.
-if [[ ! -d "${runtime_path%/*}" ]]; then
-	if [[ $SUDO_USER ]]; then
-		create_runtime_path
-	elif [[ $EUID -eq 0 ]]; then
-		create_runtime_path
-	elif [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
-		echo -e "\n${yellow}*${reset} ${yellow}Runtime path not writable: /run${reset}\n"
-		echo "${cyan}${m_tab}#####################################################${reset}"
-		echo "${yellow}${m_tab}${yellow}Run once as root or with sudo user to create runtime path${reset}"
-		echo -e "${m_tab}${yellow}sudo ./woocommerce-aras-cargo.sh --help${reset}\n"
-		exit 1
-	elif [ $send_mail_err -eq 1 ]; then
-		send_mail_err <<< "Runtime path not writable: /run --> run once manually as root or with sudo user to create runtime path." >/dev/null 2>&1
-		exit 1
-	fi
-fi
-
-# Drop ownership of log path & log file to sudo user
-if [[ ! -d "${wooaras_log%/*}" ]]; then
-	if [[ $SUDO_USER ]]; then
-		create_log_path
-	elif [[ $EUID -eq 0 ]]; then
-		create_log_path
-	elif [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
-		echo -e "\n${yellow}*${reset} ${yellow}Log path not writable: /var/log${reset}\n"
-		echo "${cyan}${m_tab}#####################################################${reset}"
-		echo "${yellow}${m_tab}${yellow}Run once as root or with sudo user to create log path${reset}"
-		echo -e "${m_tab}${yellow}sudo ./woocommerce-aras-cargo.sh --help${reset}\n"
-		exit 1
-	elif [ $send_mail_err -eq 1 ]; then
-		send_mail_err <<< "Log path not writable: /var/log --> run once manually as root or with sudo user to create log path." >/dev/null 2>&1
-		exit 1
-	fi
-fi
-
 # Add local PATHS to deal with cron errors.
 # We will also set explicit paths for specific binaries later.
 export PATH="${PATH}:/sbin:/usr/sbin:/usr/local/bin:/usr/local/sbin"
@@ -301,6 +264,44 @@ if [[ "$1" == "--rotate" ]]; then
 	my_rotate
 fi
 
+# @REBOOTS
+# We will create runtime folder via --> /etc/tmpfiles.d/ || rc.local for cron installation
+# For systemd installation we will use 'RuntimeDirectory' so no need tmpfiles.
+if [[ ! -d "${runtime_path%/*}" ]]; then
+	if [[ $SUDO_USER ]]; then
+		create_runtime_path
+	elif [[ $EUID -eq 0 ]]; then
+		create_runtime_path
+	elif [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
+		echo -e "\n${yellow}*${reset} ${yellow}Runtime path not writable: /run${reset}\n"
+		echo "${cyan}${m_tab}#####################################################${reset}"
+		echo "${yellow}${m_tab}${yellow}Run once as root or with sudo user to create runtime path${reset}"
+		echo -e "${m_tab}${yellow}sudo ./woocommerce-aras-cargo.sh --help${reset}\n"
+		exit 1
+	elif [ $send_mail_err -eq 1 ]; then
+		send_mail_err <<< "Runtime path not writable: /run --> run once manually as root or with sudo user to create runtime path." >/dev/null 2>&1
+		exit 1
+	fi
+fi
+
+# Create log path, drop ownership to sudo user
+if [[ ! -d "${wooaras_log%/*}" ]]; then
+	if [[ $SUDO_USER ]]; then
+		create_log_path
+	elif [[ $EUID -eq 0 ]]; then
+		create_log_path
+	elif [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
+		echo -e "\n${yellow}*${reset} ${yellow}Log path not writable: /var/log${reset}\n"
+		echo "${cyan}${m_tab}#####################################################${reset}"
+		echo "${yellow}${m_tab}${yellow}Run once as root or with sudo user to create log path${reset}"
+		echo -e "${m_tab}${yellow}sudo ./woocommerce-aras-cargo.sh --help${reset}\n"
+		exit 1
+	elif [ $send_mail_err -eq 1 ]; then
+		send_mail_err <<< "Log path not writable: /var/log --> run once manually as root or with sudo user to create log path." >/dev/null 2>&1
+		exit 1
+	fi
+fi
+
 # Pid pretty error
 pid_pretty_error () {
 	if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
@@ -313,10 +314,10 @@ pid_pretty_error () {
 
 # Create PID before long running process
 # Allow only one instance running at the same time
-# Check how long actual process has been running
-if [ -f "$PIDFILE" ]; then
+# Check how long actual process has been running to catch hang processes
+if [[ -f "$PIDFILE" ]]; then
 	PID="$(< "$PIDFILE")"
-	if ps -p "$PID" > /dev/null 2>&1; then
+	if ps -p "${PID}" > /dev/null 2>&1; then
 		is_running=$(printf "%d" "$(($(ps -p "$PID" -o etimes=) / 60))")
 		if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 			echo -e "\n${red}*${reset} ${red}The operation cannot be performed at the moment: ${reset}"
@@ -465,11 +466,34 @@ options () {
 	done < <(sed -n '/^# USER DEFINED/,/^# END/p' 2>/dev/null "${0}")
 }
 
+usage () {
+	echo -e "\n${m_tab}${cyan}# For two reason this script restricted to run under '/opt/woocommerce-aras-kargo'"
+	echo -e "${m_tab}-- Because of rm operations working in HOME directory is not safe"
+	echo -e "${m_tab}-- Script always drop root privilege to sudo user and chown its own run folder"
+	echo -e "${m_tab}${m_tab}-- The ownership of the folder where you run the script is given to the sudo user.${reset}"
+	echo -e "\n${m_tab}${cyan}# BASIC USAGE${reset}"
+	echo -e "${m_tab}${magenta}###############################################################################${reset}"
+	echo -e "\n${m_tab}${cyan}# Clone git repository into restricted /opt folder${reset}"
+	echo -e "${m_tab}${magenta}cd /opt && sudo git clone https://github.com/hsntgm/woocommerce-aras-kargo.git${reset}"
+	echo -e "\n${m_tab}${cyan}# Setup needs sudo or root user${reset}"
+	echo -e "${m_tab}${magenta}cd /opt/woocommerce-aras-kargo && sudo ./woocommerce-aras-cargo.sh --setup${reset}"
+	echo -e "\n${m_tab}${cyan}# Uninstalling needs sudo or root user${reset}"
+	echo -e "${m_tab}${magenta}cd /opt/woocommerce-aras-kargo && sudo ./woocommerce-aras-cargo.sh --uninstall${reset}"
+	echo -e "\n${m_tab}${cyan}# For all other options you can work without sudo${reset}"
+	echo -e "${m_tab}${magenta}Check './woocommerce-aras-cargo.sh --help' for details.${reset}"
+	echo -e "\n${m_tab}${cyan}# For detailed Installation instruction please visit github page.${reset}"
+	echo -e "${m_tab}${magenta}https://github.com/hsntgm/woocommerce-aras-kargo${reset}"
+	echo -e "\n###############################################################################"
+}
+
 while :; do
         case "${1}" in
 	-o|--options          ) options
 				exit
 				;;
+	-U|--usage	      ) usage
+				exit
+				}}
 	-p|--dependencies     ) dependencies
 				exit
 				;;
@@ -496,15 +520,11 @@ if [[ "$OSTYPE" != "linux-gnu"* ]]; then
 	exit 1
 fi
 
-# Force working in '/opt' folder
-# Prevent working in $HOME directory for safety
-if [[ $this_script_path != /opt* ]]; then
-	echo -e "\n${red}*${reset} ${red}Working in $this_script_path not allowed${reset}"
-	echo "${cyan}${m_tab}#####################################################${reset}"
-	echo "${m_tab}${red}You adviced to work in /opt folder for safety${reset}"
-	echo -e "${m_tab}${red}sudo git clone to /opt folder and re-run setup${reset}\n"
-	echo "$(timestamp): Working in $this_script_path not allowed" >> "${wooaras_log}"
-	exit 1
+# Force working in '/opt/*' folder if script executed by sudo user
+if [[ $SUDO_USER ]]; then
+	if [[ $this_script_path != /opt/woocommerce-aras-kargo* ]]; then
+		usage
+	fi
 fi
 
 # Test connection & get public ip
@@ -672,7 +692,7 @@ my_status () {
 
 	# Setup status
 	if [ -e "${this_script_path}/.woo.aras.set" ]; then
-		s_status="Completed"
+		local s_status="Completed"
 		echo -e "${green}Default-Setup: $s_status${reset}"
 
 		if [[ $- =~ x ]]; then debug=1; set +x; fi
@@ -683,68 +703,68 @@ my_status () {
 		fi
 		[[ $debug == 1 ]] && set -x
 
-		w_delivered=$($m_curl -s -X GET -u "$api_key":"$api_secret" -H "Content-Type: application/json" "https://$api_endpoint/wp-json/wc/v3/orders?status=delivered")
+		local w_delivered=$($m_curl -s -X GET -u "$api_key":"$api_secret" -H "Content-Type: application/json" "https://$api_endpoint/wp-json/wc/v3/orders?status=delivered")
 		if ! grep -q "rest_invalid_param" <<< "${w_delivered}"; then
-			ts_status="Completed"
+			local ts_status="Completed"
 			echo -e "${green}Two-way_Workflow-Setup: $ts_status${reset}"
 		else
-			ts_status="Not_Completed"
+			local ts_status="Not_Completed"
 			echo -e "${green}Two-way_Workflow-Setup: ${yellow}$ts_status${reset}"
 		fi
 
 	else
-		ts_status="Null"
-		s_status="Not_Completed"
+		local ts_status="Null"
+		local s_status="Not_Completed"
 		echo -e "${green}Default-Setup: ${red}$s_status${reset}"
 		echo -e "${green}Two-way_Workflow-Setup: ${yellow}$ts_status${reset}"
 	fi
 
 	# Automation status
 	if [ -e "${this_script_path}/.woo.aras.enb" ]; then
-		a_status="Enabled"
+		local a_status="Enabled"
 		echo -e "${green}Automation-Status: $a_status${reset}"
 	else
-		a_status="Disabled"
+		local a_status="Disabled"
 		echo -e "${green}Automation-Status: ${red}$a_status${reset}"
 	fi
 
 	# Two-way status
 	if [ -e "${this_script_path}/.two.way.enb" ]; then
-		t_status="Enabled"
+		local t_status="Enabled"
 		echo -e "${green}Two-Way-Status: $t_status${reset}"
 	else
-		t_status="Disabled"
+		local t_status="Disabled"
 		echo -e "${green}Two-Way-Status: ${red}$t_status${reset}"
 	fi
 
 	# Installation status
 	if [ -s "${cron_dir}/${cron_filename}" ]; then
-		i_status="Cron"
+		local i_status="Cron"
 		echo -e "${green}Installation: $i_status${reset}"
 	elif [[ -s "${systemd_dir}/${service_filename}" && -s "${systemd_dir}/${timer_filename}" ]]; then
 		if sudo systemctl -t timer | grep "${timer_filename}" | grep -q "active"; then
-			i_status="Systemd"
+			local i_status="Systemd"
 			echo -e "${green}Installation: $i_status${reset}"
 		else
-			i_status="Broken"
+			local i_status="Broken"
 			echo -e "${green}Installation: ${red}$i_status${reset}"
 		fi
 	else
-		i_status="Failed"
+		local i_status="Failed"
 		echo -e "${green}Installation: ${red}$i_status${reset}"
 	fi
 
 	# Auto-update status
 	if [ -s "${cron_dir}/${cron_filename_update}" ]; then
-		u_status="Enabled"
+		local u_status="Enabled"
 		echo -e "${green}Auto-Update: $u_status${reset}"
 	else
-		u_status="Disabled"
+		local u_status="Disabled"
 		echo -e "${green}Auto-Update: ${yellow}$u_status${reset}"
 	fi
 
 	# Total processed order status
-	total_processed="$(zgrep -ci "SHIPPED" "${wooaras_log}")"
+	local total_processed="$(zgrep -ci "SHIPPED" "${wooaras_log}")"
 	echo "${green}Total_Processed_Orders: $total_processed${reset}"
 
 	} > "${this_script_path}/.status.proc" # End redirection to file
@@ -785,7 +805,7 @@ validate_twoway () {
 }
 
 check_delivered () {
-	w_delivered=$($m_curl -s -X GET -u "$api_key":"$api_secret" -H "Content-Type: application/json" "https://$api_endpoint/wp-json/wc/v3/orders?status=delivered")
+	local w_delivered=$($m_curl -s -X GET -u "$api_key":"$api_secret" -H "Content-Type: application/json" "https://$api_endpoint/wp-json/wc/v3/orders?status=delivered")
 	if ! grep -q "rest_invalid_param" <<< "${w_delivered}"; then
 		echo -e "\n${yellow}*${reset} ${yellow}WARNING: Two way fulfillment workflow installation:${reset}"
 		echo "${cyan}${m_tab}#####################################################${reset}"
@@ -810,7 +830,7 @@ check_delivered () {
 pre_check () {
 	# Find distro
 	echo -e "\n${green}*${reset} ${green}Checking system requirements.${reset}"
-	running_os="$(grep '^ID=' /etc/os-release | cut -d'=' -f2 | $m_sed -e 's/"//g')"
+	local running_os="$(grep '^ID=' /etc/os-release | cut -d'=' -f2 | $m_sed -e 's/"//g')"
 	case "${running_os}" in
 		"centos"|"fedora"|"CentOS") o_s=CentOS;;
 		"debian"|"ubuntu") o_s=Debian;;
@@ -830,33 +850,33 @@ pre_check () {
 
 	if grep -q "woocommerce-advanced-shipment-tracking" "${this_script_path}/.plg.act.proc"; then
 		# AST Plugin version
-		ast_ver=$(< "${this_script_path}/.plg.act.proc" grep "woocommerce-advanced-shipment-tracking" | $m_awk '{print $2}')
+		local ast_ver=$(< "${this_script_path}/.plg.act.proc" grep "woocommerce-advanced-shipment-tracking" | $m_awk '{print $2}')
 	else
-		ast_ver=false
+		local ast_ver=false
 	fi
 
 	# WooCommerce version
-	woo_ver=$($m_curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/system_status" -u "$api_key":"$api_secret" -H "Content-Type: application/json" | $m_jq -r '[.environment.version]|join(" ")')
+	local woo_ver=$($m_curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/system_status" -u "$api_key":"$api_secret" -H "Content-Type: application/json" | $m_jq -r '[.environment.version]|join(" ")')
 	echo -ne "${cyan}${m_tab}##########################################           [85%]\r${reset}"
 
 	# Bash Version
-	bash_ver="${BASH_VERSINFO:-0}"
+	local bash_ver="${BASH_VERSINFO:-0}"
 
 	# Wordpress Version
-	w_ver=$(grep "generator" < <($m_curl -s -X GET -H "Content-Type:text/xml;charset=UTF-8" "https://$api_endpoint/feed/") | $m_perl -pe '($_)=/([0-9]+([.][0-9]+)+)/')
+	local w_ver=$(grep "generator" < <($m_curl -s -X GET -H "Content-Type:text/xml;charset=UTF-8" "https://$api_endpoint/feed/") | $m_perl -pe '($_)=/([0-9]+([.][0-9]+)+)/')
 
 	# awk Version
 	if grep -q "GNU Awk" <<< "$($m_awk -Wv 2>&1)"; then
-		gnu_awk=$($m_awk -Wv | grep -w "GNU Awk")
-		gnu_awk_v=$(echo "${gnu_awk}" | $m_awk '{print $3}' | tr -d ,)
+		local gnu_awk=$($m_awk -Wv | grep -w "GNU Awk")
+		local gnu_awk_v=$(echo "${gnu_awk}" | $m_awk '{print $3}' | tr -d ,)
 	fi
 
 	# sed Version
-	gnu_sed=$($m_sed --version | grep -w "(GNU sed)")
-	gnu_sed_v=$(echo "${gnu_sed}" | $m_awk '{print $4}')
+	local gnu_sed=$($m_sed --version | grep -w "(GNU sed)")
+	local gnu_sed_v=$(echo "${gnu_sed}" | $m_awk '{print $4}')
 
 	# jq version
-	jq_ver=$($m_jq --help | grep "version" | tr -d [] | $m_awk '{print $7}')
+	local jq_ver=$($m_jq --help | grep "version" | tr -d [] | $m_awk '{print $7}')
 
 	echo -ne "${cyan}${m_tab}#####################################################[100%]\r${reset}"
 	echo -ne '\n'
@@ -883,7 +903,7 @@ pre_check () {
 			echo "${green}jq_Version: $jq_ver ✓${reset}"
 		else
 			echo "${red}jq_Version: $jq_ver x${reset}"
-			jq_old=1
+			local jq_old=1
 		fi
 	fi
 
@@ -892,7 +912,7 @@ pre_check () {
 			echo "${green}Wordpress_Version: $w_ver ✓${reset}"
 		else
 			echo "${red}Wordpress_Version: $w_ver x${reset}"
-			word_old=1
+			local word_old=1
 		fi
 	fi
 
@@ -908,7 +928,7 @@ pre_check () {
 		echo "${green}Bash_Version: $bash_ver ✓${reset}"
 	else
 		echo "${red}Bash_Version: $bash_ver x${reset}"
-		bash_old=1
+		local bash_old=1
 	fi
 
 	if [[ -n $gnu_awk ]]; then
@@ -916,11 +936,11 @@ pre_check () {
 			echo "${green}GNU_Awk_Version: $gnu_awk_v ✓${reset}"
 		else
 			echo "${red}GNU_Awk_Version: $gnu_awk_v x${reset}"
-			awk_old=1
+			local awk_old=1
 		fi
 	else
 		echo "${red}GNU_Awk: NOT_GNU x${reset}"
-		awk_not_gnu=1
+		local awk_not_gnu=1
 	fi
 
 	if [[ -n $gnu_sed ]]; then
@@ -928,11 +948,11 @@ pre_check () {
 			echo "${green}GNU_Sed_Version: $gnu_sed_v ✓${reset}"
 		else
 			echo "${red}GNU_Sed_Version: $gnu_sed_v x${reset}"
-			sed_old=1
+			local sed_old=1
 		fi
 	else
 		echo "${red}GNU_Sed: NOT_GNU x${reset}"
-		sed_not_gnu=1
+		local sed_not_gnu=1
 	fi
 
 	echo "${green}Operating_System: $o_s ✓${reset}"
@@ -976,7 +996,7 @@ find_child_path () {
 	[[ $debug == 1 ]] && set -x
 
 	# Get active child theme info
-	theme_child=$($m_curl -s -X GET -u "$api_key":"$api_secret" -H "Content-Type: application/json" "https://$api_endpoint/wp-json/wc/v3/system_status" | $m_jq -r '[.theme.is_child_theme]|join(" ")')
+	local theme_child=$($m_curl -s -X GET -u "$api_key":"$api_secret" -H "Content-Type: application/json" "https://$api_endpoint/wp-json/wc/v3/system_status" | $m_jq -r '[.theme.is_child_theme]|join(" ")')
 
 	# Find absolute path of child theme if exist
 	if [ "$theme_child" == "true" ]; then
@@ -1115,7 +1135,7 @@ uninstall_twoway () {
 	if [[ -e "${this_script_path}/.woo.aras.set" ]]; then # Check default installation is completed
 		find_child_path
 		if [ -e "${this_script_path}/.two.way.enb" ]; then # Check twoway installation
-			get_delivered=$($m_curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/orders?status=delivered" -u "$api_key":"$api_secret" -H "Content-Type: application/json") # Get data
+			local get_delivered=$($m_curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/orders?status=delivered" -u "$api_key":"$api_secret" -H "Content-Type: application/json") # Get data
 			if [[ -n "$get_delivered" ]]; then # Any data
 				if [ "${get_delivered}" != "[]" ]; then # Check for null data
 					if grep -q "${my_string}" "$absolute_child_path/functions.php"; then # Lastly, check the file is not modified
@@ -1192,8 +1212,8 @@ install_twoway () {
 		# Get ownership operations
 		if [ -f "$absolute_child_path/functions.php" ]; then
 			if [ -r "$absolute_child_path/functions.php" ]; then
-				GROUP_OWNER="$(stat --format "%G" "$absolute_child_path/functions.php" 2> /dev/null)"
-				USER_OWNER="$(stat --format "%U" "$absolute_child_path/functions.php" 2> /dev/null)"
+				local GROUP_OWNER="$(stat --format "%G" "$absolute_child_path/functions.php" 2> /dev/null)"
+				local USER_OWNER="$(stat --format "%U" "$absolute_child_path/functions.php" 2> /dev/null)"
 			else
 				echo -e "\n${red}*${reset} ${red}Installation aborted, as file not readable: ${reset}"
 				echo "${cyan}${m_tab}#####################################################${reset}"
@@ -1203,8 +1223,8 @@ install_twoway () {
 				exit 1
 			fi
 		elif [ -r "$theme_path/index.php" ]; then
-			GROUP_OWNER="$(stat --format "%G" "$theme_path/index.php" 2> /dev/null)"
-			USER_OWNER="$(stat --format "%U" "$theme_path/index.php" 2> /dev/null)"
+			local GROUP_OWNER="$(stat --format "%G" "$theme_path/index.php" 2> /dev/null)"
+			local USER_OWNER="$(stat --format "%U" "$theme_path/index.php" 2> /dev/null)"
 		else
 			echo -e "\n${red}*${reset} ${red}Installation aborted, as file not readable: ${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
@@ -1331,7 +1351,8 @@ install_twoway () {
 			exit 1;
 		else
 			# Time to enable functions.php modifications
-			$m_sed -i '/aras_woo_include/c include( get_stylesheet_directory() .'"'/woocommerce/aras-woo-delivered.php'"'); //aras_woo_enabled' "${absolute_child_path}/functions.php"
+			$m_sed -i '/aras_woo_include/c include( get_stylesheet_directory() .'"'/woocommerce/aras-woo-delivered.php'"'); //aras_woo_enabled' "${absolute_child_path}/functions.php" ||
+			{ echo "Installation failed, as sed failed"; exit 1; }
 
 			echo -e "\n${green}*${reset} ${green}Two way fulfillment workflow is now enabled.${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
@@ -1713,28 +1734,26 @@ twoway_enable () {
 	# Check function.php modifications completed
 	if grep -q "${my_string}" "$absolute_child_path/functions.php"; then
 		if grep -qw "include( get_stylesheet_directory() .'/woocommerce/aras-woo-delivered.php'); //aras_woo_enabled" "$absolute_child_path/functions.php"; then
-			functions_mod="applied"
+			local functions_mod="applied"
 		else
-			functions_mod="not_applied"
+			local functions_mod="not_applied"
 		fi
 	else
-		functions_mod="not_applied"
+		local functions_mod="not_applied"
 	fi
 
 	# Check necessary files installed
-	exist=true
+	declare missing_t=()
 	for i in "${my_files[@]}"
 	do
-		if [ ! -e "$i" ]; then
-			missing_t="$i"
-			exist=false
-			break
+		if [[ ! -f "${i}" ]]; then
+			missing_t+=( "${i}" )
 		fi
 	done
 
-	if $exist; then
-		if [ ! -e "${this_script_path}/.two.way.enb" ]; then
-			if [ "$functions_mod" == "applied" ]; then
+	if [[ -z "${missing_t}" ]]; then
+		if [[ ! -e "${this_script_path}/.two.way.enb" ]]; then
+			if [[ "${functions_mod}" == "applied" ]]; then
 				depriv "${this_script_path}/.two.way.enb"
 				echo -e "\n${green}*${reset} ${green}Two way fulfillment workflow enabled successfully: ${reset}"
 				echo -e "${cyan}${m_tab}#####################################################${reset}\n"
@@ -1758,7 +1777,7 @@ twoway_enable () {
 		echo -e "\n${red}*${reset} ${red}Cannot enable two way fulfillment workflow: ${reset}"
 		echo "${cyan}${m_tab}#####################################################${reset}"
 		echo "${m_tab}${red}Couldn't find necessary files, please check your setup${reset}"
-		echo "${m_tab}${magenta}$missing_t${reset}"
+		echo "${m_tab}${magenta}${missing_t}${reset}"
 		echo -e "${m_tab}${red}Follow the guideline 'Two Way Fulfillment Manual Setup' on github${reset}\n"
 		echo "$(timestamp): Cannot enable two way fulfillment workflow: couldn't find necessary files $missing_t, please check your setup" >> "${wooaras_log}"
 		exit 1
@@ -1865,14 +1884,14 @@ download () {
 	' "${sh_output}"
 
 	# Copy over permissions from old version
-	OCTAL_MODE="$(stat -c "%a" "${cron_script_full_path}" 2> /dev/null)"
+	local OCTAL_MODE="$(stat -c "%a" "${cron_script_full_path}" 2> /dev/null)"
 	if [ -z "$OCTAL_MODE" ]; then
-		OCTAL_MODE="$(stat -f '%p' "${cron_script_full_path}")"
+		local OCTAL_MODE="$(stat -f '%p' "${cron_script_full_path}")"
 	fi
 
 	# Copy over ownership from old version
-	U_GROUP_OWNER="$(stat --format "%G" "${cron_script_full_path}" 2> /dev/null)"
-	U_USER_OWNER="$(stat --format "%U" "${cron_script_full_path}" 2> /dev/null)"
+	local U_GROUP_OWNER="$(stat --format "%G" "${cron_script_full_path}" 2> /dev/null)"
+	local U_USER_OWNER="$(stat --format "%U" "${cron_script_full_path}" 2> /dev/null)"
 
 	# Generate the update script
 	cat > "${this_script_path}/${update_script}" <<- EOF
@@ -1969,7 +1988,7 @@ download () {
 
 upgrade () {
 	latest_version=$($m_curl -s --compressed -k "$sh_github" 2>&1 | grep "^script_version=" | head -n1 | cut -d '"' -f 2)
-	current_version=$(grep "^script_version=" "${cron_script_full_path}" | head -n1 | cut -d '"' -f 2)
+	local current_version=$(grep "^script_version=" "${cron_script_full_path}" | head -n1 | cut -d '"' -f 2)
 	changelog_p=$($m_curl -s --compressed -k "$changelog_github" 2>&1 | $m_sed -n "/$latest_version/,/$current_version/p" 2>/dev/null | head -n -2)
 
 	if [[ -n $latest_version && -n $current_version ]]; then
@@ -2058,8 +2077,8 @@ done
 # Installation
 #=====================================================================
 add_cron () {
-	if [ ! -e "${cron_dir}/${cron_filename}" ]; then
-		if [ ! -d "${cron_dir}" ]; then
+	if [[ ! -e "${cron_dir}/${cron_filename}" ]]; then
+		if [[ ! -d "${cron_dir}" ]]; then
 			mkdir "$cron_dir" >/dev/null 2>&1 &&
 			touch "${cron_dir}/${cron_filename}" >/dev/null 2>&1 ||
 			{
@@ -2079,14 +2098,14 @@ add_cron () {
 		fi
 	fi
 
-	if [ ! -w "${cron_dir}/${cron_filename}" ]; then
+	if [[ ! -w "${cron_dir}/${cron_filename}" ]]; then
 		echo -e "\n${red}*${reset} Cron install aborted, as file not writable: ${cron_dir}/${cron_filename}"
 		echo "${cyan}${m_tab}#####################################################${reset}"
 		echo -e "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}\n"
 		echo "$(timestamp): SETUP: Cron install aborted, as file not writable: ${cron_dir}/${cron_filename}." >> "${wooaras_log}"
 		exit 1
 	else
-		if [ "$auto_update" -eq 1 ]; then
+		if [[ "${auto_update}" -eq 1 ]]; then
 			cat <<- EOF > "${cron_dir:?}/${cron_filename_update:?}"
 			# At 09:19 on Sunday.
 			# Via WooCommerce - ARAS Cargo Integration Script
@@ -2107,7 +2126,7 @@ add_cron () {
 		EOF
 
 		result=$?
-		if [ "$result" -eq 0 ]; then
+		if [[ "${result}" -eq 0 ]]; then
 			# Install systemd_tmpfiles
 			systemd_tmpfiles
 
@@ -2122,23 +2141,23 @@ add_cron () {
 
 			echo -e "\n${green}*${reset} ${green}Installation completed.${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
-			if [ "$auto_update" -eq 1 ]; then
+			if [[ "${auto_update}" -eq 1 ]]; then
 				echo "${m_tab}${green}Main cron installed to ${cyan}${cron_dir}/${cron_filename}${reset}${reset}"
 				echo "${m_tab}${green}Updater cron installed to ${cyan}${cron_dir}/${cron_filename_update}${reset}${reset}"
 			else
 				echo "${m_tab}${green}Main cron installed to ${cyan}${cron_dir}/${cron_filename}${reset}${reset}"
 			fi
-			if [[ -n "$logrotate_installed" ]]; then
-				if [[ "$logrotate_installed" == "asfile" ]]; then
+			if [[ -n "${logrotate_installed}" ]]; then
+				if [[ "${logrotate_installed}" == "asfile" ]]; then
 					echo "${m_tab}${green}Logrotate installed to ${cyan}${logrotate_dir}/${logrotate_filename}${reset}"
-				elif [[ "$logrotate_installed" == "conf" ]]; then
+				elif [[ "${logrotate_installed}" == "conf" ]]; then
 					echo "${m_tab}${green}Logrotate rules inserted to ${cyan}${logrotate_conf}${reset}"
 				fi
 			fi
-			if [[ -n "$tmpfiles_installed" ]]; then
-				if [[ "$tmpfiles_installed" == "systemd" ]]; then
+			if [[ -n "${tmpfiles_installed}" ]]; then
+				if [[ "{$tmpfiles_installed}" == "systemd" ]]; then
 					echo -e "${m_tab}${green}Runtime path deployed via ${cyan}${tmpfiles_d}/${tmpfiles_f}${reset}\n"
-				elif [[ "$tmpfiles_installed" == "rclocal" ]]; then
+				elif [[ "${tmpfiles_installed}" == "rclocal" ]]; then
 					echo -e "${m_tab}${green}Runtime path deployed via ${cyan}/etc/rc.local${reset}\n"
 				fi
 			fi
@@ -2161,12 +2180,12 @@ add_systemd () {
 		add_cron
 	fi
 
-	[ -d "/etc/systemd/system" ] || { echo -e "\n${m_tab}${yellow}Directory /etc/systemd/system does not exists. Forwarding crontab..${reset}"; echo "${cyan}${m_tab}#####################################################${reset}"; add_cron; }
+	[[ -d "/etc/systemd/system" ]] || { echo -e "\n${m_tab}${yellow}Directory /etc/systemd/system does not exists. Forwarding crontab..${reset}"; echo "${cyan}${m_tab}#####################################################${reset}"; add_cron; }
 
 	touch "${systemd_dir}/${service_filename}" 2>/dev/null
 	touch "${systemd_dir}/${timer_filename}" 2>/dev/null
 
-	if [ ! -w "${systemd_dir}/${service_filename}" ]; then
+	if [[ ! -w "${systemd_dir}/${service_filename}" ]]; then
 		echo -e "\n${red}*${reset} ${red}Systemd install aborted, as file not writable:${reset} ${green}${systemd_dir}/${service_filename}${reset}"
 		echo "${cyan}${m_tab}#####################################################${reset}"
 		echo -e "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}\n"
@@ -2186,6 +2205,7 @@ add_systemd () {
 		Environment=RUNNING_FROM_SYSTEMD=1
 		StandardOutput=append:${wooaras_log}
 		ExecStartPre=+/bin/mkdir -p ${wooaras_log%/*}
+		ExecStartPre=+/bin/touch ${wooaras_log}
 		ExecStartPre=+/bin/chown -R ${systemd_user}:${systemd_user} ${wooaras_log%/*}
 		ExecStart=${my_bash} ${systemd_script_full_path}
 
@@ -2211,21 +2231,21 @@ add_systemd () {
 		systemctl start "${timer_filename}" >/dev/null 2>&1
 		result=$?
 
-		if [ "$result" -eq 0 ]; then
-			if [ ! -e "${cron_dir}/${cron_filename_update}" ]; then
+		if [[ "${result}" -eq 0 ]]; then
+			if [[ ! -e "${cron_dir}/${cron_filename_update}" ]]; then
 				mkdir -p "$cron_dir" /dev/null 2>&1
 				touch "${cron_dir}/${cron_filename_update}" /dev/null 2>&1 ||
 				{ echo "could not create cron ${cron_filename_update}";  echo "$(timestamp): SETUP: could not create cron ${cron_filename_update}" >> "${wooaras_log}";  exit 1; }
 			fi
 
-			if [ ! -w "${cron_dir}/${cron_filename_update}" ]; then
+			if [[ ! -w "${cron_dir}/${cron_filename_update}" ]]; then
 				echo -e "\n${red}*${reset} Updater cron install aborted, as file not writable: ${cron_dir}/${cron_filename_update}"
 				echo "${cyan}${m_tab}#####################################################${reset}"
 				echo -e "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}\n"
 				echo "$(timestamp): SETUP: Cron install aborted, as file not writable: ${cron_dir}/${cron_filename_update}." >> "${wooaras_log}"
 				exit 1
 			else
-				if [ "$auto_update" -eq 1 ]; then
+				if [[ "${auto_update}" -eq 1 ]]; then
 					cat <<- EOF > "${cron_dir:?}/${cron_filename_update:?}"
 					# At 09:19 on Sunday.
 					# Via WooCommerce - ARAS Cargo Integration Script
@@ -2236,7 +2256,7 @@ add_systemd () {
 					EOF
 
 					result=$?
-					if [ "$result" -eq 0 ]; then
+					if [[ "${result}" -eq 0 ]]; then
 						# Add logrotate
 						add_logrotate
 
@@ -2259,16 +2279,16 @@ add_systemd () {
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			echo "${m_tab}${green}Systemd service installed to ${cyan}${systemd_dir}/${service_filename}${reset}"
 			echo "${m_tab}${green}Systemd service timer installed to ${cyan}${systemd_dir}/${timer_filename}${reset}"
-			if [ "$auto_update" -eq 1 ]; then
+			if [[ "${auto_update}" -eq 1 ]]; then
 				echo "${m_tab}${green}Timer service enabled and started.${reset}"
 				echo "${m_tab}${green}Updater cron installed to ${cyan}${cron_dir}/${cron_filename_update}${reset}${reset}"
 			else
 				echo "${m_tab}${green}Timer service enabled and started.${reset}"
 			fi
-			if [[ -n "$logrotate_installed" ]]; then
-				if [[ "$logrotate_installed" == "asfile" ]]; then
+			if [[ -n "${logrotate_installed}" ]]; then
+				if [[ "${logrotate_installed}" == "asfile" ]]; then
 					echo -e "${m_tab}${green}Logrotate installed to ${cyan}${logrotate_dir}/${logrotate_filename}${reset}\n"
-				elif [[ "$logrotate_installed" == "conf" ]]; then
+				elif [[ "${logrotate_installed}" == "conf" ]]; then
 					echo -e "${m_tab}${green}Logrotate rules inserted to ${cyan}${logrotate_conf}${reset}\n"
 				fi
 			fi
@@ -2365,7 +2385,7 @@ systemd_tmpfiles () {
 				EOF
 
 				result=$?
-				if [ "$result" -eq 0 ]; then
+				if [[ "${result}" -eq 0 ]]; then
 					tmpfiles_installed="systemd"
 				else
 					echo -e "\n${red}*${reset} ${red}Installation aborted, as file not writable: ${tmpfiles_d}/${tmpfiles_f}${reset}"
@@ -2912,7 +2932,7 @@ rm -f "${this_script_path:?}/aras_request.php"
 # Also validate the data that parsed by script.
 # If ARAS data is empty first check 'merchant code' which not return any error from ARAS end
 if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
-	if [ ! -e "${this_script_path}/.woo.aras.set" ]; then
+	if [[ ! -e "${this_script_path}/.woo.aras.set" ]]; then
 		pre_check
 		echo -e "\n${green}*${reset} ${green}Parsing some random data to validate.${reset}"
 		echo -ne "${cyan}${m_tab}########                                             [20%]\r${reset}"
@@ -2926,7 +2946,7 @@ if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 		echo -ne "${cyan}${m_tab}#####################################################[100%]\r${reset}"
 		echo -ne '\n'
 		data_test=$($m_curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/orders?per_page=5" -u "$api_key":"$api_secret" -H "Content-Type: application/json")
-		if [ "$data_test" == "[]" ]; then
+		if [[ "${data_test}" == "[]" ]]; then
 			echo -e "\n${red}*${reset} ${red}Couldn't find any woocommerce order data to validate.${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			echo "${m_tab}${red}You can simply create a test order if throw in error here.${reset}"
@@ -3239,7 +3259,7 @@ done
 
 # Prepeare necessary data for matching operation
 if [[ "${#aras_array[@]}" -gt 0 && "${#wc_array[@]}" -gt 0 ]]; then # Check length of arrays to continue
-	if [ ! -e "${this_script_path}/.lvn.all.cus" ]; then # This is always appended file and trap(cleanup) can fail, linux is mystery
+	if [[ ! -e "${this_script_path}/.lvn.all.cus" ]]; then # This is always appended file and trap(cleanup) can fail, linux is mystery
 		for i in "${!wc_array[@]}"; do
 			for j in "${!aras_array[@]}"; do
 				echo "${i}" "${wc_array[$i]}" "${j}" "${aras_array[$j]}" >> "${this_script_path}/.lvn.all.cus"
@@ -3264,8 +3284,8 @@ if [[ "${#aras_array[@]}" -gt 0 && "${#wc_array[@]}" -gt 0 ]]; then # Check leng
 fi
 
 # Use perl for string matching via levenshtein distance function
-if [ -s "${this_script_path}/.lvn.all.cus" ]; then
-	if [ ! -e "${this_script_path}/.lvn.stn" ]; then # This is always appended file and trap can fail, linux is mystery
+if [[ -s "${this_script_path}/.lvn.all.cus" ]]; then
+	if [[ ! -e "${this_script_path}/.lvn.stn" ]]; then # This is always appended file and trap can fail, linux is mystery
 		while read -r wc aras
 		do
 			$m_perl -MText::Fuzzy -e 'my $tf = Text::Fuzzy->new ("$ARGV[0]");' -e 'print $tf->distance ("$ARGV[1]"), "\n";' "$wc" "$aras" >> "${this_script_path}/.lvn.stn"
@@ -3290,13 +3310,13 @@ if [ -s "${this_script_path}/.lvn.all.cus" ]; then
 
 	# Better handle multiple orders(processing) for same customer
 	# Better handle multiple tracking numbers for same customer
-	if [ -s "${my_tmp}" ]; then
+	if [[ -s "${my_tmp}" ]]; then
 		declare -A magic
 		while read -r id track; do
 			magic[${id}]="${magic[$id]}${magic[$id]:+ }${track}"
 		done < "${my_tmp}"
 
-		if [ ! -e "${this_script_path}/.lvn.mytmp2" ]; then
+		if [[ ! -e "${this_script_path}/.lvn.mytmp2" ]]; then
 			for id in "${!magic[@]}"; do
 				echo "$id ${magic[$id]}" >> "${this_script_path}/.lvn.mytmp2" # This is always appended file and trap can fail, linux is mystery
 			done
@@ -3318,8 +3338,8 @@ if [ -s "${this_script_path}/.lvn.all.cus" ]; then
 		fi
 	fi
 
-	if [ -s "${this_script_path}/.lvn.mytmp2" ]; then
-		if [ "$($m_awk '{print NF}' "${this_script_path}"/.lvn.mytmp2 | sort -nu | tail -n 1)" -gt 2 ]; then
+	if [[ -s "${this_script_path}/.lvn.mytmp2" ]]; then
+		if [[ "$($m_awk '{print NF}' "${this_script_path}"/.lvn.mytmp2 | sort -nu | tail -n 1)" -gt 2 ]]; then
 			$m_awk 'NF==3' "${this_script_path}/.lvn.mytmp2" > "${this_script_path}/.lvn.mytmp3"
 			if [[ -n "$($m_awk 'x[$2]++ == 1 { print $2 }' "${this_script_path}"/.lvn.mytmp3)" ]]; then
 				for i in $($m_awk 'x[$2]++ == 1 { print $2 }' "${this_script_path}/.lvn.mytmp3"); do
@@ -3337,10 +3357,10 @@ fi
 
 # Lets start updating woocommerce order status as completed with AST plugin.
 # ARAS Tracking number will be sent to customer.
-if [ -e "${this_script_path}/.woo.aras.enb" ]; then
-	if [ -s "$my_tmp" ]; then
+if [[ -e "${this_script_path}/.woo.aras.enb" ]]; then
+	if [[ -s "${my_tmp}" ]]; then
 		# For debugging purpose save the parsed data first
-		if [ ! -d "${this_script_path}/tmp" ]; then
+		if [[ ! -d "${this_script_path}/tmp" ]]; then
 			mkdir "${this_script_path}/tmp"
 		fi
 		cat <(cat "${my_tmp}") > "${my_tmp_folder}/$(date +%d-%m-%Y)-main.$$"
@@ -3396,10 +3416,10 @@ if [ -e "${this_script_path}/.woo.aras.enb" ]; then
 		fi
 	fi
 
-	if [ -e "${this_script_path}/.two.way.enb" ]; then
-		if [ -s "$my_tmp_del" ]; then
+	if [[ -e "${this_script_path}/.two.way.enb" ]]; then
+		if [[ -s "${my_tmp_del}" ]]; then
 			# For debugging purpose save the parsed data first
-			if [ ! -d "${this_script_path}/tmp" ]; then
+			if [[ ! -d "${this_script_path}/tmp" ]]; then
 				mkdir "${this_script_path}/tmp"
 			fi
 			cat <(cat "${my_tmp_del}") > "${my_tmp_folder}/$(date +%d-%m-%Y)-main.del.$$"
