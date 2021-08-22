@@ -213,10 +213,11 @@ m_tab_3=' '
 
 # Add local PATHS to deal with cron errors.
 # We will also set explicit paths for binaries later.
-export PATH="${PATH}:/sbin:/usr/sbin:/usr/local/bin:/usr/local/sbin"
+export PATH="${PATH}:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin"
 uniquepath () {
 	local path=""
-	while read -r; do
+	while read -r
+	do
 		if [[ ! "${path}" =~ (^|:)"${REPLY}"(:|$) ]]; then
 			[[ "${path}" ]] && path="${path}:"
 			path="${path}${REPLY}"
