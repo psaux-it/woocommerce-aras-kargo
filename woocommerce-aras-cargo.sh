@@ -46,6 +46,20 @@
 # Follow detailed installation instructions on github.
 # =====================================================================
 
+# My style
+{ green=$(tput setaf 2); red=$(tput setaf 1); reset=$(tput sgr0); cyan=$(tput setaf 6); }
+{ magenta=$(tput setaf 5); yellow=$(tput setaf 3); BC=$'\e[32m'; EC=$'\e[0m'; }
+{ m_tab='  '; m_tab_3=' '; }
+
+# First priority for FATAL error
+# Prevent errors cause by uncompleted upgrade
+# Detect to make sure the entire script is available, fail if the script is missing contents
+if [[ "$(tail -n 1 "${0}" | head -n 1 | cut -c 1-7)" != "exit \$?" ]]; then
+	echo -e "\n${red}*${reset} ${red}Script is incomplete, please force upgrade manually${reset}"
+	echo -e "${cyan}${m_tab}#####################################################${reset}\n"
+	exit 1
+fi
+
 # Need for upgrade - DON'T EDIT MANUALLY
 # =====================================================================
 script_version="2.0.1"
@@ -131,86 +145,6 @@ timestamp () {
         date +"%Y-%m-%d %T"
 }
 
-# PID File
-PIDFILE="/var/run/woo-aras/woocommerce-aras-cargo.pid"
-runtime_path="${PIDFILE#/var}"
-
-# Determine user
-if [[ $SUDO_USER ]]; then
-	user="${SUDO_USER}"
-else
-	user="$(whoami)"
-fi
-
-# Drop privileges back to non-root user if we got here with sudo
-depriv () {
-	if [[ $SUDO_USER ]]; then
-		if [[ ! -f "${1}" ]]; then
-			touch "${1}"
-		fi
-		chown "$user":"$user" "${1}"
-	elif [[ ! -f "${1}" ]]; then
-		touch "${1}" || { echo "Cannot create ${1}"; exit 1; }
-	fi
-}
-
-# Not allow -x that expose sensetive informations
-# Disable to write history
-hide_me () {
-	if [[ "${1}" == "--enable" ]]; then
-		if [[ $- =~ x ]]; then my_debug=1; set +x; fi
-		set +o history
-	elif [[ "${1}" == "--disable" ]]; then
-		[[ "${my_debug}" -eq 1 ]] && set -x
-		set -o history
-	fi
-}
-
-# Runtime path operations
-create_runtime_path () {
-	mkdir -p "${runtime_path%/*}" &&
-	echo "$(timestamp): Runtime path created: ${runtime_path%/*}" >> "${wooaras_log}" ||
-	{ echo "Cannot create runtime path"; echo "$(timestamp): Cannot create runtime path: ${runtime_path%/*}" >> "${wooaras_log}"; exit 1; }
-	[[ $SUDO_USER ]] && chown "${user}":"${user}" "${runtime_path%/*}"
-}
-
-# Log file & path operations
-create_log_path () {
-	mkdir -p "${wooaras_log%/*}" || { echo "Cannot create log path"; exit 1; }
-	[[ $SUDO_USER ]] && chown "$user":"$user" "${wooaras_log%/*}"
-	depriv "${wooaras_log}" && echo "$(timestamp): Log path created: ${wooaras_log%/*}" >> "${wooaras_log}"
-}
-
-# Script called by
-called_by () {
-	# Cron
-	local FROM_CRON="$(pstree -s $$ | grep -c cron 2>/dev/null)"
-	local FROM_CRON_2=$([[ ! "$TERM" || "$TERM" = "dumb" ]] && echo '1' || echo '0')
-
-	if [[ "${FROM_CRON}" -eq 1 || "${FROM_CRON_2}" -eq 1 ]]; then
-		RUNNING_FROM_CRON=1
-	else
-		RUNNING_FROM_CRON=0
-	fi
-
-	# Systemd
-	local FROM_SYSTEMD="0"
-	RUNNING_FROM_SYSTEMD="${RUNNING_FROM_SYSTEMD:=$FROM_SYSTEMD}"
-}
-called_by
-
-# My style
-green=$(tput setaf 2)
-red=$(tput setaf 1)
-reset=$(tput sgr0)
-cyan=$(tput setaf 6)
-magenta=$(tput setaf 5)
-yellow=$(tput setaf 3)
-BC=$'\e[32m'
-EC=$'\e[0m'
-m_tab='  '
-m_tab_3=' '
-
 # Add local PATHS to deal with cron errors.
 # We will also set explicit paths for binaries later.
 export PATH="${PATH}:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin"
@@ -229,18 +163,11 @@ uniquepath () {
 uniquepath
 
 # Path pretty error
-path_pretty_error () {
+script_path_pretty_error () {
 	echo -e "\n${red}*${reset} ${red}Could not determine script name and fullpath${reset}"
 	echo -e "${cyan}${m_tab}#####################################################${reset}\n"
 	send_mail "Could not determine script name and fullpath"
-}
-
-# Pid pretty error
-pid_pretty_error () {
-	echo -e "\n${red}*${reset} ${red}FATAL ERROR: Cannot create PID${reset}"
-	echo -e "${cyan}${m_tab}#####################################################${reset}\n"
-	echo "$(timestamp): FATAL ERROR: Cannot create PID" >> "${wooaras_log}"
-	send_mail "FATAL ERROR: Cannot create PID"
+	exit 1
 }
 
 # Early discover script path
@@ -259,20 +186,24 @@ if command -v dirname >/dev/null 2>&1 && command -v readlink >/dev/null 2>&1 && 
 	this_script_path="$( cd -P "$( dirname "${this_script_full_path}" )" >/dev/null 2>&1 && pwd )"
 	this_script_name="$(basename "${this_script_full_path}")"
 else
-	path_pretty_error
-	exit 1
+	script_path_pretty_error
 fi
 
 if [[ ! "${this_script_full_path}" || ! "${this_script_path}" || ! "${this_script_name}" ]]; then
-	path_pretty_error
-	exit 1
+	script_path_pretty_error
 fi
+
+# PID File
+PIDFILE="/var/run/woo-aras/woocommerce-aras-cargo.pid"
 
 # Logrotation prerotate rules
 my_rotate () {
 	# Not logrotate while script running
 	if [[ -f "${PIDFILE}" ]]; then
-		exit 1
+		local PID="$(< "${PIDFILE}")"
+		if ps -p "${PID}" > /dev/null 2>&1; then
+			exit 1
+		fi
 	fi
 
 	# Not logrotate until all shipped orders flagged as delivered otherwise data loss
@@ -424,19 +355,55 @@ while :; do
 	shift
 done
 
+# Determine user
+if [[ $SUDO_USER ]]; then user="${SUDO_USER}"; else user="$(whoami)"; fi
+
+# Drop privileges back to non-root user if we got here with sudo
+depriv () {
+	if [[ $SUDO_USER ]]; then
+		if [[ ! -f "${1}" ]]; then
+			touch "${1}"
+		fi
+		chown "$user":"$user" "${1}"
+	elif [[ ! -f "${1}" ]]; then
+		touch "${1}" || { echo "Cannot create ${1}"; exit 1; }
+	fi
+}
+
+# Not allow -x that expose sensetive informations
+# Disable to write history
+hide_me () {
+	if [[ "${1}" == "--enable" ]]; then
+		if [[ $- =~ x ]]; then my_debug=1; set +x; fi
+		set +o history
+	elif [[ "${1}" == "--disable" ]]; then
+		[[ "${my_debug}" -eq 1 ]] && set -x
+		set -o history
+	fi
+}
+
+# Script called by
+called_by () {
+	# Cron
+	local FROM_CRON="$(pstree -s $$ | grep -c cron 2>/dev/null)"
+	local FROM_CRON_2=$([[ ! "$TERM" || "$TERM" = "dumb" ]] && echo '1' || echo '0')
+
+	if [[ "${FROM_CRON}" -eq 1 || "${FROM_CRON_2}" -eq 1 ]]; then
+		RUNNING_FROM_CRON=1
+	else
+		RUNNING_FROM_CRON=0
+	fi
+
+	# Systemd
+	local FROM_SYSTEMD="0"
+	RUNNING_FROM_SYSTEMD="${RUNNING_FROM_SYSTEMD:=$FROM_SYSTEMD}"
+}
+called_by
+
 # Check OS
 if [[ "$OSTYPE" != "linux-gnu"* ]]; then
 	echo -e "\n${red}*${reset} ${red}Unsupported operating system: $OSTYPE${reset}"
 	echo -e "${cyan}${m_tab}#####################################################${reset}\n"
-	exit 1
-fi
-
-# Prevent errors cause by uncompleted upgrade
-# Detect to make sure the entire script is available, fail if the script is missing contents
-if [ "$(tail -n 1 "${0}" | head -n 1 | cut -c 1-7)" != "exit \$?" ]; then
-	echo -e "\n${red}*${reset} ${red}Script is incomplete, please re-download (force upgrade manually)${reset}"
-	echo -e "${cyan}${m_tab}#####################################################${reset}\n"
-	send_mail "Script is incomplete, please re-download (force upgrade manually)"
 	exit 1
 fi
 
@@ -454,14 +421,9 @@ else
 fi
 
 # For @SETUP && @UNINSTALL:
-# Display usage for restrictions
+# Display usage for sudo or root privilege
 if [[ "${1}" == "-s" || "${1}" == "--setup" ]]; then
-	if [[ $SUDO_USER ]]; then
-		if [[ $this_script_path != /opt/woocommerce-aras-kargo* ]]; then
-			usage
-			exit 1
-		fi
-	elif [[ $EUID -ne 0 ]]; then
+	if [[ ! $SUDO_USER && $EUID -ne 0 ]]; then
 		usage
 		exit 1
 	fi
@@ -472,19 +434,23 @@ elif [[ "${1}" == "-d" || "${1}" == "--uninstall" ]]; then
 	fi
 fi
 
+path_pretty_error () {
+	echo -e "\n${red}*${reset} ${red}Path not writable: ${1}{reset}\n"
+	echo "${cyan}${m_tab}#####################################################${reset}"
+	echo -e "${red}${m_tab}Run once as root or with sudo user to create path${reset}\n"
+	send_mail "Path not writable: ${1} --> run once manually as root or with sudo user to create path."
+	exit 1
+}
+
 # Create log path
 # If executed by sudo user drop ownership
 if [[ ! -d "${wooaras_log%/*}" ]]; then
-	if [[ $SUDO_USER ]]; then
-		create_log_path
-	elif [[ $EUID -eq 0 ]]; then
-		create_log_path
+	if [[ $SUDO_USER || $EUID -eq 0 ]]; then
+		mkdir -p "${wooaras_log%/*}" || { echo "Cannot create log path"; exit 1; }
+		[[ $SUDO_USER ]] && chown "$user":"$user" "${wooaras_log%/*}"
+		depriv "${wooaras_log}" && echo "$(timestamp): Log path created: ${wooaras_log%/*}" >> "${wooaras_log}"
 	else
-		echo -e "\n${red}*${reset} ${red}Log path not writable: /var/log${reset}\n"
-		echo "${cyan}${m_tab}#####################################################${reset}"
-		echo -e "${red}${m_tab}Run once as root or with sudo user to create log path${reset}\n"
-		send_mail "Log path not writable: /var/log --> run once manually as root or with sudo user to create log path."
-		exit 1
+		path_pretty_error "/var/log"
 	fi
 fi
 
@@ -598,22 +564,27 @@ if [ "$m_ctype" != "en" ]; then
 fi
 # =====================================================================
 
+# Pid pretty error
+pid_pretty_error () {
+	echo -e "\n${red}*${reset} ${red}FATAL ERROR: Cannot create PID${reset}"
+	echo -e "${cyan}${m_tab}#####################################################${reset}\n"
+	echo "$(timestamp): FATAL ERROR: Cannot create PID" >> "${wooaras_log}"
+	send_mail "FATAL ERROR: Cannot create PID"
+}
+
 # Create runtime path
 # For @REBOOTS:
 #  -- We will create runtime folder via --> /etc/tmpfiles.d/ || rc.local for cron installation
 #  -- For systemd installation we will use 'RuntimeDirectory' so no need tmpfiles.
+runtime_path="${PIDFILE#/var}"
 if [[ ! -d "${runtime_path%/*}" ]]; then
-	if [[ $SUDO_USER ]]; then
-		create_runtime_path
-	elif [[ $EUID -eq 0 ]]; then
-		create_runtime_path
+	if [[ $SUDO_USER || $EUID -eq 0 ]]; then
+		mkdir -p "${runtime_path%/*}" &&
+		echo "$(timestamp): Runtime path created: ${runtime_path%/*}" >> "${wooaras_log}" ||
+		{ echo "Cannot create runtime path"; echo "$(timestamp): Cannot create runtime path: ${runtime_path%/*}" >> "${wooaras_log}"; exit 1; }
+		[[ $SUDO_USER ]] && chown "${user}":"${user}" "${runtime_path%/*}"
 	else
-		echo -e "\n${red}*${reset} ${red}Runtime path not writable: /run${reset}\n"
-		echo "${cyan}${m_tab}#####################################################${reset}"
-		echo -e "${red}${m_tab}Run once as root or sudo user to create runtime path${reset}\n"
-		echo "$(timestamp): Runtime path not writable: /run" >> "${wooaras_log}"
-		send_mail "Runtime path not writable: /run --> run once manually as root or sudo user to create runtime path."
-		exit 1
+		path_pretty_error "/run"
 	fi
 fi
 
