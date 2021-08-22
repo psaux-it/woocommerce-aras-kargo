@@ -2,7 +2,8 @@
 #
 # shellcheck disable=SC2016,SC2015
 #
-# Copyright 2021 Hasan ÇALIŞIR
+# Copyright (C) 2021 Hasan CALISIR <hasan.calisir@psauxit.com>
+# Distributed under the GNU General Public License, version 2.0.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -19,14 +20,14 @@
 #
 # WOOCOMMERCE - ARAS CARGO INTEGRATION
 # ---------------------------------------------------------------------
-# Written by  : Hasan ÇALIŞIR - hasan.calisir@psauxit.com
+# Written by  : (hsntgm) Hasan ÇALIŞIR - hasan.calisir@psauxit.com
 # Version     : 2.0.1
 # --------------------------------------------------------------------
 # Bash        : 5.1.8
 # WooCommerce : 5.5.1
 # Wordpress   : 5.7.2
 # AST Plugin  : 3.2.5
-# Tested On   : Ubuntu, Gentoo, Debian, CentOS
+# Tested On   : Ubuntu, Gentoo
 # Year        : 2021
 # ---------------------------------------------------------------------
 #
@@ -119,73 +120,105 @@ send_mail_suc () {
 # END
 # =====================================================================
 
+send_mail () {
+	if [[ $send_mail_err -eq 1 ]]; then
+		send_mail_err <<< "${1}" >/dev/null 2>&1
+	fi
+}
+
+# Log timestamp
+timestamp () {
+        date +"%Y-%m-%d %T"
+}
+
 # PID File
 PIDFILE="/var/run/woo-aras/woocommerce-aras-cargo.pid"
 runtime_path="${PIDFILE#/var}"
 
+# Determine user
+if [[ $SUDO_USER ]]; then
+	user="${SUDO_USER}"
+else
+	user="$(whoami)"
+fi
+
 # Drop privileges back to non-root user if we got here with sudo
-# Working with non-root users is always headache
-# On the other hand, working under root is pathetic, vulnerable and easy
-if [[ $SUDO_USER ]]; then user="$SUDO_USER"; else user="$(whoami)"; fi
 depriv () {
 	if [[ $SUDO_USER ]]; then
 		if [[ ! -f "${1}" ]]; then
-			touch "${1}" >/dev/null 2>&1
+			touch "${1}"
 		fi
 		chown "$user":"$user" "${1}"
 	elif [[ ! -f "${1}" ]]; then
-		touch "${1}" >/dev/null 2>&1 || { echo "Cannot create ${1}"; exit 1; }
+		touch "${1}" || { echo "Cannot create ${1}"; exit 1; }
 	fi
 }
 
+# Not allow -x that expose sensetive informations
+# Disable to write history
+hide_me () {
+	if [[ "${1}" == "--enable" ]]; then
+		if [[ $- =~ x ]]; then my_debug=1; set +x; fi
+		set +o history
+	elif [[ "${1}" == "--disable" ]]; then
+		[[ "${my_debug}" -eq 1 ]] && set -x
+		set -o history
+	fi
+}
+
+# Runtime path operations
 create_runtime_path () {
-	mkdir "${runtime_path%/*}" >/dev/null 2>&1 || { echo "Cannot create runtime path"; exit 1; }
-	chown "${user}":"${user}" "${runtime_path%/*}"
+	mkdir -p "${runtime_path%/*}" &&
+	echo "$(timestamp): Runtime path created: ${runtime_path%/*}" >> "${wooaras_log}" ||
+	{ echo "Cannot create runtime path"; echo "$(timestamp): Cannot create runtime path: ${runtime_path%/*}" >> "${wooaras_log}"; exit 1; }
+	[[ $SUDO_USER ]] && chown "${user}":"${user}" "${runtime_path%/*}"
 }
 
+# Log file & path operations
 create_log_path () {
-	mkdir "${wooaras_log%/*}" >/dev/null 2>&1 || { echo "Cannot create log path"; exit 1; }
-	chown "$user":"$user" "${wooaras_log%/*}"
-	depriv "${wooaras_log}"
+	mkdir -p "${wooaras_log%/*}" || { echo "Cannot create log path"; exit 1; }
+	[[ $SUDO_USER ]] && chown "$user":"$user" "${wooaras_log%/*}"
+	depriv "${wooaras_log}" && echo "$(timestamp): Log path created: ${wooaras_log%/*}" >> "${wooaras_log}"
 }
 
-# Determine script run by cron
-TEST_CRON="$(pstree -s $$ | grep -c cron 2>/dev/null)"
-TEST_CRON_2=$([ -z "$TERM" ] || [ "$TERM" = "dumb" ] && echo '1' || echo '0')
-if [[ "$TEST_CRON" == "1" || "$TEST_CRON_2" == "1" ]]; then
-	RUNNING_FROM_CRON=1
-else
-	RUNNING_FROM_CRON=0
-fi
+# Script called by
+called_by () {
+	# Cron
+	local FROM_CRON="$(pstree -s $$ | grep -c cron 2>/dev/null)"
+	local FROM_CRON_2=$([[ -z "$TERM" || "$TERM" = "dumb" ]] && echo '1' || echo '0')
 
-# Determine script run by systemd.
-# Use systemd service environment variable if set.
-# Otherwise pass default.
-FROM_SYSTEMD="0"
-RUNNING_FROM_SYSTEMD="${RUNNING_FROM_SYSTEMD:=$FROM_SYSTEMD}"
+	if [[ "${FROM_CRON}" -eq 1 || "${FROM_CRON_2}" -eq 1 ]]; then
+		RUNNING_FROM_CRON=1
+	else
+		RUNNING_FROM_CRON=0
+	fi
+
+	# Systemd
+	local FROM_SYSTEMD="0"
+	RUNNING_FROM_SYSTEMD="${RUNNING_FROM_SYSTEMD:=$FROM_SYSTEMD}"
+}
+called_by
 
 # My style
-if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
-	green=$(tput setaf 2)
-	red=$(tput setaf 1)
-	reset=$(tput sgr0)
-	cyan=$(tput setaf 6)
-	magenta=$(tput setaf 5)
-	yellow=$(tput setaf 3)
-	BC=$'\e[32m'
-	EC=$'\e[0m'
-	m_tab='  '
-	m_tab_3=' '
-fi
+green=$(tput setaf 2)
+red=$(tput setaf 1)
+reset=$(tput sgr0)
+cyan=$(tput setaf 6)
+magenta=$(tput setaf 5)
+yellow=$(tput setaf 3)
+BC=$'\e[32m'
+EC=$'\e[0m'
+m_tab='  '
+m_tab_3=' '
 
 # Add local PATHS to deal with cron errors.
-# We will also set explicit paths for specific binaries later.
+# We will also set explicit paths for binaries later.
 export PATH="${PATH}:/sbin:/usr/sbin:/usr/local/bin:/usr/local/sbin"
 uniquepath () {
 	local path=""
 	while read -r; do
 		if [[ ! ${path} =~ (^|:)"${REPLY}"(:|$) ]]; then
-			[ -n "${path}" ] && path="${path}:"
+			[[ -n "${path}" ]] && path="${path}:"
 			path="${path}${REPLY}"
 		fi
 	done < <(echo "${PATH}" | tr ":" "\n")
@@ -196,36 +229,42 @@ uniquepath
 
 # Path pretty error
 path_pretty_error () {
-	if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
-		echo -e "\n${red}*${reset} Could not determine script name and fullpath"
-		echo -e "${cyan}${m_tab}#####################################################${reset}\n"
-	elif [[ $send_mail_err -eq 1 ]]; then
-		send_mail_err <<< "Could not determine script name and fullpath" >/dev/null 2>&1
-	fi
-        exit 1
+	echo -e "\n${red}*${reset} ${red}Could not determine script name and fullpath${reset}"
+	echo -e "${cyan}${m_tab}#####################################################${reset}\n"
+	send_mail "Could not determine script name and fullpath"
 }
 
-# Discover script path
+# Pid pretty error
+pid_pretty_error () {
+	echo -e "\n${red}*${reset} ${red}FATAL ERROR: Cannot create PID${reset}"
+	echo -e "${cyan}${m_tab}#####################################################${reset}\n"
+	echo "$(timestamp): FATAL ERROR: Cannot create PID" >> "${wooaras_log}"
+	send_mail "FATAL ERROR: Cannot create PID"
+}
+
+# Early discover script path
 this_script_full_path="${BASH_SOURCE[0]}"
 if command -v dirname >/dev/null 2>&1 && command -v readlink >/dev/null 2>&1 && command -v basename >/dev/null 2>&1; then
 	# Symlinks
-	while [ -h "$this_script_full_path" ]; do
-		this_script_path="$( cd -P "$( dirname "$this_script_full_path" )" >/dev/null 2>&1 && pwd )"
-		this_script_full_path="$(readlink "$this_script_full_path")"
+	while [[ -h "${this_script_full_path}" ]]; do
+		this_script_path="$( cd -P "$( dirname "${this_script_full_path}" )" >/dev/null 2>&1 && pwd )"
+		this_script_full_path="$(readlink "${this_script_full_path}")"
 		# Resolve
-		if [[ $this_script_full_path != /* ]] ; then
-			this_script_full_path="$this_script_path/$this_script_full_path"
+		if [[ "${this_script_full_path}" != /* ]] ; then
+			this_script_full_path="${this_script_path}/${this_script_full_path}"
 		fi
 	done
 
-	this_script_path="$( cd -P "$( dirname "$this_script_full_path" )" >/dev/null 2>&1 && pwd )"
-	this_script_name="$(basename "$this_script_full_path")"
+	this_script_path="$( cd -P "$( dirname "${this_script_full_path}" )" >/dev/null 2>&1 && pwd )"
+	this_script_name="$(basename "${this_script_full_path}")"
 else
 	path_pretty_error
+	exit 1
 fi
 
-if [[ -z "$this_script_full_path" || -z "$this_script_path" || -z "$this_script_name" ]]; then
+if [[ -z "${this_script_full_path}" || -z "${this_script_path}" || -z "${this_script_name}" ]]; then
 	path_pretty_error
+	exit 1
 fi
 
 # Logrotation prerotate rules
@@ -260,144 +299,44 @@ my_rotate () {
 	exit 0
 }
 
-if [[ "$1" == "--rotate" ]]; then
-	my_rotate
-fi
-
-# @REBOOTS
-# We will create runtime folder via --> /etc/tmpfiles.d/ || rc.local for cron installation
-# For systemd installation we will use 'RuntimeDirectory' so no need tmpfiles.
-if [[ ! -d "${runtime_path%/*}" ]]; then
-	if [[ $SUDO_USER ]]; then
-		create_runtime_path
-	elif [[ $EUID -eq 0 ]]; then
-		create_runtime_path
-	elif [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
-		echo -e "\n${yellow}*${reset} ${yellow}Runtime path not writable: /run${reset}\n"
-		echo "${cyan}${m_tab}#####################################################${reset}"
-		echo "${yellow}${m_tab}${yellow}Run once as root or with sudo user to create runtime path${reset}"
-		echo -e "${m_tab}${yellow}sudo ./woocommerce-aras-cargo.sh --help${reset}\n"
-		exit 1
-	elif [ $send_mail_err -eq 1 ]; then
-		send_mail_err <<< "Runtime path not writable: /run --> run once manually as root or with sudo user to create runtime path." >/dev/null 2>&1
-		exit 1
-	fi
-fi
-
-# Create log path, drop ownership to sudo user
-if [[ ! -d "${wooaras_log%/*}" ]]; then
-	if [[ $SUDO_USER ]]; then
-		create_log_path
-	elif [[ $EUID -eq 0 ]]; then
-		create_log_path
-	elif [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
-		echo -e "\n${yellow}*${reset} ${yellow}Log path not writable: /var/log${reset}\n"
-		echo "${cyan}${m_tab}#####################################################${reset}"
-		echo "${yellow}${m_tab}${yellow}Run once as root or with sudo user to create log path${reset}"
-		echo -e "${m_tab}${yellow}sudo ./woocommerce-aras-cargo.sh --help${reset}\n"
-		exit 1
-	elif [ $send_mail_err -eq 1 ]; then
-		send_mail_err <<< "Log path not writable: /var/log --> run once manually as root or with sudo user to create log path." >/dev/null 2>&1
-		exit 1
-	fi
-fi
-
-# Pid pretty error
-pid_pretty_error () {
-	if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
-		echo -e "\n${red}*${reset} ${red}FATAL ERROR: Cannot create PID${reset}"
-		echo -e "${cyan}${m_tab}#####################################################${reset}\n"
-	elif [[ $send_mail_err -eq 1 ]]; then
-		send_mail_err <<< "FATAL ERROR: Cannot create PID" >/dev/null 2>&1
-	fi
+# Display usage instruction
+usage () {
+	echo -e "\n${m_tab}${cyan}# For two reason this script restricted to run under '/opt/woocommerce-aras-kargo'"
+	echo -e "${m_tab}-- Because of rm operations working in HOME directory is not safe"
+	echo -e "${m_tab}-- Script always drop root privilege to sudo user and chown its own run folder"
+	echo -e "${m_tab}${m_tab}-- The ownership of the folder where you run the script is given to the sudo user.${reset}"
+	echo -e "\n${m_tab}${cyan}# BASIC USAGE${reset}"
+	echo -e "${m_tab}${magenta}###############################################################################${reset}"
+	echo -e "\n${m_tab}${cyan}# Clone git repository into restricted /opt folder${reset}"
+	echo -e "${m_tab}${magenta}cd /opt && sudo git clone https://github.com/hsntgm/woocommerce-aras-kargo.git${reset}"
+	echo -e "\n${m_tab}${cyan}# Setup needs sudo or root user${reset}"
+	echo -e "${m_tab}${magenta}cd /opt/woocommerce-aras-kargo && sudo ./woocommerce-aras-cargo.sh --setup${reset}"
+	echo -e "\n${m_tab}${cyan}# Uninstalling needs sudo or root user${reset}"
+	echo -e "${m_tab}${magenta}cd /opt/woocommerce-aras-kargo && sudo ./woocommerce-aras-cargo.sh --uninstall${reset}"
+	echo -e "\n${m_tab}${cyan}# For all other options you can work without sudo${reset}"
+	echo -e "${m_tab}${magenta}Check './woocommerce-aras-cargo.sh --help' for details.${reset}"
+	echo -e "\n${m_tab}${cyan}# For detailed Installation instruction please visit github page.${reset}"
+	echo -e "${m_tab}${magenta}https://github.com/hsntgm/woocommerce-aras-kargo${reset}"
+	echo -e "\n###############################################################################"
 }
 
-# Create PID before long running process
-# Allow only one instance running at the same time
-# Check how long actual process has been running to catch hang processes
-if [[ -f "$PIDFILE" ]]; then
-	PID="$(< "$PIDFILE")"
-	if ps -p "${PID}" > /dev/null 2>&1; then
-		is_running=$(printf "%d" "$(($(ps -p "$PID" -o etimes=) / 60))")
-		if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
-			echo -e "\n${red}*${reset} ${red}The operation cannot be performed at the moment: ${reset}"
-			echo "${cyan}${m_tab}#####################################################${reset}"
-			echo -e "${m_tab}${red}As script already running --> ${magenta}pid=$PID${reset}${red}, please try again later${reset}\n"
-		elif [ $send_mail_err -eq 1 ]; then
-			send_mail_err <<< "The operation cannot be performed at the moment: as script already running --> pid=$PID, please try again later" >/dev/null 2>&1
-		fi
-
-		# Warn about possible hang process
-		if [ "$is_running" -gt 30 ]; then
-			if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
-				echo -e "\n${red}*${reset} ${red}Possible hang process found: ${reset}"
-				echo "${cyan}${m_tab}#####################################################${reset}"
-				echo -e "${m_tab}${red}The process pid=$PID has been running for more than 30 minutes.${reset}\n"
-			elif [ $send_mail_err -eq 1 ]; then
-				send_mail_err <<< "Possible hang process found: The process pid=$PID has been running for more than 30 minutes." >/dev/null 2>&1
-			fi
-		fi
-		exit 0
-	elif ! echo $$ > "${PIDFILE}"; then
-		pid_pretty_error
-		exit 1
-	fi
-elif ! echo $$ > "${PIDFILE}"; then
-	pid_pretty_error
-	exit 1
-fi
-
-# Create temporary files
-my_tmp=$(mktemp)
-my_tmp_del=$(mktemp)
-
-# Listen exit signals to destroy temporary files
-trap clean_up 0 1 2 3 6 15
-clean_up () {
-	rm -rf ${my_tmp:?} ${my_tmp_del:?}
-	rm -rf ${PIDFILE:?} "${this_script_path:?}"/aras_request.php >/dev/null 2>&1
-	rm -rf "${this_script_path:?}"/*.en >/dev/null 2>&1
-	rm -rf "${this_script_path:?}"/{*proc*,.*proc} >/dev/null 2>&1
-	rm -rf "${this_script_path:?}"/{*json*,.*json} >/dev/null 2>&1
-	rm -rf "${this_script_path:?}"/.lvn* >/dev/null 2>&1
-
-	# Unset locale if setted before
-	if [[ -n $lang_setted ]]; then
-		unset LC_ALL
-		unset LC_CTYPE
-	fi
-}
-
-# Log timestamp
-timestamp () {
-	date +"%Y-%m-%d %T"
-}
-
-# Prevent errors cause by uncompleted downloads
-# Detect to make sure the entire script is available, fail if the script is missing contents
-if [ "$(tail -n 1 "${0}" | head -n 1 | cut -c 1-7)" != "exit \$?" ]; then
-	if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
-		echo -e "\n${red}*${reset} ${red}Script is incomplete, please re-download (force upgrade manually)${reset}"
-		echo -e "${cyan}${m_tab}#####################################################${reset}\n"
-		echo "$(timestamp): Script is incomplete, please re-download (force upgrade manually)" >> "${wooaras_log}"
-	else
-		echo "$(timestamp): Script is incomplete, please re-download (force upgrade manually)" >> "${wooaras_log}"
-	fi
-
-	if [ $send_mail_err -eq 1 ]; then
-		send_mail_err <<< "Script is incomplete, please re-download (force upgrade manually)" >/dev/null 2>&1
-	fi
-	exit 1
-fi
-
-# Version Info
-version () {
-        echo -e "\n${m_tab}${cyan}# WOOCOMMERCE - ARAS CARGO INTEGRATION VERSION"
-        echo -e "${m_tab}# ---------------------------------------------------------------------"
-        echo -e "${m_tab}# Written by : Hasan ÇALIŞIR - hasan.calisir@psauxit.com"
-        echo -e "${m_tab}# Version    : 2.0.1"
-        echo -e "${m_tab}# Bash       : 5.1.8"
-        echo -e "${m_tab}# ---------------------------------------------------------------------\n"
+# Display script controls
+help () {
+	echo -e "\n${m_tab}${cyan}# WOOCOMMERCE - ARAS CARGO INTEGRATION HELP"
+	echo -e "${m_tab}# ---------------------------------------------------------------------"
+	echo -e "${m_tab}#${m_tab}--setup            |-s      NEED SUDO! first time setup (also hard reset and re-starts setup)"
+	echo -e "${m_tab}#${m_tab}--twoway-enable    |-t      enable twoway fulfillment workflow"
+	echo -e "${m_tab}#${m_tab}--twoway-disable   |-y      only disable twoway fulfillment workflow without uninstall custom order status package as script will continue to work default one-way"
+	echo -e "${m_tab}#${m_tab}--disable          |-i      completely disable/inactivate script without uninstallation (for debugging purpose)"
+	echo -e "${m_tab}#${m_tab}--enable           |-a      enable/activate script if previously disabled"
+	echo -e "${m_tab}#${m_tab}--uninstall        |-d      NEED SUDO! completely remove installed bundles aka twoway custom order status package, cron jobs, systemd services, logrotate, logs"
+	echo -e "${m_tab}#${m_tab}--upgrade          |-u      upgrade script to latest version"
+	echo -e "${m_tab}#${m_tab}--options          |-o      show user defined/adjustable options currently in use"
+	echo -e "${m_tab}#${m_tab}--status           |-S      display automation status"
+	echo -e "${m_tab}#${m_tab}--dependencies     |-p      display prerequisites & dependencies"
+	echo -e "${m_tab}#${m_tab}--version          |-v      display script info"
+	echo -e "${m_tab}#${m_tab}--help             |-h      display help"
+	echo -e "${m_tab}# ---------------------------------------------------------------------${reset}\n"
 }
 
 # Display script hard dependencies (may not included in default linux installations)
@@ -438,23 +377,14 @@ dependencies () {
 	echo -e "${m_tab}# ---------------------------------------------------------------------${reset}\n"
 }
 
-# Display script controls
-help () {
-	echo -e "\n${m_tab}${cyan}# WOOCOMMERCE - ARAS CARGO INTEGRATION HELP"
+# Version Info
+version () {
+	echo -e "\n${m_tab}${cyan}# WOOCOMMERCE - ARAS CARGO INTEGRATION VERSION"
 	echo -e "${m_tab}# ---------------------------------------------------------------------"
-	echo -e "${m_tab}#${m_tab}--setup            |-s      NEED SUDO! first time setup (also hard reset and re-starts setup)"
-	echo -e "${m_tab}#${m_tab}--twoway-enable    |-t      NEED SUDO! enable twoway fulfillment workflow"
-	echo -e "${m_tab}#${m_tab}--twoway-disable   |-y      only disable twoway fulfillment workflow without uninstall custom order status package as script will continue to work default one-way"
-	echo -e "${m_tab}#${m_tab}--disable          |-i      completely disable/inactivate script without uninstallation (for debugging purpose)"
-	echo -e "${m_tab}#${m_tab}--enable           |-a      enable/activate script if previously disabled"
-	echo -e "${m_tab}#${m_tab}--uninstall        |-d      NEED SUDO! completely remove installed bundles aka twoway custom order status package, cron jobs, systemd services, logrotate, logs"
-	echo -e "${m_tab}#${m_tab}--upgrade          |-u      upgrade script to latest version"
-	echo -e "${m_tab}#${m_tab}--options          |-o      show user defined/adjustable options currently in use"
-	echo -e "${m_tab}#${m_tab}--status           |-S      display automation status"
-	echo -e "${m_tab}#${m_tab}--dependencies     |-p      display prerequisites & dependencies"
-	echo -e "${m_tab}#${m_tab}--version          |-v      display script info"
-	echo -e "${m_tab}#${m_tab}--help             |-h      display help"
-	echo -e "${m_tab}# ---------------------------------------------------------------------${reset}\n"
+	echo -e "${m_tab}# Written by : Hasan ÇALIŞIR - hasan.calisir@psauxit.com"
+	echo -e "${m_tab}# Version    : 2.0.1"
+	echo -e "${m_tab}# Bash       : 5.1.8"
+	echo -e "${m_tab}# ---------------------------------------------------------------------\n"
 }
 
 # Display user defined/adjustable options currently in use
@@ -466,28 +396,13 @@ options () {
 	done < <(sed -n '/^# USER DEFINED/,/^# END/p' 2>/dev/null "${0}")
 }
 
-usage () {
-	echo -e "\n${m_tab}${cyan}# For two reason this script restricted to run under '/opt/woocommerce-aras-kargo'"
-	echo -e "${m_tab}-- Because of rm operations working in HOME directory is not safe"
-	echo -e "${m_tab}-- Script always drop root privilege to sudo user and chown its own run folder"
-	echo -e "${m_tab}${m_tab}-- The ownership of the folder where you run the script is given to the sudo user.${reset}"
-	echo -e "\n${m_tab}${cyan}# BASIC USAGE${reset}"
-	echo -e "${m_tab}${magenta}###############################################################################${reset}"
-	echo -e "\n${m_tab}${cyan}# Clone git repository into restricted /opt folder${reset}"
-	echo -e "${m_tab}${magenta}cd /opt && sudo git clone https://github.com/hsntgm/woocommerce-aras-kargo.git${reset}"
-	echo -e "\n${m_tab}${cyan}# Setup needs sudo or root user${reset}"
-	echo -e "${m_tab}${magenta}cd /opt/woocommerce-aras-kargo && sudo ./woocommerce-aras-cargo.sh --setup${reset}"
-	echo -e "\n${m_tab}${cyan}# Uninstalling needs sudo or root user${reset}"
-	echo -e "${m_tab}${magenta}cd /opt/woocommerce-aras-kargo && sudo ./woocommerce-aras-cargo.sh --uninstall${reset}"
-	echo -e "\n${m_tab}${cyan}# For all other options you can work without sudo${reset}"
-	echo -e "${m_tab}${magenta}Check './woocommerce-aras-cargo.sh --help' for details.${reset}"
-	echo -e "\n${m_tab}${cyan}# For detailed Installation instruction please visit github page.${reset}"
-	echo -e "${m_tab}${magenta}https://github.com/hsntgm/woocommerce-aras-kargo${reset}"
-	echo -e "\n###############################################################################"
-}
+# Accept only one argument
+[[ "${#}" -gt 1 ]] && { help; exit 1; }
 
 while :; do
-        case "${1}" in
+	case "${1}" in
+	--rotate	      ) my_rotate
+				;;
 	-o|--options          ) options
 				exit
 				;;
@@ -504,42 +419,31 @@ while :; do
 				exit
 				;;
 	*                     ) break;;
-        esac
-        shift
+	esac
+	shift
 done
-
-# Accept only one argument
-[[ ${#} -gt 1 ]] && { help; exit 1; }
 
 # Check OS
 if [[ "$OSTYPE" != "linux-gnu"* ]]; then
-	echo -e "\n${red}*${reset} ${red}Unsupported operating system${reset}"
-	echo "${cyan}${m_tab}#####################################################${reset}"
-	echo -e "${m_tab}${red}Please check dependencies via --dependencies${reset}\n"
-	echo "$(timestamp): Unsupported operating system $OSTYPE" >> "${wooaras_log}"
+	echo -e "\n${red}*${reset} ${red}Unsupported operating system: $OSTYPE${reset}"
+	echo -e "${cyan}${m_tab}#####################################################${reset}\n"
 	exit 1
 fi
 
-# Force working in '/opt/*' folder if script executed by sudo user
-if [[ $SUDO_USER ]]; then
-	if [[ $this_script_path != /opt/woocommerce-aras-kargo* ]]; then
-		usage
-	fi
+# Prevent errors cause by uncompleted upgrade
+# Detect to make sure the entire script is available, fail if the script is missing contents
+if [ "$(tail -n 1 "${0}" | head -n 1 | cut -c 1-7)" != "exit \$?" ]; then
+	echo -e "\n${red}*${reset} ${red}Script is incomplete, please re-download (force upgrade manually)${reset}"
+	echo -e "${cyan}${m_tab}#####################################################${reset}\n"
+	send_mail "Script is incomplete, please re-download (force upgrade manually)"
+	exit 1
 fi
 
 # Test connection & get public ip
 if ! : >/dev/tcp/8.8.8.8/53; then
-	if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
-		echo -e "\n${red}*${reset} ${red}There is no internet connection.${reset}"
-		echo -e "${cyan}${m_tab}#####################################################${reset}\n"
-		echo "$(timestamp): There is no internet connection." >> "${wooaras_log}"
-	else
-		echo "$(timestamp): There is no internet connection." >> "${wooaras_log}"
-	fi
-
-	if [ $send_mail_err -eq 1 ]; then
-		send_mail_err <<< "There is no internet connection." >/dev/null 2>&1
-	fi
+	echo -e "\n${red}*${reset} ${red}There is no internet connection.${reset}"
+	echo -e "${cyan}${m_tab}#####################################################${reset}\n"
+	send_mail "There is no internet connection."
 	exit 1
 else
 	# Get public IP
@@ -548,16 +452,51 @@ else
 	read -r my_ip < <(tail -n1 <&3)
 fi
 
+# For @SETUP && @UNINSTALL:
+# Display usage for restrictions
+if [[ "${1}" == "-s" || "${1}" == "--setup" ]]; then
+	if [[ $SUDO_USER ]]; then
+		if [[ $this_script_path != /opt/woocommerce-aras-kargo* ]]; then
+			usage
+			exit 1
+		fi
+	elif [[ $EUID -ne 0 ]]; then
+		usage
+		exit 1
+	fi
+elif [[ "${1}" == "-d" || "${1}" == "--uninstall" ]]; then
+	if [[ ! $SUDO_USER && $EUID -ne 0 ]]; then
+		usage
+		exit 1
+	fi
+fi
+
+# Create log path
+# If executed by sudo user drop ownership
+if [[ ! -d "${wooaras_log%/*}" ]]; then
+	if [[ $SUDO_USER ]]; then
+		create_log_path
+	elif [[ $EUID -eq 0 ]]; then
+		create_log_path
+	else
+		echo -e "\n${red}*${reset} ${red}Log path not writable: /var/log${reset}\n"
+		echo "${cyan}${m_tab}#####################################################${reset}"
+		echo -e "${red}${m_tab}Run once as root or with sudo user to create log path${reset}\n"
+		send_mail "Log path not writable: /var/log --> run once manually as root or with sudo user to create log path."
+		exit 1
+	fi
+fi
+
 # Check dependencies & Set explicit paths
 # =====================================================================
 dynamic_vars () {
 	suffix="m"
-	eval "${suffix}"_"${1}"="$(command -v "$1" 2>/dev/null)"
+	eval "${suffix}"_"${1}"="$(command -v "${1}" 2>/dev/null)"
 }
 
 # Check mailserver > as smtp port 587 is open and listening
 # Still using port 25? I don't care..
-if timeout 1 bash -c "cat < /dev/null > /dev/tcp/"$my_ip"/587" >/dev/null 2>&1; then
+if timeout 1 bash -c "cat < /dev/null > /dev/tcp/"${my_ip}"/587" >/dev/null 2>&1; then
 	if command -v lsof >/dev/null 2>&1; then
 		if lsof -i -P -n | grep -q 587; then
 			check_mail_server=0
@@ -650,12 +589,82 @@ if [ "$m_ctype" != "en" ]; then
 		echo -e "\n${red}*${reset} ${red}English locale not found${reset}"
 		echo "${cyan}${m_tab}#####################################################${reset}"
 		echo "${red}${m_tab}Please add support on English locale for your shell environment.${reset}"
-		echo -e "${red}${m_tab}e.g. for ubuntu -> apt-get -y install language-pack-en${reset}\n"
-		echo "$(timestamp): English locale not found." >> "${wooaras_log}"
+		echo -e "${yellow}${m_tab}e.g. for ubuntu -> apt-get -y install language-pack-en${reset}\n"
+		echo "$(timestamp): English locale not found, please add support on English locale for your shell environment." >> "${wooaras_log}"
+		send_mail "English locale not found, please add support on English locale for your shell environment."
 		exit 1
 	fi
 fi
 # =====================================================================
+
+# Create runtime path
+# For @REBOOTS:
+#  -- We will create runtime folder via --> /etc/tmpfiles.d/ || rc.local for cron installation
+#  -- For systemd installation we will use 'RuntimeDirectory' so no need tmpfiles.
+if [[ ! -d "${runtime_path%/*}" ]]; then
+	if [[ $SUDO_USER ]]; then
+		create_runtime_path
+	elif [[ $EUID -eq 0 ]]; then
+		create_runtime_path
+	else
+		echo -e "\n${red}*${reset} ${red}Runtime path not writable: /run${reset}\n"
+		echo "${cyan}${m_tab}#####################################################${reset}"
+		echo -e "${red}${m_tab}Run once as root or sudo user to create runtime path${reset}\n"
+		echo "$(timestamp): Runtime path not writable: /run" >> "${wooaras_log}"
+		send_mail "Runtime path not writable: /run --> run once manually as root or sudo user to create runtime path."
+		exit 1
+	fi
+fi
+
+# Create PID before long running process
+# Allow only one instance running at the same time
+# Check how long actual process has been running to catch hang processes
+if [[ -f "${PIDFILE}" ]]; then
+	PID="$(< "${PIDFILE}")"
+	if ps -p "${PID}" > /dev/null 2>&1; then
+		is_running=$(printf "%d" "$(($(ps -p "$PID" -o etimes=) / 60))")
+		echo -e "\n${red}*${reset} ${red}The operation cannot be performed at the moment:${reset}"
+		echo "${cyan}${m_tab}#####################################################${reset}"
+		echo -e "${m_tab}${red}As script already running --> ${magenta}pid=$PID${reset}${red}, please try again later${reset}\n"
+		send_mail "The operation cannot be performed at the moment: as script already running --> pid=$PID, please try again later"
+
+		# Warn about possible hang process
+		if [[ "${is_running}" -gt 30 ]]; then
+			echo -e "\n${red}*${reset} ${red}Possible hang process found:${reset}"
+			echo "${cyan}${m_tab}#####################################################${reset}"
+			echo -e "${m_tab}${red}The process pid=$PID has been running for more than 30 minutes.${reset}\n"
+			send_mail "Possible hang process found: The process pid=$PID has been running for more than 30 minutes."
+		fi
+		exit 1
+	elif ! echo $$ > "${PIDFILE}"; then
+		pid_pretty_error
+		exit 1
+	fi
+elif ! echo $$ > "${PIDFILE}"; then
+	pid_pretty_error
+	exit 1
+fi
+
+# Create temporary files
+my_tmp=$(mktemp)
+my_tmp_del=$(mktemp)
+
+# Listen exit signals to destroy temporary files
+trap clean_up 0 1 2 3 6 15
+clean_up () {
+	rm -f "${this_script_path:?}"/aras_request.php >/dev/null 2>&1
+	rm -rf "${this_script_path:?}"/*.en >/dev/null 2>&1
+	rm -rf "${this_script_path:?}"/{*proc*,.*proc} >/dev/null 2>&1
+	rm -rf "${this_script_path:?}"/{*json*,.*json} >/dev/null 2>&1
+	rm -rf "${this_script_path:?}"/.lvn* >/dev/null 2>&1
+	rm -rf ${my_tmp:?} ${my_tmp_del:?} ${PIDFILE:?}
+
+	# Unset locale if setted before
+	if [[ -n "${lang_setted}" ]]; then
+		unset LC_ALL
+		unset LC_CTYPE
+	fi
+}
 
 # Global variables
 cron_dir="/etc/cron.d"
@@ -695,13 +704,13 @@ my_status () {
 		local s_status="Completed"
 		echo -e "${green}Default-Setup: $s_status${reset}"
 
-		if [[ $- =~ x ]]; then debug=1; set +x; fi
+		hide_me --enable
 		if [[ -z "$api_key" || -z "$api_secret" || -z "$api_endpoint" ]]; then
 			api_key=$(< "$this_script_path/.key.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
 			api_secret=$(< "$this_script_path/.secret.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
 			api_endpoint=$(< "$this_script_path/.end.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
 		fi
-		[[ $debug == 1 ]] && set -x
+		hide_me --disable
 
 		local w_delivered=$($m_curl -s -X GET -u "$api_key":"$api_secret" -H "Content-Type: application/json" "https://$api_endpoint/wp-json/wc/v3/orders?status=delivered")
 		if ! grep -q "rest_invalid_param" <<< "${w_delivered}"; then
@@ -763,8 +772,10 @@ my_status () {
 		echo -e "${green}Auto-Update: ${yellow}$u_status${reset}"
 	fi
 
-	# Total processed order status
-	local total_processed="$(zgrep -ci "SHIPPED" "${wooaras_log}")"
+	# Get total processed order status (include rotated logs)
+	local total_processed=$(find "${wooaras_log%/*}/" -name \*.log* -print0 2>/dev/null |
+				xargs -0 zgrep -ci "SHIPPED" |
+				$m_awk 'BEGIN {cnt=0;FS=":"}; {cnt+=$2;}; END {print cnt;}')
 	echo "${green}Total_Processed_Orders: $total_processed${reset}"
 
 	} > "${this_script_path}/.status.proc" # End redirection to file
@@ -776,10 +787,10 @@ my_status () {
 
 # Twoway pretty error
 twoway_pretty_error () {
-	echo -e "\n${red}*${reset} ${red}Two way fulfillment workflow installation aborted: ${reset}"
+	echo -e "\n${red}*${reset} ${red}Two way fulfillment workflow installation aborted:${reset}"
 	echo "${cyan}${m_tab}#####################################################${reset}"
 	echo "${m_tab}${red}Cannot copy ${i##*/} to${reset}"
-	echo "${m_tab}${red}${i%/*}${reset}"
+	echo -e "${m_tab}${red}${i%/*}${reset}\n"
 	echo "$(timestamp): Cannot copy ${i##*/} to ${i%/*}" >> "${wooaras_log}"
 	exit 1
 }
@@ -987,13 +998,13 @@ continue_setup () {
 
 find_child_path () {
 	local bridge="$1"
-	if [[ $- =~ x ]]; then debug=1; set +x; fi
+	hide_me --enable
 	if [[ -z "$api_key" || -z "$api_secret" || -z "$api_endpoint" ]]; then
 		api_key=$(< "$this_script_path/.key.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
 		api_secret=$(< "$this_script_path/.secret.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
 		api_endpoint=$(< "$this_script_path/.end.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
 	fi
-	[[ $debug == 1 ]] && set -x
+	hide_me --disable
 
 	# Get active child theme info
 	local theme_child=$($m_curl -s -X GET -u "$api_key":"$api_secret" -H "Content-Type: application/json" "https://$api_endpoint/wp-json/wc/v3/system_status" | $m_jq -r '[.theme.is_child_theme]|join(" ")')
@@ -1019,13 +1030,13 @@ find_child_path () {
 
 		# Check child theme path found or not
 		if [[ -z $absolute_child_path ]]; then
-			echo -e "\n${red}*${reset} ${red}Could not get child theme path${reset}"
+			echo -e "\n${red}*${reset} ${red}Could not find child theme path${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			echo "${m_tab}${red}You must execute script on application server where woocommerce runs${reset}"
 			echo "${m_tab}${red}If the problem still persists complete setup without twoway-workflow,${reset}"
 			echo "${m_tab}${red}And follow manual implementation instructions on github${reset}"
 			echo -e "${m_tab}${red}Expected in $theme_path/themes/${reset}\n"
-			echo "$(timestamp): Could not found child theme path: Expected in $theme_path/themes/" >> "${wooaras_log}"
+			echo "$(timestamp): Could not found child theme path, expected in $theme_path/themes/" >> "${wooaras_log}"
 			exit 1
 		else
 			echo -e "\n${green}*${reset} ${green}ATTENTION: Please validate child theme path.${reset}"
@@ -1057,9 +1068,8 @@ find_child_path () {
 	else
 		echo -e "\n${red}*${reset} ${red}You have no activated child theme${reset}"
 		echo "${cyan}${m_tab}#####################################################${reset}"
-		echo "${m_tab}${red}You have no activated child theme${reset}"
-		echo "${m_tab}${red}Without active child theme we cannot implement two way fulfillment workflow.${reset}"
-		echo "$(timestamp): You have no activated child theme. Without child theme we cannot implement two way fulfillment workflow" >> "${wooaras_log}"
+		echo -e "${m_tab}${red}Without active child theme cannot implement two way fulfillment workflow.${reset}\n"
+		echo "$(timestamp): You have no activated child theme, without child theme cannot implement two way fulfillment workflow" >> "${wooaras_log}"
 		exit 1
 	fi
 }
@@ -1089,13 +1099,13 @@ simple_uninstall_twoway () {
 	declare -a installed_files=() # This acts as local variable! You can use 'local' also.
 	for i in "${my_files[@]}"
 	do
-		if [ -w "$i" ]; then
-			if grep -qw "${my_string}" "$i"; then
-				installed_files+=("$i")
+		if [[ -w "${i}" ]]; then
+			if grep -qw "${my_string}" "${i}"; then
+				installed_files+=( "${i}" )
 			else
 				echo -e "\n${red}*${reset} ${red}Two way fulfillment unistallation aborted: ${reset}"
 				echo "${cyan}${m_tab}#####################################################${reset}"
-				echo -e "${m_tab}${red}Expected string not found in $i. Did you manually modified file after installation?${reset}\n"
+				echo -e "${m_tab}${red}Expected string not found in ${i}, did you manually modified file after installation?${reset}\n"
 				echo "$(timestamp): Expected string not found in $i. Did you manually modified $i after installation?" >> "${wooaras_log}"
 				exit 1
 			fi
@@ -1111,8 +1121,8 @@ simple_uninstall_twoway () {
 
 	for i in "${installed_files[@]}"
 	do
-		if grep -qw "wp-content/themes" <<< "$i"; then
-			rm -f "$i"
+		if grep -qw "wp-content/themes" <<< "${i}"; then
+			rm -f "${i}"
 		else
 			echo -e "\n${red}*${reset} ${red}Two way fulfillment unistallation aborted: ${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
@@ -1134,10 +1144,10 @@ simple_uninstall_twoway () {
 uninstall_twoway () {
 	if [[ -e "${this_script_path}/.woo.aras.set" ]]; then # Check default installation is completed
 		find_child_path
-		if [ -e "${this_script_path}/.two.way.enb" ]; then # Check twoway installation
+		if [[ -e "${this_script_path}/.two.way.enb" ]]; then # Check twoway installation
 			local get_delivered=$($m_curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/orders?status=delivered" -u "$api_key":"$api_secret" -H "Content-Type: application/json") # Get data
 			if [[ -n "$get_delivered" ]]; then # Any data
-				if [ "${get_delivered}" != "[]" ]; then # Check for null data
+				if [[ "${get_delivered}" != "[]" ]]; then # Check for null data
 					if grep -q "${my_string}" "$absolute_child_path/functions.php"; then # Lastly, check the file is not modified
 						# Unhook woocommerce order status completed notification temporarly
 						$m_sed -i -e '/\'"$my_string"'/{ r '"$this_script_path/custom-order-status-package/action-unhook-email.php"'' -e 'b R' -e '}' -e 'b' -e ':R {n ; b R' -e '}' "$absolute_child_path/woocommerce/aras-woo-delivered.php" >/dev/null 2>&1 &&
@@ -1157,7 +1167,7 @@ uninstall_twoway () {
 						# Update orders status to completed
 						for id in "${delivered_ids[@]}"
 						do
-							if ! $m_curl -s -o /dev/null -X PUT "https://$api_endpoint/wp-json/wc/v3/orders/$id" --fail \
+							if ! $m_curl -s -o /dev/null -X PUT "https://$api_endpoint/wp-json/wc/v3/orders/${id}" --fail \
 								-u "$api_key":"$api_secret" \
 								-H "Content-Type: application/json" \
 								-d '{
@@ -1166,9 +1176,9 @@ uninstall_twoway () {
 
 								echo -e "\n${red}*${reset} ${red}Two way fulfillment unistallation aborted: ${reset}"
 								echo "${m_tab}${cyan}#####################################################${reset}"
-								echo "${red}*${reset} ${red}Cannot update order:$id status 'delivered --> completed'${reset}"
-								echo -e "${red}*${reset} ${red}Wrong Order ID caused by corrupt data or wocommerce endpoint error${reset}\n"
-								echo "$(timestamp): Cannot update order:$id status 'delivered --> completed'. Wrong Order ID caused by corrupt data or WooCommerce endpoint error" >> "${wooaras_log}"
+								echo "${red}*${reset} ${red}Cannot update order:${id} status 'delivered --> completed'${reset}"
+								echo -e "${red}*${reset} ${red}Wrong Order ID or wocommerce endpoint error${reset}\n"
+								echo "$(timestamp): Cannot update order:${id} status 'delivered --> completed' --> Wrong Order ID or WooCommerce endpoint error" >> "${wooaras_log}"
 								exit 1
 							fi
 						done
@@ -1192,7 +1202,7 @@ uninstall_twoway () {
 			echo -e "\n${red}*${reset} ${red}Two way fulfillment unistallation aborted: ${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			echo -e "${m_tab}${red}Couldn't find twoway fulfillment installation${reset}\n"
-			echo "$(timestamp): Couldn't find twoway fulfillment installation" >> "${wooaras_log}"
+			echo "$(timestamp): Two way fulfillment unistallation aborted, couldn't find twoway fulfillment installation" >> "${wooaras_log}"
 			exit 1
 		fi
 	else
@@ -1208,12 +1218,12 @@ uninstall_twoway () {
 install_twoway () {
 	check_delivered
 	find_child_path --install
-	if [ "$twoway" == "true" ]; then
+	if [[ "${twoway}" == "true" ]]; then
 		# Get ownership operations
-		if [ -f "$absolute_child_path/functions.php" ]; then
-			if [ -r "$absolute_child_path/functions.php" ]; then
-				local GROUP_OWNER="$(stat --format "%G" "$absolute_child_path/functions.php" 2> /dev/null)"
-				local USER_OWNER="$(stat --format "%U" "$absolute_child_path/functions.php" 2> /dev/null)"
+		if [[ -f "${absolute_child_path}/functions.php" ]]; then
+			if [[ -r "${absolute_child_path}/functions.php" ]]; then
+				local GROUP_OWNER="$(stat --format "%G" "${absolute_child_path}/functions.php" 2> /dev/null)"
+				local USER_OWNER="$(stat --format "%U" "${absolute_child_path}/functions.php" 2> /dev/null)"
 			else
 				echo -e "\n${red}*${reset} ${red}Installation aborted, as file not readable: ${reset}"
 				echo "${cyan}${m_tab}#####################################################${reset}"
@@ -1222,9 +1232,9 @@ install_twoway () {
 				echo "$(timestamp): Installation aborted, as file not readable: $absolute_child_path/functions.php" >> "${wooaras_log}"
 				exit 1
 			fi
-		elif [ -r "$theme_path/index.php" ]; then
-			local GROUP_OWNER="$(stat --format "%G" "$theme_path/index.php" 2> /dev/null)"
-			local USER_OWNER="$(stat --format "%U" "$theme_path/index.php" 2> /dev/null)"
+		elif [[ -r "${theme_path}/index.php" ]]; then
+			local GROUP_OWNER="$(stat --format "%G" "${theme_path}/index.php" 2> /dev/null)"
+			local USER_OWNER="$(stat --format "%U" "${theme_path}/index.php" 2> /dev/null)"
 		else
 			echo -e "\n${red}*${reset} ${red}Installation aborted, as file not readable: ${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
@@ -1237,10 +1247,10 @@ install_twoway () {
 		# Copy, create apply operations
 		if [[ -n $GROUP_OWNER && -n $USER_OWNER ]]; then
 			# Function.php operations
-			if [ ! -f "$absolute_child_path/functions.php" ]; then
-				if ! grep -q 'Permission denied' <<< "$(touch "$absolute_child_path/functions.php" 2>&1)"; then
-					cat "$this_script_path/custom-order-status-package/functions.php" > "$absolute_child_path/functions.php" &&
-					chown "$USER_OWNER":"$GROUP_OWNER" "$absolute_child_path/functions.php" ||
+			if [[ ! -f "${absolute_child_path}/functions.php" ]]; then
+				if ! grep -q 'Permission denied' <<< "$(touch "${absolute_child_path}/functions.php" 2>&1)"; then
+					cat "${this_script_path}/custom-order-status-package/functions.php" > "${absolute_child_path}/functions.php" &&
+					chown "$USER_OWNER":"$GROUP_OWNER" "${absolute_child_path}/functions.php" ||
 					{
 					echo -e "\n${red}*${reset} ${red}Installation aborted, as file cannot modified: ${reset}";
 					echo "${cyan}${m_tab}#####################################################${reset}";
@@ -1256,11 +1266,11 @@ install_twoway () {
 					echo "$(timestamp): Installation aborted, as file not writeable: $absolute_child_path/functions.php" >> "${wooaras_log}"
 					exit 1
 				fi
-			elif [ -w "$absolute_child_path/functions.php" ]; then
-				if [ -s "$absolute_child_path/functions.php" ]; then
+			elif [[ -w "${absolute_child_path}/functions.php" ]]; then
+				if [[ -s "${absolute_child_path}/functions.php" ]]; then
 					# Take backup of user functions.php first
-					cp "$absolute_child_path/functions.php" "$absolute_child_path/functions.php.wo-aras-backup-$$-$(date +%d-%m-%Y)" &&
-					chown "$USER_OWNER":"$GROUP_OWNER" "$absolute_child_path/functions.php.wo-aras-backup-$$-$(date +%d-%m-%Y)" ||
+					cp "${absolute_child_path}/functions.php" "${absolute_child_path}/functions.php.wo-aras-backup-$$-$(date +%d-%m-%Y)" &&
+					chown "${USER_OWNER}":"${GROUP_OWNER}" "${absolute_child_path}/functions.php.wo-aras-backup-$$-$(date +%d-%m-%Y)" ||
 					{
 					echo -e "\n${red}*${reset} ${red}Two way fulfillment workflow installation aborted: ${reset}";
 					echo "${cyan}${m_tab}#####################################################${reset}";
@@ -1269,9 +1279,9 @@ install_twoway () {
 					exit 1;
 					}
 
-					if ! grep -q "${my_string}" "$absolute_child_path/functions.php"; then
-						if [ $(< "$absolute_child_path/functions.php" $m_sed '1q') == "<?php" ]; then
-							< "$this_script_path/custom-order-status-package/functions.php" $m_sed "1 s/.*/ /" >> "$absolute_child_path/functions.php"
+					if ! grep -q "${my_string}" "${absolute_child_path}/functions.php"; then
+						if [ $(< "${absolute_child_path}/functions.php" $m_sed '1q') == "<?php" ]; then
+							< "${this_script_path}/custom-order-status-package/functions.php" $m_sed "1 s/.*/ /" >> "${absolute_child_path}/functions.php"
 						else
 							echo -e "\n${red}*${reset} ${red}Two way fulfillment workflow installation aborted: ${reset}"
 							echo "${cyan}${m_tab}#####################################################${reset}"
@@ -1292,17 +1302,17 @@ install_twoway () {
 			fi
 
 			# File, folder operations
-			if [ -w "$absolute_child_path/functions.php" ]; then
+			if [[ -w "${absolute_child_path}/functions.php" ]]; then
 				for i in "${my_paths[@]}"
 				do
-					if [[ ! -d "$i" ]]; then
-						mkdir "$i" &&
-						chown "$USER_OWNER":"$GROUP_OWNER" "$i" ||
+					if [[ ! -d "${i}" ]]; then
+						mkdir "${i}" &&
+						chown "${USER_OWNER}":"${GROUP_OWNER}" "${i}" ||
 						{
 						echo -e "\n${red}*${reset} ${red}Two way fulfillment workflow Installation aborted: ${reset}";
 						echo "${cyan}${m_tab}#####################################################${reset}";
-						echo "${m_tab}${red}Cannot create folder: $i${reset}";
-						echo "$(timestamp): Cannot create folder $i" >> "${wooaras_log}";
+						echo -e "${m_tab}${red}Cannot create folder: ${i}${reset}\n";
+						echo "$(timestamp): Cannot create folder ${i}" >> "${wooaras_log}";
 						exit 1;
 						}
 					fi
@@ -1310,19 +1320,19 @@ install_twoway () {
 
 				for i in "${my_files[@]}"
 				do
-					if [[ ! -f "$i" ]]; then
+					if [[ ! -f "${i}" ]]; then
 						if grep -qw "woocommerce/emails" <<< "${i}"; then
-							cp "$this_script_path/custom-order-status-package/class-wc-delivered-status-order.php" "${i%/*}/" &&
-							chown -R "$USER_OWNER":"$GROUP_OWNER" "${i%/*}/" || twoway_pretty_error
+							cp "${this_script_path}/custom-order-status-package/class-wc-delivered-status-order.php" "${i%/*}/" &&
+							chown -R "${USER_OWNER}":"${GROUP_OWNER}" "${i%/*}/" || twoway_pretty_error
 						elif grep -qw "emails/plain" <<< "${i}"; then
-							cp "$this_script_path/custom-order-status-package/wc-customer-delivered-status-order.php" "${i%/*}/" &&
-							chown -R "$USER_OWNER":"$GROUP_OWNER" "${i%/*}/" || twoway_pretty_error
+							cp "${this_script_path}/custom-order-status-package/wc-customer-delivered-status-order.php" "${i%/*}/" &&
+							chown -R "${USER_OWNER}":"${GROUP_OWNER}" "${i%/*}/" || twoway_pretty_error
 						elif grep -qw "aras-woo-delivered.php" <<< "${i}"; then
-							cp "$this_script_path/custom-order-status-package/aras-woo-delivered.php" "${i%/*}/" &&
-							chown -R "$USER_OWNER":"$GROUP_OWNER" "${i%/*}/" || twoway_pretty_error
+							cp "${this_script_path}/custom-order-status-package/aras-woo-delivered.php" "${i%/*}/" &&
+							chown -R "${USER_OWNER}":"${GROUP_OWNER}" "${i%/*}/" || twoway_pretty_error
 						else
-							cp "$this_script_path/custom-order-status-package/wc-customer-delivered-status-order.php" "${i%/*}/" &&
-							chown -R "$USER_OWNER":"$GROUP_OWNER" "${i%/*}/" || twoway_pretty_error
+							cp "${this_script_path}/custom-order-status-package/wc-customer-delivered-status-order.php" "${i%/*}/" &&
+							chown -R "${USER_OWNER}":"${GROUP_OWNER}" "${i%/*}/" || twoway_pretty_error
 						fi
 					fi
 				done
@@ -1592,7 +1602,7 @@ un_install () {
 	fi
 
 	# Remove immutable bit & lock files
-	for i in "${this_script_path:?}"/.*lck
+	for i in "${this_script_path}"/.*lck
 	do
 		chattr -i "$i" >/dev/null 2>&1
 	done
@@ -1616,9 +1626,9 @@ on_fly_disable () {
 on_fly_enable () {
 		# Remove lock files (hard-reset) to re-start fresh setup
 		# Remove IMMUTABLE bit
-		for i in "${this_script_path:?}"/.*lck
+		for i in "${this_script_path}"/.*lck
 		do
-			chattr -i "$i" >/dev/null 2>&1
+			chattr -i "${i}" >/dev/null 2>&1
 		done
 		rm -rf "${this_script_path:?}"/.*lck >/dev/null 2>&1
 
@@ -1732,8 +1742,8 @@ twoway_enable () {
 	fi
 
 	# Check function.php modifications completed
-	if grep -q "${my_string}" "$absolute_child_path/functions.php"; then
-		if grep -qw "include( get_stylesheet_directory() .'/woocommerce/aras-woo-delivered.php'); //aras_woo_enabled" "$absolute_child_path/functions.php"; then
+	if grep -q "${my_string}" "${absolute_child_path}/functions.php"; then
+		if grep -qw "include( get_stylesheet_directory() .'/woocommerce/aras-woo-delivered.php'); //aras_woo_enabled" "${absolute_child_path}/functions.php"; then
 			local functions_mod="applied"
 		else
 			local functions_mod="not_applied"
@@ -1819,36 +1829,22 @@ download () {
 	$m_curl -f -s -k -R -L --compressed -z "$sh_output" -o "$sh_output" "$sh_github" >/dev/null 2>&1
 	result=$?
 
-	if [ "$result" -ne 0 ]; then
-		if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
-			echo -e "\n${red}*${reset} ${red}Upgrade failed:${reset}"
-			echo "${cyan}${m_tab}#####################################################${reset}"
-			echo "${m_tab}${red}Could not download: $sh_github${reset}"
-			echo "$(timestamp): Upgrade failed, could not download: $sh_github" >> "${wooaras_log}"
-		else
-			echo "$(timestamp): Upgrade failed, could not download: $sh_github" >> "${wooaras_log}"
-		fi
-
-		if [ $send_mail_err -eq 1 ]; then
-			send_mail_err <<< "Upgrade failed:  could not download: $sh_github" >/dev/null 2>&1
-		fi
+	if [[ "${result}" -ne 0 ]]; then
+		echo -e "\n${red}*${reset} ${red}Upgrade failed:${reset}"
+		echo "${cyan}${m_tab}#####################################################${reset}"
+		echo "${m_tab}${red}Could not download: $sh_github${reset}"
+		echo "$(timestamp): Upgrade failed, could not download: $sh_github" >> "${wooaras_log}"
+		send_mail "Upgrade failed:  could not download: $sh_github"
 		exit 1
 	fi
 
 	# Test the downloaded content
-	if [ "$(tail -n 1 "${sh_output}" | head -n 1 | cut -c 1-7)" != "exit \$?" ]; then
-		if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
-			echo -e "\n${red}*${reset} ${red}Upgrade failed:${reset}"
-			echo "${cyan}${m_tab}#####################################################${reset}"
-			echo "${m_tab}${red}Downloaded $sh_output is incomplete, please re-run${reset}"
-			echo "$(timestamp): Upgrade failed, cannot verify downloaded script, please re-run." >> "${wooaras_log}"
-		else
-			echo "$(timestamp): Upgrade failed, cannot verify downloaded script, please re-run." >> "${wooaras_log}"
-		fi
-
-		if [ $send_mail_err -eq 1 ]; then
-			send_mail_err <<< "Upgrade failed: Upgrade failed, cannot verify downloaded script, please re-run." >/dev/null 2>&1
-		fi
+	if [[ "$(tail -n 1 "${sh_output}" | head -n 1 | cut -c 1-7)" != "exit \$?" ]]; then
+		echo -e "\n${red}*${reset} ${red}Upgrade failed:${reset}"
+		echo "${cyan}${m_tab}#####################################################${reset}"
+		echo "${m_tab}${red}Downloaded $sh_output is incomplete, please re-run${reset}"
+		echo "$(timestamp): Upgrade failed, cannot verify downloaded script, please re-run." >> "${wooaras_log}"
+		send_mail "Upgrade failed: Upgrade failed, cannot verify downloaded script, please re-run."
 		exit 1
 	fi
 
@@ -1885,7 +1881,7 @@ download () {
 
 	# Copy over permissions from old version
 	local OCTAL_MODE="$(stat -c "%a" "${cron_script_full_path}" 2> /dev/null)"
-	if [ -z "$OCTAL_MODE" ]; then
+	if [[ -z "${OCTAL_MODE}" ]]; then
 		local OCTAL_MODE="$(stat -f '%p' "${cron_script_full_path}")"
 	fi
 
@@ -1899,14 +1895,10 @@ download () {
 
 	# Overwrite old file with new
 	if ! mv -f "${sh_output}" "${cron_script_full_path}"; then
-		if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
-			echo -e "\\n\$(tput setaf 1)*\$(tput sgr0) \$(tput setaf 1)Upgrade failed:\$(tput sgr0)"
-			echo "\$(tput setaf 6)${m_tab}#####################################################\$(tput sgr0)"
-			echo -e "${m_tab}\$(tput setaf 1)Failed moving ${sh_output} to ${cron_script_full_path}\$(tput sgr0)\\n"
-			echo "$(timestamp): Upgrade failed: failed moving ${sh_output} to ${cron_script_full_path}" >> "${wooaras_log}"
-		else
-			echo "$(timestamp): Upgrade failed: failed moving ${sh_output} to ${cron_script_full_path}" >> "${wooaras_log}"
-		fi
+		echo -e "\\n\$(tput setaf 1)*\$(tput sgr0) \$(tput setaf 1)Upgrade failed:\$(tput sgr0)"
+		echo "\$(tput setaf 6)${m_tab}#####################################################\$(tput sgr0)"
+		echo -e "${m_tab}\$(tput setaf 1)Failed moving ${sh_output} to ${cron_script_full_path}\$(tput sgr0)\\n"
+		echo "$(timestamp): Upgrade failed: failed moving ${sh_output} to ${cron_script_full_path}" >> "${wooaras_log}"
 
 		if [ $send_mail_err -eq 1 ]; then
 			echo "Upgrade failed: failed moving ${sh_output} to ${cron_script_full_path}" | mail -s "$mail_subject_err" -a "$mail_from" "$mail_to"
@@ -1918,15 +1910,11 @@ download () {
 	fi
 
 	# Replace permission
-	if ! chmod "$OCTAL_MODE" "${cron_script_full_path}"; then
-		if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
-			echo -e "\\n\$(tput setaf 1)*\$(tput sgr0) \$(tput setaf 1)Upgrade failed:\$(tput sgr0)"
-			echo "\$(tput setaf 6)${m_tab}#####################################################\$(tput sgr0)"
-			echo -e "${m_tab}\$(tput setaf 1)Unable to set permissions on ${cron_script_full_path}\$(tput sgr0)\\n"
-			echo "$(timestamp): Upgrade failed: Unable to set permissions on ${cron_script_full_path}" >> "${wooaras_log}"
-		else
-			echo "$(timestamp): Upgrade failed: Unable to set permissions on ${cron_script_full_path}" >> "${wooaras_log}"
-		fi
+	if ! chmod "${OCTAL_MODE}" "${cron_script_full_path}"; then
+		echo -e "\\n\$(tput setaf 1)*\$(tput sgr0) \$(tput setaf 1)Upgrade failed:\$(tput sgr0)"
+		echo "\$(tput setaf 6)${m_tab}#####################################################\$(tput sgr0)"
+		echo -e "${m_tab}\$(tput setaf 1)Unable to set permissions on ${cron_script_full_path}\$(tput sgr0)\\n"
+		echo "$(timestamp): Upgrade failed: Unable to set permissions on ${cron_script_full_path}" >> "${wooaras_log}"
 
 		if [ $send_mail_err -eq 1 ]; then
 			 echo "Upgrade failed: Unable to set permissions on ${cron_script_full_path}" | mail -s "$mail_subject_err" -a "$mail_from" "$mail_to"
@@ -1939,44 +1927,31 @@ download () {
 
 	# Replace ownership
 	if ! chown "$U_USER_OWNER":"$U_GROUP_OWNER" "${cron_script_full_path}"; then
-		if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
-			echo -e "\\n\$(tput setaf 1)*\$(tput sgr0) \$(tput setaf 1)Upgrade failed:\$(tput sgr0)"
-			echo "\$(tput setaf 6)${m_tab}#####################################################\$(tput sgr0)"
-			echo -e "${m_tab}\$(tput setaf 1)Unable to set ownership on ${cron_script_full_path}\$(tput sgr0)\\n"
-			echo "$(timestamp): Upgrade failed: Unable to set ownership on ${cron_script_full_path}" >> "${wooaras_log}"
-		else
-			echo "$(timestamp): Upgrade failed: Unable to set ownership on ${cron_script_full_path}" >> "${wooaras_log}"
-		fi
+		echo -e "\\n\$(tput setaf 1)*\$(tput sgr0) \$(tput setaf 1)Upgrade failed:\$(tput sgr0)"
+		echo "\$(tput setaf 6)${m_tab}#####################################################\$(tput sgr0)"
+		echo -e "${m_tab}\$(tput setaf 1)Unable to set ownership on ${cron_script_full_path}\$(tput sgr0)\\n"
+		echo "$(timestamp): Upgrade failed: Unable to set ownership on ${cron_script_full_path}" >> "${wooaras_log}"
+
 		if [ $send_mail_err -eq 1 ]; then
 			echo "Upgrade failed: Unable to set ownership on ${cron_script_full_path}" | mail -s "$mail_subject_err" -a "$mail_from" "$mail_to"
 		fi
+
 		#remove the tmp script before exit
 		rm -f \$0
 		exit 1
 	fi
 
-	if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
-		if [ -n $f_update ]; then
-			echo -e "\\n\$(tput setaf 2)*\$(tput sgr0) \$(tput setaf 2)Force upgrade completed.\$(tput sgr0)"
-		else
-			echo -e "\\n\$(tput setaf 2)*\$(tput sgr0) \$(tput setaf 2)Upgrade completed.\$(tput sgr0)"
-		fi
-		echo "\$(tput setaf 6)${m_tab}#####################################################\$(tput sgr0)"
-		echo -e "${m_tab}\$(tput setaf 2)Script updated to version ${latest_version}\$(tput sgr0)\\n"
-		echo "$(timestamp): Upgrade completed. Script updated to version ${latest_version}" >> "${wooaras_log}"
+	if [[ -n "${f_update}" ]]; then
+		echo -e "\\n\$(tput setaf 2)*\$(tput sgr0) \$(tput setaf 2)Force upgrade completed.\$(tput sgr0)"
+		echo "Force upgrade completed. WooCommerce-aras integration script updated to version ${latest_version}" | mail -s "$mail_subject_suc" -a "$mail_from" "$mail_to" >/dev/null 2>&1
 	else
-		echo "$(timestamp): Upgrade completed. Script updated to version ${latest_version}" >> "${wooaras_log}"
+		echo -e "\\n\$(tput setaf 2)*\$(tput sgr0) \$(tput setaf 2)Upgrade completed.\$(tput sgr0)"
+		echo -e "Upgrade completed. WooCommerce-aras integration script updated to version ${latest_version}\n${changelog_p}" | mail -s "$mail_subject_suc" -a "$mail_from" "$mail_to" >/dev/null 2>&1
 	fi
 
-	# Send success mail
-	if [ -n $f_update ]; then
-		echo "Force upgrade completed. WooCommerce-aras integration script updated to version ${latest_version}" | mail -s "$mail_subject_suc" -a "$mail_from" "$mail_to"
-	else
-		echo -e "Upgrade completed. WooCommerce-aras integration script updated to version ${latest_version}\n${changelog_p}" | mail -s "$mail_subject_suc" -a "$mail_from" "$mail_to"
-	fi
-
-	# Clean-up
-	rm -rf ${this_script_path}/upgr.proc ${PIDFILE} || { echo "Temproray files cannot removed"; }
+	echo "\$(tput setaf 6)${m_tab}#####################################################\$(tput sgr0)"
+	echo -e "${m_tab}\$(tput setaf 2)Script updated to version ${latest_version}\$(tput sgr0)\\n"
+	echo "$(timestamp): Upgrade completed. Script updated to version ${latest_version}" >> "${wooaras_log}"
 
 	#remove the tmp script before exit
 	rm -f \$0
@@ -1991,9 +1966,9 @@ upgrade () {
 	local current_version=$(grep "^script_version=" "${cron_script_full_path}" | head -n1 | cut -d '"' -f 2)
 	changelog_p=$($m_curl -s --compressed -k "$changelog_github" 2>&1 | $m_sed -n "/$latest_version/,/$current_version/p" 2>/dev/null | head -n -2)
 
-	if [[ -n $latest_version && -n $current_version ]]; then
-		if [ "${latest_version//./}" -gt "${current_version//./}" ]; then
-			if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
+	if [[ -n "${latest_version}" && -n "${current_version}" ]]; then
+		if [[ "${latest_version//./}" -gt "${current_version//./}" ]]; then
+			if [[ "${RUNNING_FROM_CRON}" -eq 0 && "${RUNNING_FROM_SYSTEMD}" -eq 0 ]]; then
 				echo -e "\n${green}*${reset} ${green}NEW UPDATE FOUND!${reset}"
 				echo "${cyan}${m_tab}#####################################################${reset}"
 				echo -e "${magenta}$changelog_p${reset}\n" | $m_sed 's/^/  /'
@@ -2009,17 +1984,14 @@ upgrade () {
 			else
 				download
 			fi
-		elif [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
+		else
 			echo -e "\n${yellow}*${reset} ${yellow}There is no update!${reset}"
 			echo -e "${cyan}${m_tab}#####################################################${reset}\n"
-			echo "$(timestamp): Update process started: There is no new update." >> "${wooaras_log}"
-		else
-			echo "$(timestamp): Update process started: There is no new update." >> "${wooaras_log}"
-
+			echo "$(timestamp): Update process started: there is no new update." >> "${wooaras_log}"
 		fi
 
 		if [ "${latest_version//./}" -eq "${current_version//./}" ]; then
-			if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
+			if [[ "${RUNNING_FROM_CRON}" -eq 0 && "${RUNNING_FROM_SYSTEMD}" -eq 0 ]]; then
 				while true; do
 					read -r -n 1 -p "${m_tab}${BC}Do you want to force update version $latest_version? --> (Y)es | (N)o${EC} " yn < /dev/tty
 					echo ""
@@ -2031,15 +2003,11 @@ upgrade () {
 				done
 			fi
 		fi
-	elif [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
+	else
 		echo -e "\n${red}*${reset} ${red}Upgrade failed! Could not find upgrade content${reset}"
 		echo -e "${cyan}${m_tab}#####################################################${reset}\n"
 		echo "$(timestamp): Upgrade failed. Could not find upgrade content" >> "${wooaras_log}"
-	elif [ $send_mail_err -eq 1 ]; then
-		send_mail_err <<< "Upgrade failed. Could not find upgrade content" >/dev/null 2>&1
-		echo "$(timestamp): Upgrade failed. Could not find upgrade content" >> "${wooaras_log}"
-	else
-		echo "$(timestamp): Upgrade failed. Could not find upgrade content" >> "${wooaras_log}"
+		send_mail "Upgrade failed. Could not find upgrade content"
 	fi
 }
 
@@ -2133,7 +2101,7 @@ add_cron () {
 			# Add logrotate
 			add_logrotate
 
-			# Drop ownership of script & script path & log path to sudo user
+			# Drop ownership of script & script path & log file to sudo user
 			[[ $SUDO_USER ]] && { chown "${user}":"${user}" "${cron_script_full_path}"; chown "${user}":"${user}" "${this_script_path}"; chown "${user}":"${user}" "${wooaras_log}"; }
 
 			# Set status
@@ -2195,6 +2163,7 @@ add_systemd () {
 		cat <<- EOF > "${systemd_dir:?}/${service_filename:?}"
 		[Unit]
 		Description=woocommerce aras cargo integration script.
+		RequiresMountsFor=/var/log
 
 		[Service]
 		Type=oneshot
@@ -2203,7 +2172,6 @@ add_systemd () {
 		RuntimeDirectory=woo-aras
 		RuntimeDirectoryMode=0775
 		Environment=RUNNING_FROM_SYSTEMD=1
-		StandardOutput=append:${wooaras_log}
 		ExecStartPre=+/bin/mkdir -p ${wooaras_log%/*}
 		ExecStartPre=+/bin/touch ${wooaras_log}
 		ExecStartPre=+/bin/chown -R ${systemd_user}:${systemd_user} ${wooaras_log%/*}
@@ -2323,13 +2291,13 @@ add_logrotate () {
 				exit \$?
 				endscript
 				daily
-				rotate 5
+				rotate 10000000000
 				size ${l_maxsize}
 				compress
 				create 0660 ${user} ${user}
 				postrotate
 				/bin/kill -HUP \`cat ${PIDFILE}\` 2>/dev/null || true
-				echo "Logrotation completed" >> ${wooaras_log}
+				echo "\$(date +"%Y-%m-%d %T"): Logrotation completed" >> ${wooaras_log}
 				endscript
 				}
 				EOF
@@ -2354,13 +2322,13 @@ add_logrotate () {
 			exit \$?
 			endscript
 			daily
-			rotate 5
+			rotate 10000000000
 			size ${l_maxsize}
 			compress
 			create 0660 ${user} ${user}
 			postrotate
 			/bin/kill -HUP \`cat ${PIDFILE}\` 2>/dev/null || true
-			echo "Logrotation completed" >> ${wooaras_log}
+			echo "\$(date +"%Y-%m-%d %T"): Logrotation completed" >> ${wooaras_log}
 			endscript
 			# END-WOOARAS
 			}
@@ -2448,7 +2416,7 @@ if [[ "$1" != "-s" && "$1" != "--setup" ]]; then
 			help
 
 			read -n 1 -s -r -p "${green}>  Press any key to continue, q for quit${reset}" reply < /dev/tty; echo
-			if [ "$reply" == "q" ]; then
+			if [[ "${reply}" == "q" ]]; then
 				echo
 				exit 0
 			fi
@@ -2456,99 +2424,87 @@ if [[ "$1" != "-s" && "$1" != "--setup" ]]; then
 	fi
 fi
 
-if [[ $- =~ x ]]; then debug=1; set +x; fi
-set +o history
+encrypt_ops_exit () {
+	send_mail "Woocommerce-Aras Cargo integration error, missing file ${1}, please re-start setup"
+	echo "$(timestamp): Woocommerce-Aras Cargo integration error, missing file ${1}, please re-start setup" >> "${wooaras_log}"
+	exit 1
+}
 
 encrypt_wc_auth () {
-	if [[ ! -s "$this_script_path/.key.wc.lck" ]]; then
-		if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
+	hide_me --enable
+	if [[ ! -s "${this_script_path}/.key.wc.lck" ]]; then
+		if [[ "${RUNNING_FROM_CRON}" -eq 0 && "${RUNNING_FROM_SYSTEMD}" -eq 0 ]]; then
 			echo -e "\n${green}*${reset} ${magenta}Setting your woocommerce api_key, type q for quit${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			read -r -p "${m_tab}${BC}Enter WooCommerce API key:${EC} " my_wc_api_key < /dev/tty
-			if [ "$my_wc_api_key" == "q" ] || [ "$my_wc_api_key" == "quit" ]; then exit 1; fi
+			if [[ "${my_wc_api_key}" == "q" || "${my_wc_api_key}" == "quit" ]]; then exit 1; fi
 			echo "${cyan}${m_tab}#####################################################${reset}"
-			echo "$my_wc_api_key" | openssl enc -base64 -e -aes-256-cbc -nosalt  -pass pass:garbageKey  2>/dev/null > "$this_script_path/.key.wc.lck"
+			echo "${my_wc_api_key}" | openssl enc -base64 -e -aes-256-cbc -nosalt  -pass pass:garbageKey  2>/dev/null > "${this_script_path}/.key.wc.lck"
 		else
-			if [ $send_mail_err -eq 1 ]; then
-				send_mail_err <<< "Woocommerce-Aras Cargo integration error. Missing file .key.wc.lck. Please re-start setup manually." >/dev/null 2>&1
-			fi
-			echo "$(timestamp): Missing file $this_script_path/.key.wc.lck" >> "${wooaras_log}"
-			exit 1
+			encrypt_ops_exit "${this_script_path}/.key.wc.lck"
 		fi
 	fi
-	if [[ ! -s "$this_script_path/.secret.wc.lck" ]]; then
-		if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
+	if [[ ! -s "${this_script_path}/.secret.wc.lck" ]]; then
+		if [[ "${RUNNING_FROM_CRON}" -eq 0 && "${RUNNING_FROM_SYSTEMD}" -eq 0 ]]; then
 			echo -e "\n${green}*${reset} ${magenta}Setting your woocommerce api_secret, type q for quit${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			read -r -p "${m_tab}${BC}Enter WooCommerce API secret:${EC} " my_wc_api_secret < /dev/tty
-			if [ "$my_wc_api_secret" == "q" ] || [ "$my_wc_api_secret" == "quit" ]; then exit 1; fi
+			if [[ "${my_wc_api_secret}" == "q" || "${my_wc_api_secret}" == "quit" ]]; then exit 1; fi
 			echo "${cyan}${m_tab}#####################################################${reset}"
-			echo "$my_wc_api_secret" | openssl enc -base64 -e -aes-256-cbc -nosalt  -pass pass:garbageKey  2>/dev/null > "$this_script_path/.secret.wc.lck"
+			echo "${my_wc_api_secret}" | openssl enc -base64 -e -aes-256-cbc -nosalt  -pass pass:garbageKey  2>/dev/null > "${this_script_path}/.secret.wc.lck"
 		else
-			if [ $send_mail_err -eq 1 ]; then
-				send_mail_err <<< "Woocommerce-Aras Cargo integration error. Missing file .secret.wc.lck . Please re-start setup manually." >/dev/null 2>&1
-			fi
-			echo "$(timestamp): Missing file $this_script_path/.secret.wc.lck" >> "${wooaras_log}"
-			exit 1
+			encrypt_ops_exit "${this_script_path}/.secret.wc.lck"
 		fi
 	fi
+	hide_me --disable
 }
 
 encrypt_wc_end () {
-	if [[ ! -s "$this_script_path/.end.wc.lck" ]]; then
-		if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
+	hide_me --enable
+	if [[ ! -s "${this_script_path}/.end.wc.lck" ]]; then
+		if [[ "${RUNNING_FROM_CRON}" -eq 0 && "${RUNNING_FROM_SYSTEMD}" -eq 0 ]]; then
 			echo -e "\n${green}*${reset} ${magenta}Setting your Wordpress installation url, type q for quit${reset}"
 			echo -e "${m_tab}${magenta}format --> www.example.com | www.example.com/wordpress.${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			read -r -p "${m_tab}${BC}Enter Wordpress Domain URL:${EC} " my_wc_api_endpoint < /dev/tty
-			if [ "$my_wc_api_endpoint" == "q" ] || [ "$my_wc_api_endpoint" == "quit" ]; then exit 1; fi
+			if [[ "${my_wc_api_endpoint}" == "q" || "${my_wc_api_endpoint}" == "quit" ]]; then exit 1; fi
 			echo "${cyan}${m_tab}#####################################################${reset}"
-			echo "$my_wc_api_endpoint" | openssl enc -base64 -e -aes-256-cbc -nosalt  -pass pass:garbageKey  2>/dev/null > "$this_script_path/.end.wc.lck"
+			echo "${my_wc_api_endpoint}" | openssl enc -base64 -e -aes-256-cbc -nosalt  -pass pass:garbageKey  2>/dev/null > "${this_script_path}/.end.wc.lck"
 		else
-			if [ $send_mail_err -eq 1 ]; then
-				send_mail_err <<< "Woocommerce-Aras Cargo integration error. Missing file .end.wc.lck. Please re-start setup manually." >/dev/null 2>&1
-			fi
-			echo "$(timestamp): Missing file $this_script_path/.end.wc.lck" >> "${wooaras_log}"
-			exit 1
+			encrypt_ops_exit "${this_script_path}/.end.wc.lck"
 		fi
 	fi
+	hide_me --disable
 }
 
 encrypt_aras_auth () {
-	if [[ ! -s "$this_script_path/.key.aras.lck" ]]; then
-		if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
+	hide_me --enable
+	if [[ ! -s "${this_script_path}/.key.aras.lck" ]]; then
+		if [[ "${RUNNING_FROM_CRON}" -eq 0 && "${RUNNING_FROM_SYSTEMD}" -eq 0 ]]; then
 			echo -e "\n${green}*${reset} ${magenta}Setting your ARAS SOAP api_key, type q for quit${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			read -r -p "${m_tab}${BC}Enter ARAS SOAP API Password:${EC} " my_aras_api_pass < /dev/tty
-			if [ "$my_aras_api_pass" == "q" ] || [ "$my_aras_api_pass" == "quit" ]; then exit 1; fi
+			if [[ "${my_aras_api_pass}" == "q" || "${my_aras_api_pass}" == "quit" ]]; then exit 1; fi
 			echo "${cyan}${m_tab}#####################################################${reset}"
-			echo "$my_aras_api_pass" | openssl enc -base64 -e -aes-256-cbc -nosalt  -pass pass:garbageKey  2>/dev/null > "$this_script_path/.key.aras.lck"
+			echo "${my_aras_api_pass}" | openssl enc -base64 -e -aes-256-cbc -nosalt  -pass pass:garbageKey  2>/dev/null > "${this_script_path}/.key.aras.lck"
 		else
-			if [ $send_mail_err -eq 1 ]; then
-				send_mail_err <<< "Woocommerce-Aras Cargo integration error. Missing file .key.aras.lck. Please re-start setup manually." >/dev/null 2>&1
-			fi
-			echo "$(timestamp): Missing file $this_script_path/.key.aras.lck" >> "${wooaras_log}"
-			exit 1
+			encrypt_ops_exit "${this_script_path}/.end.wc.lck"
 		fi
 	fi
-	if [[ ! -s "$this_script_path/.usr.aras.lck" ]]; then
-		if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
+	if [[ ! -s "${this_script_path}/.usr.aras.lck" ]]; then
+		if [[ "${RUNNING_FROM_CRON}" -eq 0 && "${RUNNING_FROM_SYSTEMD}" -eq 0 ]]; then
 			echo -e "\n${green}*${reset} ${magenta}Setting your ARAS SOAP api_username, type q for quit${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			read -r -p "${m_tab}${BC}Enter ARAS SOAP API Username:${EC} " my_aras_api_usr < /dev/tty
-			if [ "$my_aras_api_usr" == "q" ] || [ "$my_aras_api_usr" == "quit" ]; then exit 1; fi
+			if [[ "${my_aras_api_usr}" == "q" || "${my_aras_api_usr}" == "quit" ]]; then exit 1; fi
 			echo "${cyan}${m_tab}#####################################################${reset}"
-			echo "$my_aras_api_usr" | openssl enc -base64 -e -aes-256-cbc -nosalt  -pass pass:garbageKey  2>/dev/null > "$this_script_path/.usr.aras.lck"
+			echo "${my_aras_api_usr}" | openssl enc -base64 -e -aes-256-cbc -nosalt  -pass pass:garbageKey  2>/dev/null > "${this_script_path}/.usr.aras.lck"
 		else
-			if [ $send_mail_err -eq 1 ]; then
-				send_mail_err <<< "Woocommerce-Aras Cargo integration error. Missing file .usr.aras.lck. Please re-start setup manually." >/dev/null 2>&1
-			fi
-			echo "$(timestamp): Missing file $this_script_path/.usr.aras.lck" >> "${wooaras_log}"
-			exit 1
+			encrypt_ops_exit "${this_script_path}/.usr.aras.lck"
 		fi
 	fi
-	if [[ ! -s "$this_script_path/.mrc.aras.lck" ]]; then
-		if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
+	if [[ ! -s "${this_script_path}/.mrc.aras.lck" ]]; then
+		if [[ "${RUNNING_FROM_CRON}" -eq 0 && "${RUNNING_FROM_SYSTEMD}" -eq 0 ]]; then
 			while true; do
 				echo -e "\n${green}*${reset} ${magenta}Setting your ARAS SOAP merchant_code, type q for quit${reset}"
 				echo "${cyan}${m_tab}#####################################################${reset}"
@@ -2561,39 +2517,35 @@ encrypt_aras_auth () {
 					*) break;;
 				esac
 			done
-			echo "$my_aras_api_mrc" | openssl enc -base64 -e -aes-256-cbc -nosalt  -pass pass:garbageKey  2>/dev/null > "$this_script_path/.mrc.aras.lck"
+			echo "${my_aras_api_mrc}" | openssl enc -base64 -e -aes-256-cbc -nosalt  -pass pass:garbageKey  2>/dev/null > "${this_script_path}/.mrc.aras.lck"
 		else
-			if [ $send_mail_err -eq 1 ]; then
-				send_mail_err <<< "Woocommerce-Aras Cargo integration error. Missing file .mrc.aras.lck. Please re-start setup manually." >/dev/null 2>&1
-			fi
-			echo "$(timestamp): Missing file $this_script_path/.mrc.aras.lck" >> "${wooaras_log}"
-			exit 1
+			encrypt_ops_exit "${this_script_path}/.mrc.aras.lck"
 		fi
 	fi
+	hide_me --disable
 }
 
 encrypt_aras_end () {
-	if [[ ! -s "$this_script_path/.end.aras.lck" ]]; then
-		if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
+	hide_me --enable
+	if [[ ! -s "${this_script_path}/.end.aras.lck" ]]; then
+		if [[ "${RUNNING_FROM_CRON}" -eq 0 && "${RUNNING_FROM_SYSTEMD}" -eq 0 ]]; then
 			echo -e "\n${green}*${reset} ${magenta}Setting your ARAS SOAP endpoint_url, type q for quit${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			read -r -p "${m_tab}${BC}Enter ARAS SOAP endpoint URL (wsdl):${EC} " my_aras_api_end < /dev/tty
-			if [ "$my_aras_api_end" == "q" ] || [ "$my_aras_api_end" == "quit" ]; then exit 1; fi
+			if [[ "${my_aras_api_end}" == "q" || "${my_aras_api_end}" == "quit" ]]; then exit 1; fi
 			echo "${cyan}${m_tab}#####################################################${reset}"
-			echo "$my_aras_api_end" | openssl enc -base64 -e -aes-256-cbc -nosalt  -pass pass:garbageKey  2>/dev/null > "$this_script_path/.end.aras.lck"
+			echo "${my_aras_api_end}" | openssl enc -base64 -e -aes-256-cbc -nosalt  -pass pass:garbageKey  2>/dev/null > "${this_script_path}/.end.aras.lck"
 		else
-			if [ $send_mail_err -eq 1 ]; then
-				send_mail_err <<< "Woocommerce-Aras Cargo integration error. Missing file .end.aras.lck. Please re-start setup manually." >/dev/null 2>&1
-			fi
-			echo "$(timestamp): Missing file $this_script_path/.end.aras.lck" >> "${wooaras_log}"
-			exit 1
+			encrypt_ops_exit "${this_script_path}/.end.aras.lck"
 		fi
 	fi
+	hide_me --disable
 }
 
 encrypt_aras_qry () {
-	if [[ ! -s "$this_script_path/.qry.aras.lck" ]]; then
-		if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
+	hide_me --enable
+	if [[ ! -s "${this_script_path}/.qry.aras.lck" ]]; then
+		if [[ "${RUNNING_FROM_CRON}" -eq 0 && "${RUNNING_FROM_SYSTEMD}" -eq 0 ]]; then
 			echo -e "\n${green}*${reset} ${magenta}Setting your ARAS SOAP query_type.${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			while true; do
@@ -2606,15 +2558,12 @@ encrypt_aras_qry () {
 				esac
 			done
 			echo "${cyan}${m_tab}#####################################################${reset}"
-			echo "$my_aras_api_qry" | openssl enc -base64 -e -aes-256-cbc -nosalt  -pass pass:garbageKey  2>/dev/null > "$this_script_path/.qry.aras.lck"
+			echo "${my_aras_api_qry}" | openssl enc -base64 -e -aes-256-cbc -nosalt  -pass pass:garbageKey  2>/dev/null > "${this_script_path}/.qry.aras.lck"
 		else
-			if [ $send_mail_err -eq 1 ]; then
-				send_mail_err <<< "Woocommerce-Aras Cargo integration error. Missing file .qry.aras.lck. Please re-start setup manually." >/dev/null 2>&1
-			fi
-			echo "$(timestamp): Missing file $this_script_path/.qry.aras.lck" >> "${wooaras_log}"
-			exit 1
+			encrypt_ops_exit "${this_script_path}/.qry.aras.lck"
 		fi
 	fi
+	hide_me --disable
 }
 
 encrypt_wc_auth && encrypt_wc_end && encrypt_aras_auth && encrypt_aras_end && encrypt_aras_qry ||
@@ -2627,22 +2576,30 @@ exit 1;
 
 # decrypt ARAS SOAP API credentials
 decrypt_aras_auth () {
-	api_key_aras=$(< "$this_script_path/.key.aras.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
-	api_usr_aras=$(< "$this_script_path/.usr.aras.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
-	api_mrc_aras=$(< "$this_script_path/.mrc.aras.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
+	hide_me --enable
+	api_key_aras=$(< "${this_script_path}/.key.aras.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
+	api_usr_aras=$(< "${this_script_path}/.usr.aras.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
+	api_mrc_aras=$(< "${this_script_path}/.mrc.aras.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
+	hide_me --disable
 }
 decrypt_aras_end () {
-	api_end_aras=$(< "$this_script_path/.end.aras.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
+	hide_me --enable
+	api_end_aras=$(< "${this_script_path}/.end.aras.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
+	hide_me --disable
 }
-api_qry_aras=$(< "$this_script_path/.qry.aras.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
+api_qry_aras=$(< "${this_script_path}/.qry.aras.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
 
 # decrypt WooCommerce API credentials
 decrypt_wc_auth () {
-	api_key=$(< "$this_script_path/.key.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
-	api_secret=$(< "$this_script_path/.secret.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
+	hide_me --enable
+	api_key=$(< "${this_script_path}/.key.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
+	api_secret=$(< "${this_script_path}/.secret.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
+	hide_me --disable
 }
 decrypt_wc_end () {
-	api_endpoint=$(< "$this_script_path/.end.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
+	hide_me --enable
+	api_endpoint=$(< "${this_script_path}/.end.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
+	hide_me --disable
 }
 
 decrypt_aras_auth && decrypt_aras_end && decrypt_wc_auth && decrypt_wc_end ||
@@ -2657,45 +2614,55 @@ exit 1;
 history -w
 
 # Double check any sensetive data written to history
-if [[ -n "${HISTFILE}" ]]; then
+if [[ "${HISTFILE}" ]]; then
 	declare -a lock_files=(".key.wc.lck" ".secret.wc.lck" ".end.wc.lck" ".key.aras.lck" ".usr.aras.lck" ".mrc.aras.lck" ".end.aras.lck" ".qry.aras.lck")
 	for i in "${lock_files[@]}"
 	do
 		$m_sed -i "/$i/d" "${HISTFILE}" >/dev/null 2>&1
 	done
 fi
-
-[[ $debug == 1 ]] && set -x
-set -o history
 #=====================================================================
 
 # Controls
 #=====================================================================
 # Pre-defined curl functions for various tests
 w_curl_s () {
-	$m_curl -X GET -H "Content-Type: application/json" "https://$api_endpoint/wp-json/wc/v3/settings" > "$this_script_path/curl.proc" 2>&1
+	$m_curl -X GET -H "Content-Type: application/json" "https://$api_endpoint/wp-json/wc/v3/settings" > "${this_script_path}/curl.proc" 2>&1
 }
 
 w_curl_a () {
 	$m_curl -X GET \
 		-u "$api_key":"$api_secret" \
 		-H "Content-Type: application/json" \
-		"https://$api_endpoint/wp-json/wc/v3/settings" > "$this_script_path/curl.proc" 2>&1
+		"https://$api_endpoint/wp-json/wc/v3/settings" > "${this_script_path}/curl.proc" 2>&1
 }
 
-# Test Wordpress domain & host connection
+control_ops_exit () {
+	send_mail "${1}"
+        echo "$(timestamp): ${1}" >> "${wooaras_log}"
+        exit 1
+
+}
+
+control_ops_try_exit () {
+	echo -e "\n${red}>${m_tab}${1}${reset}\n"
+	echo "$(timestamp): ${1}" >> "${wooaras_log}"
+	exit 1
+}
+
+# Test host connection
 w_curl_a
-if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
+if [[ "${RUNNING_FROM_CRON}" -eq 0 && "${RUNNING_FROM_SYSTEMD}" -eq 0 ]]; then
 	try=0
-	while grep -q "Could not resolve host" "$this_script_path/curl.proc"
+	while grep -q "Could not resolve host" "${this_script_path}/curl.proc"
 	do
 		try=$((try+1))
-		[[ $try -eq 3 ]] && { echo -e "\n${red}>${m_tab}Too many bad try. Cannot connect WooCommerce REST API.${reset}\n"; echo "$(timestamp): Too many bad try. Cannot connect WooCommerce REST API." >> "${wooaras_log}"; exit 1; }
+		[[ $try -eq 3 ]] && control_ops_try_exit "Too many bad try, could not resolve host $api_endpoint"
 		echo ""
-		echo -e "\n${red}*${reset} ${red}Could not resolve host${reset}"
+		echo -e "\n${red}*${reset} ${red}Connection error, could not resolve host${reset}"
 		echo "${cyan}${m_tab}#####################################################${reset}"
-		echo  "${m_tab}${red}Is your Wordpress domain ${magenta}$api_endpoint${reset} ${red}correct?${reset}"
-		echo "$(timestamp): Could not resolve host! Check your DNS/Web server." >> "${wooaras_log}"
+		echo  "${m_tab}${red}Check your Wordpress domain ${magenta}$api_endpoint${reset}"
+		echo "$(timestamp): Connection error, could not resolve host $api_endpoint" >> "${wooaras_log}"
 		while true
 		do
 			echo -e "\n${m_tab}${cyan}##################################################################${reset}"
@@ -2711,66 +2678,53 @@ if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 			esac
 		done
 	done
-elif grep -q "Could not resolve host" "$this_script_path/curl.proc"; then
-	if [ $send_mail_err -eq 1 ]; then
-		send_mail_err <<< "Could not resolve host! Is your DNS/Web server up?" >/dev/null 2>&1
-	fi
-	echo "$(timestamp): Could not resolve host! Check your DNS/Web server." >> "${wooaras_log}"
-	exit 1
+elif grep -q "Could not resolve host" "${this_script_path}/curl.proc"; then
+	control_ops_exit "Connection error, could not resolve host $api_endpoint!"
 fi
 
-# Test WooCommerce REST API setup
-if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
-	if grep -q  "404\|400" "$this_script_path/curl.proc"; then
-		echo -e "\n${red}*${reset}${red} Is WooCommerce plugin installed and REST API enabled?.${reset}"
+# Test WooCommerce REST API
+if [[ "${RUNNING_FROM_CRON}" -eq 0 && "${RUNNING_FROM_SYSTEMD}" -eq 0 ]]; then
+	if grep -q  "404\|400" "${this_script_path}/curl.proc"; then
+		echo -e "\n${red}*${reset}${red} WooCommerce REST API connection error${reset}"
 		echo "${cyan}${m_tab}#####################################################${reset}"
-		echo "${m_tab}${red}Is${reset} ${green}$api_endpoint${reset} ${red}is correct?${reset} ${red}Then enable WooCommerce,"
-		echo "${m_tab}${red}Enable REST API and restart setup.${reset}"
-		echo "$(timestamp): WooCommerce REST API Connection Error. Check WooCommerce plugin installed and REST API enabled." >> "${wooaras_log}"
+		echo -e "${m_tab}${red}Check WooCommerce REST API enabled${reset}\n"
+		echo "$(timestamp): WooCommerce REST API connection error, check WooCommerce REST API enabled." >> "${wooaras_log}"
 		exit 1
 	fi
-elif grep -q  "404\|400" "$this_script_path/curl.proc"; then
-	if [ $send_mail_err -eq 1 ]; then
-		send_mail_err <<< "WooCommerce REST API Connection Error. Is WooCommerce plugin installed and REST API enabled?" >/dev/null 2>&1
-	fi
-	echo "$(timestamp): WooCommerce REST API Connection Error. Check WooCommerce plugin installed and REST API enabled." >> "${wooaras_log}"
-	exit 1
+elif grep -q  "404\|400" "${this_script_path}/curl.proc"; then
+	control_ops_exit "WooCommerce REST API connection error, check WooCommerce REST API enabled."
 fi
 
 # Test WooCommerce REST API Authorization
-if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
-	if grep -q "403" "$this_script_path/curl.proc"; then
-		echo -e "\n${red}*${reset}${red} WooCommerce REST API Authorization error.${reset}"
+if [[ "${RUNNING_FROM_CRON}" -eq 0 && "${RUNNING_FROM_SYSTEMD}" -eq 0 ]]; then
+	if grep -q "403" "${this_script_path}/curl.proc"; then
+		echo -e "\n${red}*${reset}${red} WooCommerce REST API Authorization error${reset}"
 		echo "${cyan}${m_tab}#####################################################${reset}"
-		echo "${m_tab}${red}Cannot connect destination from $my_ip.${reset}"
+		echo "${m_tab}${red}Could not connect destination from $my_ip.${reset}"
 		echo "${m_tab}${red}Check your firewall settings and webserver restrictions.${reset}"
-		echo -e "${m_tab}${red}Please give allow to $my_ip on your end and restart setup.${reset}\n"
-		echo "$(timestamp): WooCommerce REST API Authorization error. Cannot connect destination from $my_ip." >> "${wooaras_log}"
+		echo -e "${m_tab}${red}Give allow to $my_ip on your end and restart setup.${reset}\n"
+		echo "$(timestamp): WooCommerce REST API Authorization error, could not connect destination from $my_ip." >> "${wooaras_log}"
 		exit 1
 	fi
-elif grep -q "403" "$this_script_path/curl.proc"; then
-	if [ $send_mail_err -eq 1 ]; then
-		send_mail_err <<< "WooCommerce REST API Authorization error. Cannot connect destination from $my_ip. Check your firewall settings and webserver restrictions." >/dev/null 2>&1
-	fi
-	echo "$(timestamp): WooCommerce REST API Authorization error. Cannot connect destination from $my_ip." >> "${wooaras_log}"
-	exit 1
+elif grep -q "403" "${this_script_path}/curl.proc"; then
+	control_ops_exit "WooCommerce REST API Authorization error, could not connect destination from $my_ip"
 fi
 
 # Test WooCommerce REST API Authentication
-if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
+if [[ "${RUNNING_FROM_CRON}" -eq 0 && "${RUNNING_FROM_SYSTEMD}" -eq 0 ]]; then
 	try=0
-	while grep -q "woocommerce_rest_authentication_error\|woocommerce_rest_cannot_view\|401" "$this_script_path/curl.proc"
+	while grep -q "woocommerce_rest_authentication_error\|woocommerce_rest_cannot_view\|401" "${this_script_path}/curl.proc"
 	do
 		try=$((try+1))
-		[[ $try -eq 3 ]] && { echo -e "\n${red}>${m_tab}Too many bad try. Cannot connect REST API. Check your credentials.${reset}\n"; echo "$(timestamp): Too many bad try. Cannot connect REST API. Check your credentials." >> "${wooaras_log}"; exit 1; }
+		[[ $try -eq 3 ]] && control_ops_try_exit "Too many bad try, could not connect WooCommerce REST API"
 		echo -e "\n${red}*${reset} ${red}WooCommerce REST API Authentication error${reset}"
 		echo "${cyan}${m_tab}#####################################################${reset}"
-		echo -e "${m_tab}${red}Is your WooCommerce REST API credentials correct?${reset}\n"
-		echo "$(timestamp): WooCommerce REST API Authentication Error. Check your WooCommerce REST API credentials." >> "${wooaras_log}"
+		echo -e "${m_tab}${red}Check your WooCommerce REST API credentials${reset}\n"
+		echo "$(timestamp): WooCommerce REST API Authentication error, check your WooCommerce REST API credentials." >> "${wooaras_log}"
 		while true
 		do
 			echo "${m_tab}${cyan}###########################################################################${reset}"
-			read -r -n 1 -p "${m_tab}${BC}Do you want to reset your WooCommerce API credentials now? --> (Y)es | (N)o${EC} " yn < /dev/tty
+			read -r -n 1 -p "${m_tab}${BC}Do you want to reset your WooCommerce REST API credentials now? --> (Y)es | (N)o${EC} " yn < /dev/tty
 			echo ""
 			case "${yn}" in
 				[Yy]* ) rm -rf "${this_script_path:?}/.key.wc.lck" "${this_script_path:?}/.secret.wc.lck";
@@ -2782,31 +2736,26 @@ if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 			esac
 		done
 	done
-elif grep -q "woocommerce_rest_authentication_error\|woocommerce_rest_cannot_view\|401" "$this_script_path/curl.proc"; then
-	if [ $send_mail_err -eq 1 ]; then
-		send_mail_err <<< "WooCommerce REST API Authentication Error. Check your WooCommerce REST API credentials." >/dev/null 2>&1
-	fi
-	echo "$(timestamp): WooCommerce REST API Authentication Error. Check your WooCommerce REST API credentials." >> "${wooaras_log}"
-	exit 1
+elif grep -q "woocommerce_rest_authentication_error\|woocommerce_rest_cannot_view\|401" "${this_script_path}/curl.proc"; then
+	control_ops_exit "WooCommerce REST API Authentication error, check your WooCommerce REST API credentials."
 fi
 
 # After successful curl respond with credentials we send a new curl request without credentials
 # CRITICAL: Throwing in error? Caching json requests!
 # If you have server side caching setup like fastcgi cache skip caching json requests
 w_curl_s
-if ! grep -q "401" "$this_script_path/curl.proc"; then
+if ! grep -q "401" "${this_script_path}/curl.proc"; then
         echo -e "\n${red}*${reset}${red} You are caching wp-json request !${reset}"
         echo "${cyan}${m_tab}#####################################################${reset}"
         echo "${m_tab}${red}Deadly security vulnerability detected.${reset}"
         echo "${m_tab}${red}Check your wordpress caching plugin configuration and be sure wp-json exluded.${reset}"
         echo "${m_tab}${red}If you have server side caching setup,${reset}"
-	echo "${m_tab}${red}like fastcgi cache skip caching json requests.${reset}"
-	echo "$(timestamp): You are caching wp-json requests." >> "${wooaras_log}"
+	echo -e "${m_tab}${red}like fastcgi cache skip caching json requests.${reset}\n"
+	echo "$(timestamp): CRITICAL: You are caching wp-json requests, check your wordpress caching plugin configuration and be sure wp-json exluded" >> "${wooaras_log}"
 	exit 1
 fi
 
-if [[ $- =~ x ]]; then debug=1; set +x; fi
-
+hide_me --enable
 # Create SOAP client to request ARAS cargo end
 cat <<- EOF > "${this_script_path}/aras_request.php"
 <?php
@@ -2836,29 +2785,28 @@ cat <<- EOF > "${this_script_path}/aras_request.php"
 	print_r(\$result->GetQueryJSONResult);
 ?>
 EOF
-
-[[ $debug == 1 ]] && set -x
+hide_me --disable
 
 # Make SOAP request to ARAS web service to get shipment DATA in JSON format
 # We will request last 10 day data as setted before
 aras_request () {
-	$m_php "$this_script_path/aras_request.php" > "$this_script_path/aras.json"
+	$m_php "${this_script_path}/aras_request.php" > "${this_script_path}/aras.json"
 }
 
 # Test Aras SOAP Endpoint
 aras_request
-if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
+if [[ "${RUNNING_FROM_CRON}" -eq 0 && "${RUNNING_FROM_SYSTEMD}" -eq 0 ]]; then
 	try=0
-	while grep -q "error_4625264224" "$this_script_path/aras.json"
+	while grep -q "error_4625264224" "${this_script_path}/aras.json"
 	do
 		try=$((try+1))
-		[[ $try -eq 3 ]] && { echo -e "\n${red}Too many bad try. Cannot connect ARAS SOAP API.${reset}\n"; echo "$(timestamp): Too many bad try. Cannot connect ARAS SOAP API. Check your ARAS endpoint URL." >> "${wooaras_log}";  exit 1; }
+		[[ $try -eq 3 ]] && control_ops_try_exit "Too many bad try, could not connect ARAS SOAP API."
 		echo ""
-		echo -e "\n${red}*${reset} ${red}ARAS SOAP Endpoint error${reset}"
+		echo -e "\n${red}*${reset} ${red}ARAS SOAP API connection error${reset}"
 		echo "${cyan}${m_tab}#####################################################${reset}"
-		echo "${m_tab}${red}Is your ARAS endpoint URL correct?${reset}"
+		echo "${m_tab}${red}Check your ARAS SOAP API endpoint URL${reset}"
 		echo -e "${m_tab}${magenta}$api_end_aras${reset}\n"
-		echo "$(timestamp): ARAS SOAP Endpoint Error! Check your ARAS endpoint URL." >> "${wooaras_log}"
+		echo "$(timestamp): ARAS SOAP API connection error, check your ARAS SOAP API endpoint URL." >> "${wooaras_log}"
 		while true
 		do
 			echo "${m_tab}${cyan}###########################################################################${reset}"
@@ -2868,33 +2816,29 @@ if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 				[Yy]* ) rm -f "${this_script_path}/.end.aras.lck";
 					encrypt_aras_end;
 					decrypt_aras_end;
-					$m_sed -i -z 's!([^(]*,!("'"$api_end_aras"'",!' "$this_script_path/aras_request.php";
+					$m_sed -i -z 's!([^(]*,!("'"$api_end_aras"'",!' "${this_script_path}/aras_request.php";
 					aras_request; break;;
 				[Nn]* ) exit 1;;
 				* ) echo -e "\n${m_tab}${magenta}Please answer yes or no.${reset}"; echo "${m_tab}${cyan}###########################################################################${reset}";;
 			esac
 		done
 	done
-elif grep -q "error_4625264224" "$this_script_path/aras.json"; then
-	if [ $send_mail_err -eq 1 ]; then
-		send_mail_err <<< "ARAS SOAP Endpoint Error! Check your ARAS endpoint URL. Please re-start setup manually." >/dev/null 2>&1
-	fi
-	echo "$(timestamp): ARAS SOAP Endpoint Error! Check your ARAS endpoint URL." >> "${wooaras_log}"
-	exit 1
+elif grep -q "error_4625264224" "${this_script_path}/aras.json"; then
+	control_ops_exit "ARAS SOAP API connection error, check your ARAS SOAP API endpoint URL."
 fi
 
 # Test Aras SOAP Authentication
-if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
+if [[ "${RUNNING_FROM_CRON}" -eq 0 && "${RUNNING_FROM_SYSTEMD}" -eq 0 ]]; then
 	try=0
-	while grep -q "error_75546475052" "$this_script_path/aras.json"
+	while grep -q "error_75546475052" "${this_script_path}/aras.json"
 	do
 		try=$((try+1))
-		[[ $try -eq 3 ]] && { echo -e "\n${red}Too many bad try. Cannot connect ARAS SOAP API.${reset}\n"; echo "$(timestamp): Too many bad try. Cannot connect ARAS SOAP API. Check your login credentials." >> "${wooaras_log}";  exit 1; }
+		[[ "${try}" -eq 3 ]] && control_ops_try_exit "Too many bad try, could not connect ARAS SOAP API."
 		echo ""
-                echo -e "\n${red}*${reset} ${red}ARAS SOAP Authentication error${reset}"
+                echo -e "\n${red}*${reset} ${red}ARAS SOAP API Authentication error${reset}"
                 echo "${cyan}${m_tab}#####################################################${reset}"
-                echo -e "${m_tab}${red}Is your ARAS SOAP API credentials correct?${reset}\n"
-		echo "$(timestamp): ARAS SOAP Authentication Error! Check your login credentials." >> "${wooaras_log}"
+                echo -e "${m_tab}${red}Check your ARAS SOAP API credentials${reset}\n"
+		echo "$(timestamp): ARAS SOAP API Authentication error, check your ARAS SOAP API credentials" >> "${wooaras_log}"
 		while true
 		do
 			echo "${m_tab}${cyan}###########################################################################${reset}"
@@ -2915,22 +2859,18 @@ if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 			esac
 		done
 	done
-elif grep -q "error_75546475052" "$this_script_path/aras.json"; then
-	if [ $send_mail_err -eq 1 ]; then
-		send_mail_err <<< "ARAS SOAP Authentication Error! Check your login credentials." >/dev/null 2>&1
-	fi
-	echo "$(timestamp): ARAS SOAP Authentication Error! Check your login credentials." >> "${wooaras_log}"
-	exit 1
+elif grep -q "error_75546475052" "${this_script_path}/aras.json"; then
+		control_ops_exit "ARAS SOAP API Authentication error, check your ARAS SOAP API credentials"
 fi
 
-# trap clean_up may expose credentials so delete file immediately
+# disabled trap clean_up may expose credentials so delete file immediately
 rm -f "${this_script_path:?}/aras_request.php"
 # END CONTROLS
 #=====================================================================
 
 # Passed all controls, time to call INSTALLATION functions
 # Also validate the data that parsed by script.
-# If ARAS data is empty first check 'merchant code' which not return any error from ARAS end
+# If ARAS data is empty first check 'merchant code' which not return any error from ARAS SOAP end
 if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 	if [[ ! -e "${this_script_path}/.woo.aras.set" ]]; then
 		pre_check
@@ -2950,7 +2890,7 @@ if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 			echo -e "\n${red}*${reset} ${red}Couldn't find any woocommerce order data to validate.${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			echo "${m_tab}${red}You can simply create a test order if throw in error here.${reset}"
-			echo "${m_tab}${red}Without data validation by user we cannot go for production.${reset}"
+			echo -e "${m_tab}${red}Without data validation by user we cannot go for production.${reset}\n"
 			echo "$(timestamp): Couldn't find any woocommerce order data to validate. You can simply create a test order." >> "${wooaras_log}"
 			exit 1
 		else
@@ -2978,18 +2918,17 @@ if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 			< "${this_script_path}/aras.json" $m_sed 's/^[^[]*://g' | $m_awk 'BEGIN{OFS=FS="]"};{$NF="";print $0}' > "${this_script_path}/aras.json.mod" || { echo 'cannot modify aras.json'; exit 1; }
 		fi
 
-		if grep "null" "$this_script_path/aras.json.mod"; then
+		if grep "null" "${this_script_path}/aras.json.mod"; then
 			echo -e "\n${red}*${reset} ${red}Couldn't find any ARAS cargo data to validate${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
-			echo "${m_tab}${red}You can simply set wide time range to get cargo data${reset}"
-			echo "${m_tab}${red}Set 'start_date' 'end_date' variables in script.${reset}"
-			echo "${m_tab}${red}Without data validation by user we cannot go for production.${reset}"
+			echo "${m_tab}${red}You can try to set 'start_date' 'end_date' for long time span.${reset}"
+			echo -e "${m_tab}${red}Unable to continue without verifying the data.${reset}\n"
 			echo "$(timestamp): Couldn't find any ARAS cargo data to validate" >> "${wooaras_log}"
 			exit 1
 		else
 			echo -e "\n${green}${m_tab}Please validate Tracking_Number & Customer_Info.${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
-			column -t -s' ' <<< $(< "$this_script_path/aras.json.mod" $m_jq -r '.[]|[.DURUM_KODU,.KARGO_TAKIP_NO,.ALICI]|join(" ")' |
+			column -t -s' ' <<< $(< "${this_script_path}/aras.json.mod" $m_jq -r '.[]|[.DURUM_KODU,.KARGO_TAKIP_NO,.ALICI]|join(" ")' |
 				cut -f2- -d ' ' | iconv -f utf8 -t ascii//TRANSLIT | tr '[:upper:]' '[:lower:]' |
 				$m_awk '{s=$1;gsub($1 FS,x);$1=$1;print s FS $0}' OFS= |
 				$m_sed '1i Tracking_Number Customer_Name' | $m_sed '2i --------------- -------------' |
@@ -3030,8 +2969,8 @@ if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 
 		echo -e "\n${green}*${reset} ${green}Default setup completed.${reset}"
 		# Forward to twoway installation
-		if [[ -n "$twoway" ]]; then
-			if [ "$twoway" == "true" ]; then
+		if [[ -n "${twoway}" ]]; then
+			if [[ "${twoway}" == "true" ]]; then
 				echo "${cyan}${m_tab}#####################################################${reset}"
 				echo "${m_tab}${green}Installing two way fulfillment workflow...${reset}"
 				install_twoway
@@ -3064,33 +3003,38 @@ fi
 # MAIN STRING MATCHING LOGIC
 # =============================================================================================
 
+# Exit --> always appended file not removed by trap on previous run
+catch_trap_fail () {
+	echo -e "\n${red}*${reset} ${red}Removing temporary file failed on previous run${reset}"
+	echo "${cyan}${m_tab}#####################################################${reset}"
+	echo "${m_tab}${red}File(s) ${1} ${2} still exist.${reset}"
+	echo -e "${m_tab}${red}Could not catch signal to remove file(s)${reset}\n"
+	echo "$(timestamp): Could not catch signal to remove files ${1} ${2} on previous run" >> "${wooaras_log}"
+	send_mail "Could not catch signal to remove file(s) ${1} ${2} on previous run"
+	exit 1
+}
+
 # Get WC order's ID (processing status) & WC customer info
 # As of 2021 max 100 orders fetchable with one query
 if $m_curl -s -o /dev/null -X GET --fail "https://$api_endpoint/wp-json/wc/v3/orders?status=processing&per_page=100" -u "$api_key":"$api_secret" -H "Content-Type: application/json"; then
 	$m_curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/orders?status=processing&per_page=100" -u "$api_key":"$api_secret" -H "Content-Type: application/json" |
 	$m_jq -r '.[]|[.id,.shipping.first_name,.shipping.last_name]|join(" ")' > "$this_script_path/wc.proc"
-elif [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
+else
 	echo -e "\n${red}*${reset}${red} WooCommerce REST API Connection Error${reset}"
 	echo "${cyan}${m_tab}#####################################################${reset}"
 	echo -e "${m_tab}${red}This can be temporary connection error${reset}\n"
 	echo "$(timestamp): WooCommerce REST API connection error, this can be temporary connection error" >> "${wooaras_log}"
-	exit 1
-elif [ $send_mail_err -eq 1 ]; then
-	send_mail_err <<< "WooCommerce REST API connection error, this can be temporary connection error" >/dev/null 2>&1
-	echo "$(timestamp): WooCommerce REST API connection error, this can be temporary connection error" >> "${wooaras_log}"
-	exit 1
-else
-	echo "$(timestamp): WooCommerce REST API connection error, this can be temporary connection error" >> "${wooaras_log}"
+	send_mail "WooCommerce REST API connection error, this can be temporary connection error"
 	exit 1
 fi
 
 # Two-way workflow, extract tracking number from data we previosly marked as shipped
-if [ -e "${this_script_path}/.two.way.enb" ]; then
+if [[ -e "${this_script_path}/.two.way.enb" ]]; then
 	declare -A check_status_del
 	declare -A check_status_del_new
 
 	# Parse access log to get shipped order data
-	if [ -e "${wooaras_log}" ]; then
+	if [[ -e "${wooaras_log}" ]]; then
 		grep "SHIPPED" "${wooaras_log}" | $m_awk '{print $1,$6,$8}' | tr = ' ' | $m_awk '{print $1,$3,$5}' | $m_sed "s|^|$(date +"%T,%d-%b-%Y") |" | $m_awk '{print $3,$4,$1,$2}' |
 		$m_awk '
 		BEGIN{
@@ -3112,21 +3056,18 @@ if [ -e "${this_script_path}/.two.way.enb" ]; then
 		hrs=min=sec=delta=""
 		}
 		' |
-		$m_awk '{print $1,$2,$5}' | tr : ' ' | $m_awk '{print $1,$2,$3/24}' | tr . ' ' | $m_awk '{print $3,$2,$1}' | $m_awk '(NR>0) && ($1 <= '"$delivery_time"')' | cut -f2- -d ' ' > "$this_script_path/wc.proc.del"
-	elif [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
-		echo -e "\n${yellow}*${reset}${yellow} ${wooaras_log} is not exist${reset}"
-		echo "${cyan}${m_tab}#####################################################${reset}"
-		echo "${m_tab}${yellow}Two-way workflow not working as expected, please check script logging correctly."
-		echo "$(timestamp): ${wooaras_log} is not exist, two-way workflow not working as expected. Please check script logging correctly." >> "${wooaras_log}"
-	elif [ $send_mail_err -eq 1 ]; then
-		send_mail_err <<< "${wooaras_log} is not exist, two-way workflow not working as expected. Please check script logging correctly." >/dev/null 2>&1
-		echo "$(timestamp): ${wooaras_log} is not exist, two-way workflow not working as expected. Please check script logging correctly." >> "${wooaras_log}"
+		$m_awk '{print $1,$2,$5}' | tr : ' ' | $m_awk '{print $1,$2,$3/24}' | tr . ' ' | $m_awk '{print $3,$2,$1}' | $m_awk '(NR>0) && ($1 <= '"$delivery_time"')' | cut -f2- -d ' ' > "${this_script_path}/wc.proc.del"
 	else
-		echo "$(timestamp): ${wooaras_log} is not exist, two-way workflow not working as expected. Please check script logging correctly." >> "${wooaras_log}"
+		echo -e "\n${red}*${reset} ${red}Could not find ${wooaras_log}${reset}"
+		echo "${cyan}${m_tab}#####################################################${reset}"
+		echo -e "${m_tab}${red}Check script logging correctly${reset}\n"
+		echo "$(timestamp): Could not find ${wooaras_log}, check script logging correctly." >> "${wooaras_log}"
+		send_mail "Could not find ${wooaras_log}, check script logging correctly."
+		exit 1
 	fi
 
 	# Verify columns of file
-	if [ -s "$this_script_path/wc.proc.del" ]; then
+	if [[ -s "${this_script_path}/wc.proc.del" ]]; then
 		good_del=true
 		while read -ra fields
 		do
@@ -3134,55 +3075,43 @@ if [ -e "${this_script_path}/.two.way.enb" ]; then
 				good_del=false
 				break
 			fi
-		done < "$this_script_path/wc.proc.del"
+		done < "${this_script_path}/wc.proc.del"
 		if $good_del; then
 			while read -r track id; do
 				check_status_del[$track]=$id
-			done < "$this_script_path/wc.proc.del"
+			done < "${this_script_path}/wc.proc.del"
 		fi
 	fi
 
 	# Validate that orders are only in shipped/completed status
 	if [[ "${#check_status_del[@]}" -gt 0 ]]; then
-		if ! [[ -e "$this_script_path/wc.proc.del.tmp1" && -e "$this_script_path/wc.proc.del.tmp" ]]; then # These are always appended file and trap(cleanup) can fail, linux is mystery
+		if ! [[ -e "${this_script_path}/wc.proc.del.tmp1" && -e "${this_script_path}/wc.proc.del.tmp" ]]; then # These are always appended file and trap(cleanup) can fail
 			for i in "${!check_status_del[@]}"
 			do
 				check_status_del_new[$i]=$($m_curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/orders/${check_status_del[$i]}" -u "$api_key":"$api_secret" -H "Content-Type: application/json" | $m_jq -r '[.status]|join(" ")')
-				echo "${i}" "${check_status_del_new[$i]}" >> "$this_script_path/wc.proc.del.tmp1"
-				echo "${i}" "${check_status_del[$i]}" >> "$this_script_path/wc.proc.del.tmp"
+				echo "${i}" "${check_status_del_new[$i]}" >> "${this_script_path}/wc.proc.del.tmp1"
+				echo "${i}" "${check_status_del[$i]}" >> "${this_script_path}/wc.proc.del.tmp"
 			done
-			$m_awk 'FNR==NR{a[$1]=$2;next}{print $0,a[$1]?a[$1]:"NA"}' "$this_script_path/wc.proc.del.tmp1" "$this_script_path/wc.proc.del.tmp" | $m_sed '/completed/!d' > "$this_script_path/wc.proc.del"
-		elif [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
-			echo -e "\n${red}*${reset}${red} Removing temporary file failed by trap.${reset}"
-			echo "${cyan}${m_tab}#####################################################${reset}"
-			echo "${m_tab}${red}File $this_script_path/wc.proc.del.tmp{1} is still exist."
-			echo -e "${m_tab}${red}Trap couldn't catch signal to remove file on previous run${reset}\n"
-			echo "$(timestamp): Trap cannot catch signal to remove file $this_script_path/wc.proc.del.tmp{1} on previous run" >> "${wooaras_log}"
-			exit 1
-		elif [ $send_mail_err -eq 1 ]; then
-			send_mail_err <<< "Trap couldn't catch signal to remove file $this_script_path/wc.proc.del.tmp{1} on previous run. Stopped.." >/dev/null 2>&1
-			echo "$(timestamp): Trap couldn't catch signal to remove file $this_script_path/wc.proc.del.tmp{1} on previous run" >> "${wooaras_log}"
-			exit 1
+			$m_awk 'FNR==NR{a[$1]=$2;next}{print $0,a[$1]?a[$1]:"NA"}' "${this_script_path}/wc.proc.del.tmp1" "${this_script_path}/wc.proc.del.tmp" | $m_sed '/completed/!d' > "${this_script_path}/wc.proc.del"
 		else
-			echo "$(timestamp): Trap couldn't catch signal to remove file $this_script_path/wc.proc.del.tmp{1} on previous run" >> "${wooaras_log}"
-			exit 1
+			catch_trap_fail "${this_script_path}/wc.proc.del.tmp1" "${this_script_path}/wc.proc.del.tmp"
 		fi
 	fi
 fi
 
 
 # Modify ARAS SOAP json response to make easily parsable with jq
-if [ -s "${this_script_path}/aras.json" ]; then
+if [[ -s "${this_script_path}/aras.json" ]]; then
 	< "${this_script_path}/aras.json" $m_sed 's/^[^[]*://g' | $m_awk 'BEGIN{OFS=FS="]"};{$NF="";print $0}' > "${this_script_path}/aras.json.mod" || { echo 'cannot modify aras.json'; exit 1; }
 fi
 
 # Parse ARAS JSON data with jq to get necessary data --> status, recipient{name,surname}, tracking number(undelivered yet)
-if [ -s "${this_script_path}/aras.json.mod" ]; then
+if [[ -s "${this_script_path}/aras.json.mod" ]]; then
 	< "${this_script_path}/aras.json.mod" $m_jq -r '.[]|[.DURUM_KODU,.KARGO_TAKIP_NO,.ALICI]|join(" ")' | $m_sed '/^6/d' | cut -f2- -d ' ' > "${this_script_path}/aras.proc"
 fi
 
 # Two-way workflow, Parse ARAS JSON data with jq to get necessary data --> status, recipient{name,surname}, tracking number(delivered)
-if [ -e "${this_script_path}/.two.way.enb" ]; then
+if [[ -e "${this_script_path}/.two.way.enb" ]]; then
 	if [ -s "${this_script_path}/aras.json.mod" ]; then
 		< "${this_script_path}/aras.json.mod" $m_jq -r '.[]|[.DURUM_KODU,.KARGO_TAKIP_NO,.ALICI]|join(" ")' | $m_sed '/^6/!d' | cut -f2- -d ' ' | $m_awk '{print $1}' > "${this_script_path}/aras.proc.del"
 	fi
@@ -3196,8 +3125,8 @@ if [[ -s "${this_script_path}/aras.proc" && -s "${this_script_path}/wc.proc" ]];
 fi
 
 # Two-way workflow
-if [ -e "${this_script_path}/.two.way.enb" ]; then
-	if [[ -s "${this_script_path}"/aras.proc.del && -s "${this_script_path}"/wc.proc.del ]]; then
+if [[ -e "${this_script_path}/.two.way.enb" ]]; then
+	if [[ -s "${this_script_path}/aras.proc.del" && -s "${this_script_path}/wc.proc.del" ]]; then
 		good_aras_del=true
 		while read -ra fields
 		do
@@ -3226,13 +3155,13 @@ if [ -e "${this_script_path}/.two.way.enb" ]; then
 fi
 
 # Verify data integrity (check fields only contains digits, letters && existence of data (eliminate null,whitespace)
-# If only data valid then read file into associative array (array length will not effected by null data)
+# If only data valid then read file into associative array (so array length will not effected by null data)
 declare -A aras_array
 declare -A wc_array
 
 for en in "${this_script_path}"/*.en
 do
-	if [ -s "$en" ]; then
+	if [[ -s "${en}" ]]; then
 		good=true
 		while read -ra fields
 		do
@@ -3259,27 +3188,14 @@ done
 
 # Prepeare necessary data for matching operation
 if [[ "${#aras_array[@]}" -gt 0 && "${#wc_array[@]}" -gt 0 ]]; then # Check length of arrays to continue
-	if [[ ! -e "${this_script_path}/.lvn.all.cus" ]]; then # This is always appended file and trap(cleanup) can fail, linux is mystery
+	if [[ ! -e "${this_script_path}/.lvn.all.cus" ]]; then # This is always appended file and trap(cleanup) can fail
 		for i in "${!wc_array[@]}"; do
 			for j in "${!aras_array[@]}"; do
 				echo "${i}" "${wc_array[$i]}" "${j}" "${aras_array[$j]}" >> "${this_script_path}/.lvn.all.cus"
 			done
 		done
-	elif [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
-		echo -e "\n${red}*${reset}${red} Removing temporary file failed by trap.${reset}"
-		echo "${cyan}${m_tab}#####################################################${reset}"
-		echo "${m_tab}${red}File ${this_script_path}/.lvn.all.cus is still exist.${reset}"
-		echo "${m_tab}${red}Trap couldn't catch signal to remove file on previous run${reset}"
-		echo -e "${m_tab}${red}Or you disabled trap signal catch in script${reset}\n"
-		echo "$(timestamp): Trap cannot catch signal to remove file ${this_script_path}/.lvn.stn on previous run" >> "${wooaras_log}"
-		exit 1
-	elif [ $send_mail_err -eq 1 ]; then
-		send_mail_err <<< "Trap couldn't catch signal to remove file ${this_script_path}/.lvn.stn on previous run. Stopped.." >/dev/null 2>&1
-		echo "$(timestamp): Trap couldn't catch signal to remove file ${this_script_path}/.lvn.stn on previous run" >> "${wooaras_log}"
-		exit 1
 	else
-		echo "$(timestamp): Trap couldn't catch signal to remove file ${this_script_path}/.lvn.stn on previous run" >> "${wooaras_log}"
-		exit 1
+		catch_trap_fail "${this_script_path}/.lvn.all.cus"
 	fi
 fi
 
@@ -3291,21 +3207,8 @@ if [[ -s "${this_script_path}/.lvn.all.cus" ]]; then
 			$m_perl -MText::Fuzzy -e 'my $tf = Text::Fuzzy->new ("$ARGV[0]");' -e 'print $tf->distance ("$ARGV[1]"), "\n";' "$wc" "$aras" >> "${this_script_path}/.lvn.stn"
 		done < <( < "${this_script_path}/.lvn.all.cus" $m_awk '{print $2,$4}' )
 		$m_paste "${this_script_path}/.lvn.all.cus" "${this_script_path}/.lvn.stn" | $m_awk '($5 <= '"$max_distance"')' | $m_awk '{print $1,$3}' > "${my_tmp}"
-	elif [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
-		echo -e "\n${red}*${reset}${red} Removing temporary file failed by trap.${reset}"
-		echo "${cyan}${m_tab}#####################################################${reset}"
-		echo "${m_tab}${red}File ${this_script_path}/.lvn.stn is still exist.${reset}"
-		echo "${m_tab}${red}Trap couldn't catch signal to remove file on previous run${reset}"
-		echo -e "${m_tab}${red}Or you disabled trap signal catch in script${reset}\n"
-		echo "$(timestamp): Trap couldn't catch signal to remove file ${this_script_path}/.lvn.stn on previous run" >> "${wooaras_log}"
-		exit 1
-	elif [ $send_mail_err -eq 1 ]; then
-		send_mail_err <<< "Trap couldn't catch signal to remove file ${this_script_path}/.lvn.stn on previous run. Stopped.." >/dev/null 2>&1
-		echo "$(timestamp): Trap couldn't catch signal to remove file ${this_script_path}/.lvn.stn on previous run" >> "${wooaras_log}"
-		exit 1
 	else
-		echo "$(timestamp): Trap couldn't catch signal to remove file ${this_script_path}/.lvn.stn on previous run" >> "${wooaras_log}"
-		exit 1
+		catch_trap_fail "${this_script_path}/.lvn.stn"
 	fi
 
 	# Better handle multiple orders(processing) for same customer
@@ -3320,21 +3223,8 @@ if [[ -s "${this_script_path}/.lvn.all.cus" ]]; then
 			for id in "${!magic[@]}"; do
 				echo "$id ${magic[$id]}" >> "${this_script_path}/.lvn.mytmp2" # This is always appended file and trap can fail, linux is mystery
 			done
-		elif [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
-			echo -e "\n${red}*${reset}${red} Removing temporary file failed by trap.${reset}"
-			echo "${cyan}${m_tab}#####################################################${reset}"
-			echo "${m_tab}${red}File ${this_script_path}/.lvn.mytmp2 is still exist.${reset}"
-			echo "${m_tab}${red}Trap couldn't catch signal to remove file on previous run${reset}"
-			echo -e "${m_tab}${red}Or you disabled trap signal catch in script${reset}\n"
-			echo "$(timestamp): Trap couldn't catch signal to remove file ${this_script_path}/.lvn.mytmp2 on previous run" >> "${wooaras_log}"
-			exit 1
-		elif [ $send_mail_err -eq 1 ]; then
-			send_mail_err <<< "Trap couldn't catch signal to remove file ${this_script_path}/.lvn.mytmp2 on previous run. Stopped.." >/dev/null 2>&1
-			echo "$(timestamp): Trap couldn't catch signal to remove file ${this_script_path}/.lvn.mytmp2 on previous run" >> "${wooaras_log}"
-			exit 1
 		else
-			echo "$(timestamp): Trap couldn't catch signal to remove file ${this_script_path}/.lvn.mytmp2 on previous run" >> "${wooaras_log}"
-			exit 1
+			catch_trap_fail "${this_script_path}/.lvn.mytmp2"
 		fi
 	fi
 
@@ -3357,11 +3247,21 @@ fi
 
 # Lets start updating woocommerce order status as completed with AST plugin.
 # ARAS Tracking number will be sent to customer.
+exit_curl_fail () {
+	echo -e "\n${red}*${reset} ${red}Could not update order [${id}] status${reset}"
+	echo "${m_tab}${cyan}#####################################################${reset}"
+	echo "${m_tab}${red}Wrong Order ID or REST endpoint error${reset}"
+	echo -e "${m_tab}${red}Check ${1} to validate data${reset}\n"
+	echo "$(timestamp): Could not update order ${id} status, wrong Order ID(corrupt data) or REST endpoint error, check ${1} to validate data" >> "${wooaras_log}"
+	send_mail "Could not update order [${id}] status, wrong Order ID(couupt data) or WooCommerce REST API endpoint error, check ${1} to validate data"
+	exit 1
+}
+
 if [[ -e "${this_script_path}/.woo.aras.enb" ]]; then
 	if [[ -s "${my_tmp}" ]]; then
 		# For debugging purpose save the parsed data first
 		if [[ ! -d "${this_script_path}/tmp" ]]; then
-			mkdir "${this_script_path}/tmp"
+			mkdir "${this_script_path}/tmp" || { echo "Updating order failed, could not create folder ${this_script_path}/tmp"; exit 1; }
 		fi
 		cat <(cat "${my_tmp}") > "${my_tmp_folder}/$(date +%d-%m-%Y)-main.$$"
 		cat <(cat "${this_script_path}/wc.proc.en") > "${my_tmp_folder}/$(date +%d-%m-%Y)-wc.proc.en.$$"
@@ -3384,43 +3284,22 @@ if [[ -e "${this_script_path}/.woo.aras.enb" ]]; then
 				<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd"><html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"/></head><body><table id="v1template_container" style="background-color: #ffffff; border: 1px solid #dedede; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1); border-radius: 3px;" border="0" width="600" cellspacing="0" cellpadding="0"><tbody><tr><td align="center" valign="top"><table id="v1template_header" style="background-color: #567d46; color: #ffffff; border-bottom: 0; font-weight: bold; line-height: 100%; vertical-align: middle; font-family: 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif; border-radius: 3px 3px 0 0;" border="0" width="100%" cellspacing="0" cellpadding="0"><tbody><tr><td id="v1header_wrapper" style="padding: 36px 48px; display: block;"><h2 style="font-family: 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif; font-size: 30px; font-weight: 300; line-height: 150%; margin: 0px; text-shadow: #78976b 0px 1px 0px; color: #ffffff; background-color: inherit; text-align: center;">Aras Kargo Otomatik Güncelleme: $id - $order_number</h2></td></tr></tbody></table></td></tr><tr><td align="center" valign="top"><table id="v1template_body" border="0" width="600" cellspacing="0" cellpadding="0"><tbody><tr><td id="v1body_content" style="background-color: #ffffff;" valign="top"><table border="0" width="100%" cellspacing="0" cellpadding="20"><tbody><tr><td style="padding: 48px 48px 32px;" valign="top"><div id="v1body_content_inner" style="color: #636363; font-family: 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif; font-size: 14px; line-height: 150%; text-align: left;"><p style="margin: 0 0 16px;">Merhaba $company_name, $c_name siparişi kargoya verildi ve sipariş durumu tamamlandı olarak güncellendi: Müşteriye kargo takip kodunu da içeren bir bilgilendirme maili gönderildi.</p><h2 style="color: #567d46; display: block; font-family: 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif; font-size: 18px; font-weight: bold; line-height: 130%; margin: 0 0 18px; text-align: left;"><a class="v1link" style="font-weight: normal; text-decoration: underline; color: #567d46;" href="#" target="_blank" rel="noreferrer">[Sipariş #$id]</a> ($t_date)</h2><div style="margin-bottom: 40px;"><table class="v1td" style="color: #636363; border: 1px solid #e5e5e5; vertical-align: middle; width: 100%; font-family: 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif;" border="1" cellspacing="0" cellpadding="6"><thead><tr><th class="v1td" style="color: #636363; border: 1px solid #e5e5e5; vertical-align: middle; padding: 12px; text-align: left;">KARGO</th><th class="v1td" style="color: #636363; border: 1px solid #e5e5e5; vertical-align: middle; padding: 12px; text-align: left;">İSİM</th><th class="v1td" style="color: #636363; border: 1px solid #e5e5e5; vertical-align: middle; padding: 12px; text-align: left;">TAKİP KODU</th></tr></thead><tbody><tr class="v1order_item"><td class="v1td" style="color: #636363; border: 1px solid #e5e5e5; padding: 12px; text-align: left; vertical-align: middle; font-family: 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif; word-wrap: break-word;">ARAS KARGO</td><td class="v1td" style="color: #636363; border: 1px solid #e5e5e5; padding: 12px; text-align: left; vertical-align: middle; font-family: 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif;">$c_name</td><td class="v1td" style="color: #636363; border: 1px solid #e5e5e5; padding: 12px; text-align: left; vertical-align: middle; font-family: 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif;">$track</td></tr></tbody></table></div></div></td></tr></tbody></table></td></tr></tbody></table></td></tr></tbody></table></body></html>
 				EOF
 				echo "$(date +"%T,%d-%b-%Y"): ORDER MARKED AS SHIPPED: Order_Id=$id Order_Number=$order_number Aras_Tracking_Number=$track Customer_Info=$c_name" >> "${wooaras_log}"
-				if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
-					echo "${green}*${reset} ${green}ORDER UPDATED AS COMPLETED: Order_Id=$id Order_Number=$order_number Aras_Tracking_Number=$track Customer_Info=$c_name${reset}"
-				fi
+				echo "${green}*${reset} ${green}ORDER UPDATED AS COMPLETED: Order_Id=$id Order_Number=$order_number Aras_Tracking_Number=$track Customer_Info=$c_name${reset}"
 				sleep 10
-			elif [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
-				if [ $send_mail_err -eq 1 ]; then
-					send_mail_err <<< "Cannot update order=$id status as completed. Wrong Order ID(corrupt data) or AST REST endpoint error. Check $my_tmp_folder/$(date +%d-%m-%Y)-main.$$ to validate data." >/dev/null 2>&1
-				fi
-				echo -e "\n${red}*${reset} ${red}Cannot update order=$id status as completed.${reset}"
-				echo "${m_tab}${cyan}#####################################################${reset}"
-				echo "${m_tab}${red}Wrong Order ID(corrupt data) or AST REST endpoint error.${reset}"
-				echo -e "${m_tab}${red}Check $my_tmp_folder/$(date +%d-%m-%Y)-main.$$ to validate data.${reset}\n"
-				echo "$(timestamp): Cannot update order=$id status as completed. Wrong Order ID(corrupt data) or AST REST endpoint error. Check $my_tmp_folder/$(date +%d-%m-%Y)-main.$$ to validate data." >> "${wooaras_log}"
-				exit 1
-			elif [ $send_mail_err -eq 1 ]; then
-				send_mail_err <<< "Cannot update order=$id status as completed. Wrong Order ID(corrupt data) or AST REST endpoint error. Check $my_tmp_folder/$(date +%d-%m-%Y)-main.$$ to validate data." >/dev/null 2>&1
-				echo "$(timestamp): Cannot update order=$id status as completed. Wrong Order ID(corrupt data) or AST REST endpoint error. Check $my_tmp_folder/$(date +%d-%m-%Y)-main.$$ to validate data." >> "${wooaras_log}"
-				exit 1
 			else
-				echo "$(timestamp): Cannot update order=$id status as completed. Wrong Order ID(corrupt data) or WooCommerce endpoint error. Check $my_tmp_folder/$(date +%d-%m-%Y)-main.del to validate data.$$" >> "${wooaras_log}"
-				exit 1
+				exit_curl_fail "${my_tmp_folder}/$(date +%d-%m-%Y)-main.$$"
 			fi
 		done < "${my_tmp}"
 	else
-		if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
-			echo "${yellow}*${reset} ${yellow}Couldn't find any updateable order now.${reset}"
-			echo "$(timestamp): Couldn't find any updateable order now." >> "${wooaras_log}"
-		else
-			echo "$(timestamp): Couldn't find any updateable order now." >> "${wooaras_log}"
-		fi
+		echo "${yellow}*${reset} ${yellow}Couldn't find any updateable order now.${reset}"
+		echo "$(timestamp): Couldn't find any updateable order now." >> "${wooaras_log}"
 	fi
 
 	if [[ -e "${this_script_path}/.two.way.enb" ]]; then
 		if [[ -s "${my_tmp_del}" ]]; then
 			# For debugging purpose save the parsed data first
 			if [[ ! -d "${this_script_path}/tmp" ]]; then
-				mkdir "${this_script_path}/tmp"
+				mkdir "${this_script_path}/tmp" || { echo "Updating order failed, could not create folder ${this_script_path}/tmp"; exit 1; }
 			fi
 			cat <(cat "${my_tmp_del}") > "${my_tmp_folder}/$(date +%d-%m-%Y)-main.del.$$"
 			cat <(cat "${this_script_path}/wc.proc.del") > "${my_tmp_folder}/$(date +%d-%m-%Y)-wc.proc.del.$$"
@@ -3443,34 +3322,15 @@ if [[ -e "${this_script_path}/.woo.aras.enb" ]]; then
 					<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd"><html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"/></head><body><table id="v1template_container" style="background-color: #ffffff; border: 1px solid #dedede; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1); border-radius: 3px;" border="0" width="600" cellspacing="0" cellpadding="0"><tbody><tr><td align="center" valign="top"><table id="v1template_header" style="background-color: #567d46; color: #ffffff; border-bottom: 0; font-weight: bold; line-height: 100%; vertical-align: middle; font-family: 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif; border-radius: 3px 3px 0 0;" border="0" width="100%" cellspacing="0" cellpadding="0"><tbody><tr><td id="v1header_wrapper" style="padding: 36px 48px; display: block;"><h2 style="font-family: 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif; font-size: 30px; font-weight: 300; line-height: 150%; margin: 0px; text-shadow: #78976b 0px 1px 0px; color: #ffffff; background-color: inherit; text-align: center;">Aras Kargo Otomatik Güncelleme: $id - $order_number</h2></td></tr></tbody></table></td></tr><tr><td align="center" valign="top"><table id="v1template_body" border="0" width="600" cellspacing="0" cellpadding="0"><tbody><tr><td id="v1body_content" style="background-color: #ffffff;" valign="top"><table border="0" width="100%" cellspacing="0" cellpadding="20"><tbody><tr><td style="padding: 48px 48px 32px;" valign="top"><div id="v1body_content_inner" style="color: #636363; font-family: 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif; font-size: 14px; line-height: 150%; text-align: left;"><p style="margin: 0 0 16px;">Merhaba <strong>$company_name</strong>, <strong>$c_name</strong> siparişi müşteriye ulaştı ve sipariş durumu <strong>Teslim Edildi</strong> olarak güncellendi. Müşteriye sipariş durumunu içeren bir bilgilendirme e-mail'i gönderildi.</p><h2 style="color: #567d46; display: block; font-family: 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif; font-size: 18px; font-weight: bold; line-height: 130%; margin: 0 0 18px; text-align: left;"><a class="v1link" style="font-weight: normal; text-decoration: underline; color: #567d46;" href="#" target="_blank" rel="noopener noreferrer">[Sipariş #$id]</a> ($t_date)</h2><div style="margin-bottom: 40px;">&nbsp;</div></div></td></tr></tbody></table></td></tr></tbody></table></td></tr></tbody></table></body></html>
 					EOF
 					echo "$(date +"%T,%d-%b-%Y"): ORDER MARKED AS DELIVERED: Order_Id=$id Order_Number=$order_number Customer_Info=$c_name" >> "${wooaras_log}"
-					if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
-						echo "${green}*${reset} ${green}ORDER UPDATED AS DELIVERED: Order_Id=$id Order_Number=$order_number Customer_Info=$c_name${reset}"
-					fi
+					echo "${green}*${reset} ${green}ORDER UPDATED AS DELIVERED: Order_Id=$id Order_Number=$order_number Customer_Info=$c_name${reset}"
 					sleep 10
-				elif [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
-					if [ $send_mail_err -eq 1 ]; then
-						send_mail_err <<< "Cannot update order=$id status as delivered. Wrong Order ID(corrupt data) or WooCommerce endpoint error. Check $my_tmp_folder/$(date +%d-%m-%Y)-main.del to validate data.$$" >/dev/null 2>&1
-					fi
-					echo -e "\n${red}*${reset} ${red}Cannot update order=$id status as delivered.${reset}"
-					echo "${m_tab}${cyan}#####################################################${reset}"
-					echo "${m_tab}${red}Wrong Order ID(corrupt data) or WooCommerce endpoint error.${reset}"
-					echo -e "${m_tab}${red}Check $my_tmp_folder/$(date +%d-%m-%Y)-main.del to validate data.${reset}\n"
-					echo "$(timestamp): Cannot update order=$id status as delivered. Wrong Order ID(corrupt data) or WooCommerce endpoint error. Check $my_tmp_folder/$(date +%d-%m-%Y)-main.$$" >> "${wooaras_log}"
-					exit 1
-				elif [ $send_mail_err -eq 1 ]; then
-					send_mail_err <<< "Cannot update order=$id status as delivered. Wrong Order ID(corrupt data) or WooCommerce endpoint error. Check $my_tmp_folder/$(date +%d-%m-%Y)-main.del to validate data.$$" >/dev/null 2>&1
-					echo "$(timestamp): Cannot update order=$id status as delivered. Wrong Order ID(corrupt data) or WooCommerce endpoint error. Check $my_tmp_folder/$(date +%d-%m-%Y)-main.del to validate data.$$" >> "${wooaras_log}"
-					exit 1
 				else
-					echo "$(timestamp): Cannot update order=$id status as delivered. Wrong Order ID(corrupt data) or WooCommerce endpoint error. Check $my_tmp_folder/$(date +%d-%m-%Y)-main.del to validate data.$$" >> "${wooaras_log}"
-					exit 1
+					exit_curl_fail "${my_tmp_folder}/$(date +%d-%m-%Y)-main.del.$$"
 				fi
 			done < "${my_tmp_del}"
-		elif [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
-			echo -e "\n${yellow}*${reset} ${yellow}Couldn't find any updateable order now.${reset}"
-			echo "$(timestamp): Couldn't find any updateable order now." >> "${wooaras_log}"
 		else
-			echo "$(timestamp): Couldn't find any updateable order now." >> "${wooaras_log}"
+			echo "${yellow}*${reset} ${yellow}[Two-way] Couldn't find any updateable order now.${reset}"
+			echo "$(timestamp): [Two-way] Couldn't find any updateable order now." >> "${wooaras_log}"
 		fi
 	fi
 fi
