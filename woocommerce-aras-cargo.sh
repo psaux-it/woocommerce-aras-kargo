@@ -185,7 +185,7 @@ create_log_path () {
 called_by () {
 	# Cron
 	local FROM_CRON="$(pstree -s $$ | grep -c cron 2>/dev/null)"
-	local FROM_CRON_2=$([[ -z "$TERM" || "$TERM" = "dumb" ]] && echo '1' || echo '0')
+	local FROM_CRON_2=$([[ ! "$TERM" || "$TERM" = "dumb" ]] && echo '1' || echo '0')
 
 	if [[ "${FROM_CRON}" -eq 1 || "${FROM_CRON_2}" -eq 1 ]]; then
 		RUNNING_FROM_CRON=1
@@ -217,13 +217,13 @@ export PATH="${PATH}:/sbin:/usr/sbin:/usr/local/bin:/usr/local/sbin"
 uniquepath () {
 	local path=""
 	while read -r; do
-		if [[ ! ${path} =~ (^|:)"${REPLY}"(:|$) ]]; then
-			[[ -n "${path}" ]] && path="${path}:"
+		if [[ ! "${path}" =~ (^|:)"${REPLY}"(:|$) ]]; then
+			[[ "${path}" ]] && path="${path}:"
 			path="${path}${REPLY}"
 		fi
 	done < <(echo "${PATH}" | tr ":" "\n")
 
-	[[ -n "${path}" ]] && [[ ${PATH} =~ /bin ]] && [[ ${PATH} =~ /sbin ]] && export PATH="${path}"
+	[[ "${path}" ]] && [[ "${PATH}" =~ /bin ]] && [[ "${PATH}" =~ /sbin ]] && export PATH="${path}"
 }
 uniquepath
 
@@ -262,7 +262,7 @@ else
 	exit 1
 fi
 
-if [[ -z "${this_script_full_path}" || -z "${this_script_path}" || -z "${this_script_name}" ]]; then
+if [[ ! "${this_script_full_path}" || ! "${this_script_path}" || ! "${this_script_name}" ]]; then
 	path_pretty_error
 	exit 1
 fi
@@ -660,7 +660,7 @@ clean_up () {
 	rm -rf ${my_tmp:?} ${my_tmp_del:?} ${PIDFILE:?}
 
 	# Unset locale if setted before
-	if [[ -n "${lang_setted}" ]]; then
+	if [[ "${lang_setted}" ]]; then
 		unset LC_ALL
 		unset LC_CTYPE
 	fi
@@ -705,7 +705,7 @@ my_status () {
 		echo -e "${green}Default-Setup: $s_status${reset}"
 
 		hide_me --enable
-		if [[ -z "$api_key" || -z "$api_secret" || -z "$api_endpoint" ]]; then
+		if [[ ! "$api_key" || ! "$api_secret" || ! "$api_endpoint" ]]; then
 			api_key=$(< "$this_script_path/.key.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
 			api_secret=$(< "$this_script_path/.secret.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
 			api_endpoint=$(< "$this_script_path/.end.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
@@ -898,7 +898,7 @@ pre_check () {
 
 	{ # Start redirection to file
 
-	if [[ -n $woo_ver ]]; then
+	if [[ "${woo_ver}" ]]; then
 		if [ "${woo_ver%%.*}" -ge 5 ]; then
 			echo "${green}WooCommerce_Version: $woo_ver ✓${reset}"
 		elif [ "${woo_ver%%.*}" -ge 4 ]; then
@@ -909,7 +909,7 @@ pre_check () {
 		fi
 	fi
 
-	if [[ -n $jq_ver ]]; then
+	if [[ "${jq_ver}" ]]; then
 		if [ "${jq_ver//./}" -ge 16 ]; then
 			echo "${green}jq_Version: $jq_ver ✓${reset}"
 		else
@@ -918,7 +918,7 @@ pre_check () {
 		fi
 	fi
 
-	if [[ -n $w_ver ]]; then
+	if [[ "${w_ver}" ]]; then
 		if [ "${w_ver%%.*}" -ge 5 ]; then
 			echo "${green}Wordpress_Version: $w_ver ✓${reset}"
 		else
@@ -927,7 +927,7 @@ pre_check () {
 		fi
 	fi
 
-	if [ "$ast_ver" != "false" ]; then
+	if [ "${ast_ver}" != "false" ]; then
 		echo "${green}AST_Plugin: ACTIVE ✓${reset}"
 		echo "${green}AST_Plugin_Version: $ast_ver ✓${reset}"
 	else
@@ -935,14 +935,14 @@ pre_check () {
 		echo "${red}AST_Plugin_Version: NOT_FOUND x${reset}"
 	fi
 
-	if [ "$bash_ver" -ge 5 ]; then
+	if [ "${bash_ver}" -ge 5 ]; then
 		echo "${green}Bash_Version: $bash_ver ✓${reset}"
 	else
 		echo "${red}Bash_Version: $bash_ver x${reset}"
 		local bash_old=1
 	fi
 
-	if [[ -n $gnu_awk ]]; then
+	if [[ "${gnu_awk}" ]]; then
 		if [ "${gnu_awk_v%%.*}" -ge 5 ]; then
 			echo "${green}GNU_Awk_Version: $gnu_awk_v ✓${reset}"
 		else
@@ -954,7 +954,7 @@ pre_check () {
 		local awk_not_gnu=1
 	fi
 
-	if [[ -n $gnu_sed ]]; then
+	if [[ "${gnu_sed}" ]]; then
 		if [ "${gnu_sed_v%%.*}" -ge 4 ]; then
 			echo "${green}GNU_Sed_Version: $gnu_sed_v ✓${reset}"
 		else
@@ -974,7 +974,7 @@ pre_check () {
 	column -t -s ' ' <<< "$(< "${this_script_path}/.msg.proc")" | $m_sed 's/^/  /'
 
 	# Quit
-	if [[ -n $awk_not_gnu || -n $sed_not_gnu || -n $awk_old || -n $sed_old || -n $woo_old || -n $bash_old || -n $word_old || "$ast_ver" == "false" ]]; then
+	if [[ "${awk_not_gnu}" || "${sed_not_gnu}" || "${awk_old}" || "${sed_old}" || "${woo_old}" || "${bash_old}" || "${word_old}" || "${ast_ver}" == "false" ]]; then
 		exit 1
 	fi
 }
@@ -999,7 +999,7 @@ continue_setup () {
 find_child_path () {
 	local bridge="$1"
 	hide_me --enable
-	if [[ -z "$api_key" || -z "$api_secret" || -z "$api_endpoint" ]]; then
+	if [[ ! "${api_key}" || ! "${api_secret}" || ! "${api_endpoint}" ]]; then
 		api_key=$(< "$this_script_path/.key.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
 		api_secret=$(< "$this_script_path/.secret.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
 		api_endpoint=$(< "$this_script_path/.end.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
@@ -1010,14 +1010,15 @@ find_child_path () {
 	local theme_child=$($m_curl -s -X GET -u "$api_key":"$api_secret" -H "Content-Type: application/json" "https://$api_endpoint/wp-json/wc/v3/system_status" | $m_jq -r '[.theme.is_child_theme]|join(" ")')
 
 	# Find absolute path of child theme if exist
-	if [ "$theme_child" == "true" ]; then
+	if [[ "${theme_child}" == "true" ]]; then
 		theme_path=$($m_curl -s -X GET -u "$api_key":"$api_secret" -H "Content-Type: application/json" "https://$api_endpoint/wp-json/wc/v3/system_status" | $m_jq -r '[.environment.log_directory]|join(" ")' | $m_awk -F 'wp-content' '{print $1"wp-content"}')
 		theme_name=$($m_curl -s -X GET -u "$api_key":"$api_secret" -H "Content-Type: application/json" "https://$api_endpoint/wp-json/wc/v3/system_status" | $m_jq -r '[.theme.name]|join(" ")')
 		theme_name="${theme_name//[^[:alnum:]]/}"
 		theme_name="${theme_name,,}"
-		for i in "${theme_path:?}"/themes/*; do
-			if [ -d "$i" ]; then
-				j="$i"
+		for i in "${theme_path}"/themes/*
+		do
+			if [[ -d "${i}" ]]; then
+				j="${i}"
 				i="${i##*/}"
 				i="${i//[^[:alnum:]]/}"
 				i="${i,,}"
@@ -1029,13 +1030,13 @@ find_child_path () {
 		done
 
 		# Check child theme path found or not
-		if [[ -z $absolute_child_path ]]; then
+		if [[ ! "${absolute_child_path}" ]]; then
 			echo -e "\n${red}*${reset} ${red}Could not find child theme path${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			echo "${m_tab}${red}You must execute script on application server where woocommerce runs${reset}"
 			echo "${m_tab}${red}If the problem still persists complete setup without twoway-workflow,${reset}"
 			echo "${m_tab}${red}And follow manual implementation instructions on github${reset}"
-			echo -e "${m_tab}${red}Expected in $theme_path/themes/${reset}\n"
+			echo -e "${m_tab}${red}Expected in ${theme_path}/themes/${reset}\n"
 			echo "$(timestamp): Could not found child theme path, expected in $theme_path/themes/" >> "${wooaras_log}"
 			exit 1
 		else
@@ -1076,22 +1077,22 @@ find_child_path () {
 
 simple_uninstall_twoway () {
 	# Take back modifications from functions.php
-	if [ -w "$absolute_child_path/functions.php" ]; then
-		if grep -qw "${my_string}" "$absolute_child_path/functions.php"; then
-			$m_sed -i "/${my_string}/,/${my_string}/d" "$absolute_child_path/functions.php"
+	if [[ -w "${absolute_child_path}/functions.php" ]]; then
+		if grep -qw "${my_string}" "${absolute_child_path}/functions.php"; then
+			$m_sed -i "/${my_string}/,/${my_string}/d" "${absolute_child_path}/functions.php"
 		else
 			echo -e "\n${red}*${reset} ${red}Two way fulfillment unistallation aborted: ${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			echo -e "${m_tab}${red}Expected string not found in function.php. Did you manually modified file after installation?${reset}\n"
-			echo "$(timestamp): Expected string not found in function.php. Did you manually modified functions.php after installation? $absolute_child_path/functions.php" >> "${wooaras_log}"
+			echo "$(timestamp): Expected string not found in function.php. Did you manually modified functions.php after installation? ${absolute_child_path}/functions.php" >> "${wooaras_log}"
 			exit 1
 		fi
 	else
 		echo -e "\n${red}*${reset} ${red}Twoway fulfillment uninstallation aborted, as file not writeable: ${reset}"
 		echo "${cyan}${m_tab}#####################################################${reset}"
-		echo "${m_tab}${red}$absolute_child_path/functions.php${reset}"
+		echo "${m_tab}${red}${absolute_child_path}/functions.php${reset}"
 		echo -e "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}\n"
-		echo "$(timestamp): Twoway fulfillment uninstallation aborted, as file not writeable: $absolute_child_path/functions.php" >> "${wooaras_log}"
+		echo "$(timestamp): Twoway fulfillment uninstallation aborted, as file not writeable: ${absolute_child_path}/functions.php" >> "${wooaras_log}"
 		exit 1
 	fi
 
@@ -1146,11 +1147,11 @@ uninstall_twoway () {
 		find_child_path
 		if [[ -e "${this_script_path}/.two.way.enb" ]]; then # Check twoway installation
 			local get_delivered=$($m_curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/orders?status=delivered" -u "$api_key":"$api_secret" -H "Content-Type: application/json") # Get data
-			if [[ -n "$get_delivered" ]]; then # Any data
+			if [[ "${get_delivered}" ]]; then # Any data
 				if [[ "${get_delivered}" != "[]" ]]; then # Check for null data
-					if grep -q "${my_string}" "$absolute_child_path/functions.php"; then # Lastly, check the file is not modified
+					if grep -q "${my_string}" "${absolute_child_path}/functions.php"; then # Lastly, check the file is not modified
 						# Unhook woocommerce order status completed notification temporarly
-						$m_sed -i -e '/\'"$my_string"'/{ r '"$this_script_path/custom-order-status-package/action-unhook-email.php"'' -e 'b R' -e '}' -e 'b' -e ':R {n ; b R' -e '}' "$absolute_child_path/woocommerce/aras-woo-delivered.php" >/dev/null 2>&1 &&
+						$m_sed -i -e '/\'"$my_string"'/{ r '"${this_script_path}/custom-order-status-package/action-unhook-email.php"'' -e 'b R' -e '}' -e 'b' -e ':R {n ; b R' -e '}' "${absolute_child_path}/woocommerce/aras-woo-delivered.php" >/dev/null 2>&1 &&
 						# Call page to take effects function.php modifications
 						$m_curl -s -X GET "https://$api_endpoint/" >/dev/null 2>&1 ||
 						{
@@ -1245,7 +1246,7 @@ install_twoway () {
 		fi
 
 		# Copy, create apply operations
-		if [[ -n $GROUP_OWNER && -n $USER_OWNER ]]; then
+		if [[ $GROUP_OWNER && $USER_OWNER ]]; then
 			# Function.php operations
 			if [[ ! -f "${absolute_child_path}/functions.php" ]]; then
 				if ! grep -q 'Permission denied' <<< "$(touch "${absolute_child_path}/functions.php" 2>&1)"; then
@@ -1761,7 +1762,7 @@ twoway_enable () {
 		fi
 	done
 
-	if [[ -z "${missing_t}" ]]; then
+	if [[ ! "${missing_t}" ]]; then
 		if [[ ! -e "${this_script_path}/.two.way.enb" ]]; then
 			if [[ "${functions_mod}" == "applied" ]]; then
 				depriv "${this_script_path}/.two.way.enb"
@@ -1881,7 +1882,7 @@ download () {
 
 	# Copy over permissions from old version
 	local OCTAL_MODE="$(stat -c "%a" "${cron_script_full_path}" 2> /dev/null)"
-	if [[ -z "${OCTAL_MODE}" ]]; then
+	if [[ ! "${OCTAL_MODE}" ]]; then
 		local OCTAL_MODE="$(stat -f '%p' "${cron_script_full_path}")"
 	fi
 
@@ -1941,7 +1942,7 @@ download () {
 		exit 1
 	fi
 
-	if [[ -n "${f_update}" ]]; then
+	if [[ "${f_update}" ]]; then
 		echo -e "\\n\$(tput setaf 2)*\$(tput sgr0) \$(tput setaf 2)Force upgrade completed.\$(tput sgr0)"
 		echo "Force upgrade completed. WooCommerce-aras integration script updated to version ${latest_version}" | mail -s "$mail_subject_suc" -a "$mail_from" "$mail_to" >/dev/null 2>&1
 	else
@@ -1966,7 +1967,7 @@ upgrade () {
 	local current_version=$(grep "^script_version=" "${cron_script_full_path}" | head -n1 | cut -d '"' -f 2)
 	changelog_p=$($m_curl -s --compressed -k "$changelog_github" 2>&1 | $m_sed -n "/$latest_version/,/$current_version/p" 2>/dev/null | head -n -2)
 
-	if [[ -n "${latest_version}" && -n "${current_version}" ]]; then
+	if [[ "${latest_version}" && "${current_version}" ]]; then
 		if [[ "${latest_version//./}" -gt "${current_version//./}" ]]; then
 			if [[ "${RUNNING_FROM_CRON}" -eq 0 && "${RUNNING_FROM_SYSTEMD}" -eq 0 ]]; then
 				echo -e "\n${green}*${reset} ${green}NEW UPDATE FOUND!${reset}"
@@ -2115,14 +2116,14 @@ add_cron () {
 			else
 				echo "${m_tab}${green}Main cron installed to ${cyan}${cron_dir}/${cron_filename}${reset}${reset}"
 			fi
-			if [[ -n "${logrotate_installed}" ]]; then
+			if [[ "${logrotate_installed}" ]]; then
 				if [[ "${logrotate_installed}" == "asfile" ]]; then
 					echo "${m_tab}${green}Logrotate installed to ${cyan}${logrotate_dir}/${logrotate_filename}${reset}"
 				elif [[ "${logrotate_installed}" == "conf" ]]; then
 					echo "${m_tab}${green}Logrotate rules inserted to ${cyan}${logrotate_conf}${reset}"
 				fi
 			fi
-			if [[ -n "${tmpfiles_installed}" ]]; then
+			if [[ "${tmpfiles_installed}" ]]; then
 				if [[ "{$tmpfiles_installed}" == "systemd" ]]; then
 					echo -e "${m_tab}${green}Runtime path deployed via ${cyan}${tmpfiles_d}/${tmpfiles_f}${reset}\n"
 				elif [[ "${tmpfiles_installed}" == "rclocal" ]]; then
@@ -2253,7 +2254,7 @@ add_systemd () {
 			else
 				echo "${m_tab}${green}Timer service enabled and started.${reset}"
 			fi
-			if [[ -n "${logrotate_installed}" ]]; then
+			if [[ "${logrotate_installed}" ]]; then
 				if [[ "${logrotate_installed}" == "asfile" ]]; then
 					echo -e "${m_tab}${green}Logrotate installed to ${cyan}${logrotate_dir}/${logrotate_filename}${reset}\n"
 				elif [[ "${logrotate_installed}" == "conf" ]]; then
@@ -2969,7 +2970,7 @@ if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 
 		echo -e "\n${green}*${reset} ${green}Default setup completed.${reset}"
 		# Forward to twoway installation
-		if [[ -n "${twoway}" ]]; then
+		if [[ "${twoway}" ]]; then
 			if [[ "${twoway}" == "true" ]]; then
 				echo "${cyan}${m_tab}#####################################################${reset}"
 				echo "${m_tab}${green}Installing two way fulfillment workflow...${reset}"
@@ -3231,7 +3232,7 @@ if [[ -s "${this_script_path}/.lvn.all.cus" ]]; then
 	if [[ -s "${this_script_path}/.lvn.mytmp2" ]]; then
 		if [[ "$($m_awk '{print NF}' "${this_script_path}"/.lvn.mytmp2 | sort -nu | tail -n 1)" -gt 2 ]]; then
 			$m_awk 'NF==3' "${this_script_path}/.lvn.mytmp2" > "${this_script_path}/.lvn.mytmp3"
-			if [[ -n "$($m_awk 'x[$2]++ == 1 { print $2 }' "${this_script_path}"/.lvn.mytmp3)" ]]; then
+			if [[ "$($m_awk 'x[$2]++ == 1 { print $2 }' "${this_script_path}"/.lvn.mytmp3)" ]]; then
 				for i in $($m_awk 'x[$2]++ == 1 { print $2 }' "${this_script_path}/.lvn.mytmp3"); do
 					$m_sed -i "0,/$i/{s/$i//}" "${this_script_path}/.lvn.mytmp3"
 				done
