@@ -30,7 +30,7 @@ If you need further technical assistance (for an other cargo company) or want to
 ## What are the supported workflows?
 ![mermaid-diagram-20210714032040](https://user-images.githubusercontent.com/25556606/125541661-f8a05b42-c174-4bfb-81c9-84e01036a1f6.png)
 
-In default workflow if the cargo on the way (tracking number generated on ARAS end) automation will update order status processing to completed. If you use default workflow there is no need to create any custom order status.
+In default if the cargo on the way (tracking number generated on ARAS end) automation will update order status processing to completed. If you use default workflow there is no need to create any custom order status.
 
 ![mermaid-diagram-20210714032102](https://user-images.githubusercontent.com/25556606/125541613-e1232826-72ad-4555-98cc-5e1b79c8e352.png)
 
@@ -182,17 +182,15 @@ If you use mutt, ssmtp, sendmail etc. please edit mail function as you wish. You
 - mail_subject_suc
 - mail_subject_err
 
-## Usage
-- If you go with manual two-way fulfillment workflow installation that explained before, be sure your setup is working
-- If you go with auto two-way fulfillment workflow installation, note your wordpress child theme absolute path for your confirmation during setup
+## Basic Usage
+- Work with non-root user, only setup and uninstall processes needs sudo privilege
+- Note your wordpress child theme absolute path for confirmation during setup
 - Get necessary credentials from ARAS commercial user control panel (https://esasweb.araskargo.com.tr/) (choose JSON fromat)
 ![araskargo-11](https://user-images.githubusercontent.com/25556606/125905483-99941283-cd59-4ac5-b9ea-afc54132dc7b.png)
 - Enable and setup WooCommerce REST API, get credentials (only support REST API v3)
 - Adjust user defined settings such as mail_to, company_name as mentioned before
-- Clear wordpress cache for some security checks
 - Be sure you have some data both on woocommerce and ARAS for validations (if not create test orders)
-- Clone repo in ```/opt``` folder ```sudo git clone https://github.com/hsntgm/woocommerce-aras-kargo.git``` (Never manually copy/paste script)
-- In ```/opt``` folder execute script as 'root' or sudo user
-- ```sudo ./woocommerce-aras-cargo.sh --setup```
+- Clone repo ```git clone https://github.com/hsntgm/woocommerce-aras-kargo.git``` (Never manually copy/paste script)
+- Start setup as sudo user ```sudo ./woocommerce-aras-cargo.sh --setup```
 
 ![woocommerce-aras-help](https://user-images.githubusercontent.com/25556606/127486809-ede139f7-4903-4779-8dbb-06f38f3ea7b4.png)
