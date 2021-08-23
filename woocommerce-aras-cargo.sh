@@ -442,35 +442,42 @@ if [[ ! -d "${wooaras_log%/*}" ]]; then
 	fi
 fi
 
-# Not allow -x that expose sensetive informations
-# Disable to write history
-hide_me () {
-	if [[ "${1}" == "--enable" ]]; then
-		if [[ $- =~ x ]]; then my_debug=1; set +x; fi
-		set +o history
-	elif [[ "${1}" == "--disable" ]]; then
-		[[ "${my_debug}" -eq 1 ]] && set -x
-		set -o history
-	fi
+# Pid pretty error
+pid_pretty_error () {
+	echo -e "\n${red}*${reset} ${red}FATAL ERROR: Cannot create PID${reset}"
+	echo -e "${cyan}${m_tab}#####################################################${reset}\n"
+	echo "$(timestamp): FATAL ERROR: Cannot create PID" >> "${wooaras_log}"
+	send_mail "FATAL ERROR: Cannot create PID"
 }
 
-# Script called by
-called_by () {
-	# Cron
-	local FROM_CRON="$(pstree -s $$ | grep -c cron 2>/dev/null)"
-	local FROM_CRON_2=$([[ ! "$TERM" || "$TERM" = "dumb" ]] && echo '1' || echo '0')
+# Create PID before long running process
+# Allow only one instance running at the same time
+# Check how long actual process has been running to catch hang processes
+if [[ -f "${PIDFILE}" ]]; then
+	PID="$(< "${PIDFILE}")"
+	if ps -p "${PID}" > /dev/null 2>&1; then
+		is_running=$(printf "%d" "$(($(ps -p "${PID}" -o etimes=) / 60))")
+		echo -e "\n${red}*${reset} ${red}The operation cannot be performed at the moment:${reset}"
+		echo "${cyan}${m_tab}#####################################################${reset}"
+		echo -e "${m_tab}${red}As script already running --> ${magenta}pid=$PID${reset}${red}, please try again later${reset}\n"
+		send_mail "The operation cannot be performed at the moment: as script already running --> pid=$PID, please try again later"
 
-	if [[ "${FROM_CRON}" -eq 1 || "${FROM_CRON_2}" -eq 1 ]]; then
-		RUNNING_FROM_CRON=1
-	else
-		RUNNING_FROM_CRON=0
+		# Warn about possible hang process
+		if [[ "${is_running}" -gt 30 ]]; then
+			echo -e "\n${red}*${reset} ${red}Possible hang process found:${reset}"
+			echo "${cyan}${m_tab}#####################################################${reset}"
+			echo -e "${m_tab}${red}The process pid=$PID has been running for more than 30 minutes.${reset}\n"
+			send_mail "Possible hang process found: The process pid=$PID has been running for more than 30 minutes."
+		fi
+		exit 1
+	elif ! echo $$ > "${PIDFILE}"; then
+		pid_pretty_error
+		exit 1
 	fi
-
-	# Systemd
-	local FROM_SYSTEMD="0"
-	RUNNING_FROM_SYSTEMD="${RUNNING_FROM_SYSTEMD:=$FROM_SYSTEMD}"
-}
-called_by
+elif ! echo $$ > "${PIDFILE}"; then
+	pid_pretty_error
+	exit 1
+fi
 
 # Check dependencies & Set explicit paths
 # =====================================================================
@@ -582,43 +589,6 @@ if [ "$m_ctype" != "en" ]; then
 fi
 # =====================================================================
 
-# Pid pretty error
-pid_pretty_error () {
-	echo -e "\n${red}*${reset} ${red}FATAL ERROR: Cannot create PID${reset}"
-	echo -e "${cyan}${m_tab}#####################################################${reset}\n"
-	echo "$(timestamp): FATAL ERROR: Cannot create PID" >> "${wooaras_log}"
-	send_mail "FATAL ERROR: Cannot create PID"
-}
-
-# Create PID before long running process
-# Allow only one instance running at the same time
-# Check how long actual process has been running to catch hang processes
-if [[ -f "${PIDFILE}" ]]; then
-	PID="$(< "${PIDFILE}")"
-	if ps -p "${PID}" > /dev/null 2>&1; then
-		is_running=$(printf "%d" "$(($(ps -p "$PID" -o etimes=) / 60))")
-		echo -e "\n${red}*${reset} ${red}The operation cannot be performed at the moment:${reset}"
-		echo "${cyan}${m_tab}#####################################################${reset}"
-		echo -e "${m_tab}${red}As script already running --> ${magenta}pid=$PID${reset}${red}, please try again later${reset}\n"
-		send_mail "The operation cannot be performed at the moment: as script already running --> pid=$PID, please try again later"
-
-		# Warn about possible hang process
-		if [[ "${is_running}" -gt 30 ]]; then
-			echo -e "\n${red}*${reset} ${red}Possible hang process found:${reset}"
-			echo "${cyan}${m_tab}#####################################################${reset}"
-			echo -e "${m_tab}${red}The process pid=$PID has been running for more than 30 minutes.${reset}\n"
-			send_mail "Possible hang process found: The process pid=$PID has been running for more than 30 minutes."
-		fi
-		exit 1
-	elif ! echo $$ > "${PIDFILE}"; then
-		pid_pretty_error
-		exit 1
-	fi
-elif ! echo $$ > "${PIDFILE}"; then
-	pid_pretty_error
-	exit 1
-fi
-
 # Create temporary files
 my_tmp=$(mktemp)
 my_tmp_del=$(mktemp)
@@ -665,6 +635,36 @@ my_tmp_folder="${this_script_path}/tmp"
 my_string="woocommerce-aras-cargo-integration"
 tmpfiles_d="/etc/tmpfiles.d"
 tmpfiles_f="woo-aras.conf"
+
+# Not allow -x that expose sensetive informations
+# Disable to write history
+hide_me () {
+	if [[ "${1}" == "--enable" ]]; then
+		if [[ $- =~ x ]]; then my_debug=1; set +x; fi
+		set +o history
+	elif [[ "${1}" == "--disable" ]]; then
+		[[ "${my_debug}" -eq 1 ]] && set -x
+		set -o history
+	fi
+}
+
+# Script called by
+called_by () {
+	# Cron
+	local FROM_CRON="$(pstree -s $$ | grep -c cron 2>/dev/null)"
+	local FROM_CRON_2=$([[ ! "$TERM" || "$TERM" = "dumb" ]] && echo '1' || echo '0')
+
+	if [[ "${FROM_CRON}" -eq 1 || "${FROM_CRON_2}" -eq 1 ]]; then
+		RUNNING_FROM_CRON=1
+	else
+		RUNNING_FROM_CRON=0
+	fi
+
+	# Systemd
+	local FROM_SYSTEMD="0"
+	RUNNING_FROM_SYSTEMD="${RUNNING_FROM_SYSTEMD:=$FROM_SYSTEMD}"
+}
+called_by
 
 # Display automation status
 my_status () {
