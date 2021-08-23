@@ -1927,6 +1927,9 @@ download () {
 	echo -e "${m_tab}\$(tput setaf 2)Script updated to version ${latest_version}\$(tput sgr0)\\n"
 	echo "$(timestamp): Upgrade completed. Script updated to version ${latest_version}" >> "${wooaras_log}"
 
+	# Clean-up
+        rm -rf ${this_script_path}/upgr.proc ${PIDFILE} || { echo "Temproray files cannot removed"; }
+
 	#remove the tmp script before exit
 	rm -f \$0
 	EOF
