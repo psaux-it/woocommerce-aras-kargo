@@ -120,10 +120,30 @@ send_mail_suc () {
 # END
 # =====================================================================
 
-# My style
-{ green=$(tput setaf 2); red=$(tput setaf 1); reset=$(tput sgr0); cyan=$(tput setaf 6); }
-{ magenta=$(tput setaf 5); yellow=$(tput setaf 3); BC=$'\e[32m'; EC=$'\e[0m'; }
-{ m_tab='  '; m_tab_3=' '; }
+# Script called by
+called_by () {
+	# Cron
+	local FROM_CRON="$(pstree -s $$ | grep -c cron 2>/dev/null)"
+	local FROM_CRON_2=$([[ ! "$TERM" || "$TERM" = "dumb" ]] && echo '1' || echo '0')
+
+	if [[ "${FROM_CRON}" -eq 1 || "${FROM_CRON_2}" -eq 1 ]]; then
+		RUNNING_FROM_CRON=1
+	else
+		RUNNING_FROM_CRON=0
+	fi
+
+	# Systemd
+	local FROM_SYSTEMD="0"
+	RUNNING_FROM_SYSTEMD="${RUNNING_FROM_SYSTEMD:=$FROM_SYSTEMD}"
+}
+called_by
+
+if [[ "${RUNNING_FROM_CRON}" -eq 0 && "${RUNNING_FROM_SYSTEMD}" -eq 0 ]]; then
+	# My style
+	{ green=$(tput setaf 2); red=$(tput setaf 1); reset=$(tput sgr0); cyan=$(tput setaf 6); }
+	{ magenta=$(tput setaf 5); yellow=$(tput setaf 3); BC=$'\e[32m'; EC=$'\e[0m'; }
+	{ m_tab='  '; m_tab_3=' '; }
+fi
 
 # Display usage instruction
 usage () {
@@ -340,7 +360,7 @@ PIDFILE="/var/run/woo-aras/woocommerce-aras-cargo.pid"
 
 # Path pretty error
 path_pretty_error () {
-	echo -e "\n${red}*${reset} ${red}Path not writable: ${1}${reset}\n"
+	echo -e "\n${red}*${reset} ${red}Path not writable: ${1}${reset}"
 	echo "${cyan}${m_tab}#####################################################${reset}"
 	echo -e "${red}${m_tab}Run once as root or with sudo user to create path${reset}\n"
 	send_mail "Path not writable: ${1} --> run once manually as root or with sudo user to create path."
@@ -643,24 +663,6 @@ hide_me () {
 		set -o history
 	fi
 }
-
-# Script called by
-called_by () {
-	# Cron
-	local FROM_CRON="$(pstree -s $$ | grep -c cron 2>/dev/null)"
-	local FROM_CRON_2=$([[ ! "$TERM" || "$TERM" = "dumb" ]] && echo '1' || echo '0')
-
-	if [[ "${FROM_CRON}" -eq 1 || "${FROM_CRON_2}" -eq 1 ]]; then
-		RUNNING_FROM_CRON=1
-	else
-		RUNNING_FROM_CRON=0
-	fi
-
-	# Systemd
-	local FROM_SYSTEMD="0"
-	RUNNING_FROM_SYSTEMD="${RUNNING_FROM_SYSTEMD:=$FROM_SYSTEMD}"
-}
-called_by
 
 # Display automation status
 my_status () {
@@ -2142,11 +2144,11 @@ add_systemd () {
 		User=${systemd_user}
 		Group=${systemd_user}
 		RuntimeDirectory=woo-aras
+		LogsDirectory=woo-aras
+		LogsDirectoryMode=0775
 		RuntimeDirectoryMode=0775
+		RuntimeDirectoryPreserve=yes
 		Environment=RUNNING_FROM_SYSTEMD=1
-		ExecStartPre=+/bin/mkdir -p ${wooaras_log%/*}
-		ExecStartPre=+/bin/touch ${wooaras_log}
-		ExecStartPre=+/bin/chown -R ${systemd_user}:${systemd_user} ${wooaras_log%/*}
 		ExecStart=${my_bash} ${systemd_script_full_path}
 
 		[Install]
