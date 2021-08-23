@@ -127,23 +127,19 @@ send_mail_suc () {
 
 # Display usage instruction
 usage () {
-	echo -e "\n${m_tab}${cyan}# For two reason this script restricted to run under '/opt/woocommerce-aras-kargo'"
-	echo -e "${m_tab}-- Because of rm operations working in HOME directory is not safe"
-	echo -e "${m_tab}-- Script always drop root privilege to sudo user and chown its own run folder"
-	echo -e "${m_tab}${m_tab}-- The ownership of the folder where you run the script is given to the sudo user.${reset}"
-	echo -e "\n${m_tab}${cyan}# BASIC USAGE${reset}"
-	echo -e "${m_tab}${magenta}###############################################################################${reset}"
-	echo -e "\n${m_tab}${cyan}# Clone git repository into restricted /opt folder${reset}"
-	echo -e "${m_tab}${magenta}cd /opt && sudo git clone https://github.com/hsntgm/woocommerce-aras-kargo.git${reset}"
-	echo -e "\n${m_tab}${cyan}# Setup needs sudo or root user${reset}"
-	echo -e "${m_tab}${magenta}cd /opt/woocommerce-aras-kargo && sudo ./woocommerce-aras-cargo.sh --setup${reset}"
-	echo -e "\n${m_tab}${cyan}# Uninstalling needs sudo or root user${reset}"
-	echo -e "${m_tab}${magenta}cd /opt/woocommerce-aras-kargo && sudo ./woocommerce-aras-cargo.sh --uninstall${reset}"
-	echo -e "\n${m_tab}${cyan}# For all other options you can work without sudo${reset}"
-	echo -e "${m_tab}${magenta}Check './woocommerce-aras-cargo.sh --help' for details.${reset}"
-	echo -e "\n${m_tab}${cyan}# For detailed Installation instruction please visit github page.${reset}"
-	echo -e "${m_tab}${magenta}https://github.com/hsntgm/woocommerce-aras-kargo${reset}"
-	echo -e "\n###############################################################################"
+        echo -e "\n${m_tab}${cyan}# BASIC USAGE${reset}"
+        echo -e "${m_tab}${magenta}###############################################################################${reset}"
+        echo -e "\n${m_tab}${cyan}# Clone git repository (non-root user is recommended)${reset}"
+        echo -e "${m_tab}${magenta}git clone https://github.com/hsntgm/woocommerce-aras-kargo.git${reset}"
+        echo -e "\n${m_tab}${cyan}# Setup needs sudo privileges${reset}"
+        echo -e "${m_tab}${magenta}sudo ./woocommerce-aras-cargo.sh --setup${reset}"
+        echo -e "\n${m_tab}${cyan}# Uninstalling needs sudo privileges${reset}"
+        echo -e "${m_tab}${magenta}sudo ./woocommerce-aras-cargo.sh --uninstall${reset}"
+        echo -e "\n${m_tab}${cyan}# For all other options you can work without sudo privileges${reset}"
+        echo -e "${m_tab}${magenta}Check './woocommerce-aras-cargo.sh --help' for details.${reset}"
+        echo -e "\n${m_tab}${cyan}# For detailed installation instruction please visit github page.${reset}"
+        echo -e "${m_tab}${magenta}https://github.com/hsntgm/woocommerce-aras-kargo${reset}\n"
+        echo -e "${m_tab}${magenta}###############################################################################${reset}\n"
 }
 
 # Display script controls
@@ -344,7 +340,7 @@ PIDFILE="/var/run/woo-aras/woocommerce-aras-cargo.pid"
 
 # Path pretty error
 path_pretty_error () {
-	echo -e "\n${red}*${reset} ${red}Path not writable: ${1}{reset}\n"
+	echo -e "\n${red}*${reset} ${red}Path not writable: ${1}${reset}\n"
 	echo "${cyan}${m_tab}#####################################################${reset}"
 	echo -e "${red}${m_tab}Run once as root or with sudo user to create path${reset}\n"
 	send_mail "Path not writable: ${1} --> run once manually as root or with sudo user to create path."
