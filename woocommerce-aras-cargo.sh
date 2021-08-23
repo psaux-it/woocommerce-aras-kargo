@@ -2146,6 +2146,7 @@ add_systemd () {
 		RuntimeDirectoryMode=0775
 		RuntimeDirectoryPreserve=yes
 		Environment=RUNNING_FROM_SYSTEMD=1
+		PrivateTmp=true
 		ExecStart=${my_bash} ${systemd_script_full_path}
 
 		[Install]
