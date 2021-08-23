@@ -46,20 +46,6 @@
 # Follow detailed installation instructions on github.
 # =====================================================================
 
-# My style
-{ green=$(tput setaf 2); red=$(tput setaf 1); reset=$(tput sgr0); cyan=$(tput setaf 6); }
-{ magenta=$(tput setaf 5); yellow=$(tput setaf 3); BC=$'\e[32m'; EC=$'\e[0m'; }
-{ m_tab='  '; m_tab_3=' '; }
-
-# First priority for FATAL error
-# Prevent errors cause by uncompleted upgrade
-# Detect to make sure the entire script is available, fail if the script is missing contents
-if [[ "$(tail -n 1 "${0}" | head -n 1 | cut -c 1-7)" != "exit \$?" ]]; then
-	echo -e "\n${red}*${reset} ${red}Script is incomplete, please force upgrade manually${reset}"
-	echo -e "${cyan}${m_tab}#####################################################${reset}\n"
-	exit 1
-fi
-
 # Need for upgrade - DON'T EDIT MANUALLY
 # =====================================================================
 script_version="2.0.1"
@@ -111,7 +97,7 @@ s_date=$(date +%d-%m-%Y -d "-10 days")
 # Send mail command, adjust as you wish sendmail, mutt, ssmtp
 send_mail_command="mail"
 
-# Set 1 if you want to get error mails (recommended)
+# Set 1 if you want to get error&success mails (recommended)
 # Properly configure your mail server and send mail command before enable
 # Set 0 to disable
 send_mail_err="1"
@@ -134,102 +120,10 @@ send_mail_suc () {
 # END
 # =====================================================================
 
-send_mail () {
-	if [[ $send_mail_err -eq 1 ]]; then
-		send_mail_err <<< "${1}" >/dev/null 2>&1
-	fi
-}
-
-# Log timestamp
-timestamp () {
-        date +"%Y-%m-%d %T"
-}
-
-# Add local PATHS to deal with cron errors.
-# We will also set explicit paths for binaries later.
-export PATH="${PATH}:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin"
-uniquepath () {
-	local path=""
-	while read -r
-	do
-		if [[ ! "${path}" =~ (^|:)"${REPLY}"(:|$) ]]; then
-			[[ "${path}" ]] && path="${path}:"
-			path="${path}${REPLY}"
-		fi
-	done < <(echo "${PATH}" | tr ":" "\n")
-
-	[[ "${path}" ]] && [[ "${PATH}" =~ /bin ]] && [[ "${PATH}" =~ /sbin ]] && export PATH="${path}"
-}
-uniquepath
-
-# Path pretty error
-script_path_pretty_error () {
-	echo -e "\n${red}*${reset} ${red}Could not determine script name and fullpath${reset}"
-	echo -e "${cyan}${m_tab}#####################################################${reset}\n"
-	send_mail "Could not determine script name and fullpath"
-	exit 1
-}
-
-# Early discover script path
-this_script_full_path="${BASH_SOURCE[0]}"
-if command -v dirname >/dev/null 2>&1 && command -v readlink >/dev/null 2>&1 && command -v basename >/dev/null 2>&1; then
-	# Symlinks
-	while [[ -h "${this_script_full_path}" ]]; do
-		this_script_path="$( cd -P "$( dirname "${this_script_full_path}" )" >/dev/null 2>&1 && pwd )"
-		this_script_full_path="$(readlink "${this_script_full_path}")"
-		# Resolve
-		if [[ "${this_script_full_path}" != /* ]] ; then
-			this_script_full_path="${this_script_path}/${this_script_full_path}"
-		fi
-	done
-
-	this_script_path="$( cd -P "$( dirname "${this_script_full_path}" )" >/dev/null 2>&1 && pwd )"
-	this_script_name="$(basename "${this_script_full_path}")"
-else
-	script_path_pretty_error
-fi
-
-if [[ ! "${this_script_full_path}" || ! "${this_script_path}" || ! "${this_script_name}" ]]; then
-	script_path_pretty_error
-fi
-
-# PID File
-PIDFILE="/var/run/woo-aras/woocommerce-aras-cargo.pid"
-
-# Logrotation prerotate rules
-my_rotate () {
-	# Not logrotate while script running
-	if [[ -f "${PIDFILE}" ]]; then
-		local PID="$(< "${PIDFILE}")"
-		if ps -p "${PID}" > /dev/null 2>&1; then
-			exit 1
-		fi
-	fi
-
-	# Not logrotate until all shipped orders flagged as delivered otherwise data loss
-	if [[ -f "${this_script_path}/.two.way.enb" ]]; then
-		if [[ "$(grep -c "SHIPPED" "${wooaras_log}")" -ne "$(grep -c "DELIVERED" "${wooaras_log}")" ]]; then
-			exit 1
-		fi
-	fi
-
-	if [[ -s "${wooaras_log}" ]]; then
-		filesize="$(du -k "${wooaras_log}" | cut -f1)"
-		if (( filesize > maxsize )); then
-			# Create dummy background process silently (PID will kill by logrotate)
-			# prevent executing script while logrotation triggering
-			{ perl -MPOSIX -e '$0="wooaras"; pause' & } 2>/dev/null
-			echo $! > "${PIDFILE}"
-		else
-			exit 1
-		fi
-	else
-		exit 1
-	fi
-
-	# Send signal to start logrotation
-	exit 0
-}
+# My style
+{ green=$(tput setaf 2); red=$(tput setaf 1); reset=$(tput sgr0); cyan=$(tput setaf 6); }
+{ magenta=$(tput setaf 5); yellow=$(tput setaf 3); BC=$'\e[32m'; EC=$'\e[0m'; }
+{ m_tab='  '; m_tab_3=' '; }
 
 # Display usage instruction
 usage () {
@@ -328,13 +222,43 @@ options () {
 	done < <(sed -n '/^# USER DEFINED/,/^# END/p' 2>/dev/null "${0}")
 }
 
+# @EARLY CRITICAL CONTROLS
+# =====================================================================
+# Prevent errors cause by uncompleted upgrade
+# Detect to make sure the entire script is available, fail if the script is missing contents
+if [[ "$(tail -n 1 "${0}" | head -n 1 | cut -c 1-7)" != "exit \$?" ]]; then
+	echo -e "\n${red}*${reset} ${red}Script is incomplete, please force upgrade manually${reset}"
+	echo -e "${cyan}${m_tab}#####################################################${reset}\n"
+	exit 1
+fi
+
+# Check OS is supported
+if [[ "${OSTYPE}" != "linux-gnu"* ]]; then
+	echo -e "\n${red}*${reset} ${red}Unsupported operating system: $OSTYPE${reset}"
+	echo -e "${cyan}${m_tab}#####################################################${reset}\n"
+	exit 1
+fi
+
+# Test connection & get public ip
+if ! : >/dev/tcp/8.8.8.8/53; then
+	echo -e "\n${red}*${reset} ${red}There is no internet connection.${reset}"
+	echo -e "${cyan}${m_tab}#####################################################${reset}\n"
+        exit 1
+else
+	# Get public IP
+	exec 3<> /dev/tcp/checkip.amazonaws.com/80
+	printf "GET / HTTP/1.1\r\nHost: checkip.amazonaws.com\r\nConnection: close\r\n\r\n" >&3
+	read -r my_ip < <(tail -n1 <&3)
+fi
+
 # Accept only one argument
 [[ "${#}" -gt 1 ]] && { help; exit 1; }
+# =====================================================================
 
+# Guides placed at the beginning of the script
+# User able to reach them without any break immediately after critical controls passed
 while :; do
 	case "${1}" in
-	--rotate	      ) my_rotate
-				;;
 	-o|--options          ) options
 				exit
 				;;
@@ -355,10 +279,146 @@ while :; do
 	shift
 done
 
+# Pretty send mail function
+send_mail () {
+	if [[ $send_mail_err -eq 1 ]]; then
+		send_mail_err <<< "${1}" >/dev/null 2>&1
+	fi
+}
+
+# Log timestamp
+timestamp () {
+        date +"%Y-%m-%d %T"
+}
+
+# Early add local PATHS to deal with cron errors.
+# We will also set explicit paths for binaries later.
+export PATH="${PATH}:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin"
+uniquepath () {
+	local path=""
+	while read -r
+	do
+		if [[ ! "${path}" =~ (^|:)"${REPLY}"(:|$) ]]; then
+			[[ "${path}" ]] && path="${path}:"
+			path="${path}${REPLY}"
+		fi
+	done < <(echo "${PATH}" | tr ":" "\n")
+
+	[[ "${path}" ]] && [[ "${PATH}" =~ /bin ]] && [[ "${PATH}" =~ /sbin ]] && export PATH="${path}"
+}
+uniquepath
+
+# Path pretty error
+script_path_pretty_error () {
+	echo -e "\n${red}*${reset} ${red}Could not determine script name and fullpath${reset}"
+	echo -e "${cyan}${m_tab}#####################################################${reset}\n"
+	send_mail "Could not determine script name and fullpath"
+	exit 1
+}
+
+# Early discover script path
+this_script_full_path="${BASH_SOURCE[0]}"
+if command -v dirname >/dev/null 2>&1 && command -v readlink >/dev/null 2>&1 && command -v basename >/dev/null 2>&1; then
+	# Symlinks
+	while [[ -h "${this_script_full_path}" ]]; do
+		this_script_path="$( cd -P "$( dirname "${this_script_full_path}" )" >/dev/null 2>&1 && pwd )"
+		this_script_full_path="$(readlink "${this_script_full_path}")"
+		# Resolve
+		if [[ "${this_script_full_path}" != /* ]] ; then
+			this_script_full_path="${this_script_path}/${this_script_full_path}"
+		fi
+	done
+
+	this_script_path="$( cd -P "$( dirname "${this_script_full_path}" )" >/dev/null 2>&1 && pwd )"
+	this_script_name="$(basename "${this_script_full_path}")"
+else
+	script_path_pretty_error
+fi
+
+if [[ ! "${this_script_full_path}" || ! "${this_script_path}" || ! "${this_script_name}" ]]; then
+	script_path_pretty_error
+fi
+
+# PID File
+PIDFILE="/var/run/woo-aras/woocommerce-aras-cargo.pid"
+
+# Path pretty error
+path_pretty_error () {
+	echo -e "\n${red}*${reset} ${red}Path not writable: ${1}{reset}\n"
+	echo "${cyan}${m_tab}#####################################################${reset}"
+	echo -e "${red}${m_tab}Run once as root or with sudo user to create path${reset}\n"
+	send_mail "Path not writable: ${1} --> run once manually as root or with sudo user to create path."
+	exit 1
+}
+
+# For @SETUP && @UNINSTALL:
+# Display usage for necessary privileges
+if [[ "${1}" == "-s" || "${1}" == "--setup" || "${1}" == "-d" || "${1}" == "--uninstall" ]]; then
+	if [[ ! $SUDO_USER && $EUID -ne 0 ]]; then
+		usage
+		exit 1
+	fi
+fi
+
+# Check runtime path (before logrotation prerotate rules called)
+# Later, For @REBOOTS:
+#  -- We will create runtime folder via --> /etc/tmpfiles.d/ || rc.local for cron installation
+#  -- For systemd installation we will use 'RuntimeDirectory' so no need tmpfiles installation
+runtime_path="${PIDFILE#/var}"
+if [[ ! -d "${runtime_path%/*}" ]]; then
+	if [[ $SUDO_USER || $EUID -eq 0 ]]; then
+		mkdir "${runtime_path%/*}" &&
+		echo "$(timestamp): Runtime path created: ${runtime_path%/*}" >> "${wooaras_log}" ||
+		{ echo "Cannot create runtime path"; echo "$(timestamp): Cannot create runtime path: ${runtime_path%/*}" >> "${wooaras_log}"; exit 1; }
+		[[ $SUDO_USER ]] && chown "${user}":"${user}" "${runtime_path%/*}"
+	else
+		path_pretty_error "/run"
+	fi
+fi
+
+# Logrotation prerotate rules
+my_rotate () {
+	# Not logrotate while script running
+	if [[ -f "${PIDFILE}" ]]; then
+		local PID="$(< "${PIDFILE}")"
+		if ps -p "${PID}" > /dev/null 2>&1; then
+			exit 1
+		fi
+	fi
+
+	# Not logrotate until all shipped orders flagged as delivered otherwise data loss
+	if [[ -f "${this_script_path}/.two.way.enb" ]]; then
+		if [[ "$(grep -c "SHIPPED" "${wooaras_log}")" -ne "$(grep -c "DELIVERED" "${wooaras_log}")" ]]; then
+			exit 1
+		fi
+	fi
+
+	# Create dummy process only while logrotation file size condition is met
+	if [[ -s "${wooaras_log}" ]]; then
+		filesize="$(du -k "${wooaras_log}" | cut -f1)"
+		if (( filesize > maxsize )); then
+			# Create dummy background process silently (PID will kill by logrotate)
+			# This will prevent executing script while logrotation triggering
+			{ perl -MPOSIX -e '$0="wooaras"; pause' & } 2>/dev/null
+			echo $! > "${PIDFILE}"
+		else
+			exit 1
+		fi
+	else
+		exit 1
+	fi
+
+	# Send signal to start logrotation
+	exit 0
+}
+
+# Reply the logrotate call
+if [[ "${1}" == "--rotate" ]]; then my_rotate; fi
+
 # Determine user
 if [[ $SUDO_USER ]]; then user="${SUDO_USER}"; else user="$(whoami)"; fi
 
-# Drop privileges back to non-root user if we got here with sudo
+# Drop file privileges back to non-root user if we got here with sudo
 depriv () {
 	if [[ $SUDO_USER ]]; then
 		if [[ ! -f "${1}" ]]; then
@@ -369,6 +429,18 @@ depriv () {
 		touch "${1}" || { echo "Cannot create ${1}"; exit 1; }
 	fi
 }
+
+# Check & create log path
+# If executed by sudo user drop ownership
+if [[ ! -d "${wooaras_log%/*}" ]]; then
+	if [[ $SUDO_USER || $EUID -eq 0 ]]; then
+		mkdir -p "${wooaras_log%/*}" || { echo "Cannot create log path"; exit 1; }
+		[[ $SUDO_USER ]] && chown "$user":"$user" "${wooaras_log%/*}"
+		depriv "${wooaras_log}" && echo "$(timestamp): Log path created: Logging started..${wooaras_log%/*}" >> "${wooaras_log}"
+	else
+		path_pretty_error "/var/log"
+	fi
+fi
 
 # Not allow -x that expose sensetive informations
 # Disable to write history
@@ -399,60 +471,6 @@ called_by () {
 	RUNNING_FROM_SYSTEMD="${RUNNING_FROM_SYSTEMD:=$FROM_SYSTEMD}"
 }
 called_by
-
-# Check OS
-if [[ "$OSTYPE" != "linux-gnu"* ]]; then
-	echo -e "\n${red}*${reset} ${red}Unsupported operating system: $OSTYPE${reset}"
-	echo -e "${cyan}${m_tab}#####################################################${reset}\n"
-	exit 1
-fi
-
-# Test connection & get public ip
-if ! : >/dev/tcp/8.8.8.8/53; then
-	echo -e "\n${red}*${reset} ${red}There is no internet connection.${reset}"
-	echo -e "${cyan}${m_tab}#####################################################${reset}\n"
-	send_mail "There is no internet connection."
-	exit 1
-else
-	# Get public IP
-	exec 3<> /dev/tcp/checkip.amazonaws.com/80
-	printf "GET / HTTP/1.1\r\nHost: checkip.amazonaws.com\r\nConnection: close\r\n\r\n" >&3
-	read -r my_ip < <(tail -n1 <&3)
-fi
-
-# For @SETUP && @UNINSTALL:
-# Display usage for sudo or root privilege
-if [[ "${1}" == "-s" || "${1}" == "--setup" ]]; then
-	if [[ ! $SUDO_USER && $EUID -ne 0 ]]; then
-		usage
-		exit 1
-	fi
-elif [[ "${1}" == "-d" || "${1}" == "--uninstall" ]]; then
-	if [[ ! $SUDO_USER && $EUID -ne 0 ]]; then
-		usage
-		exit 1
-	fi
-fi
-
-path_pretty_error () {
-	echo -e "\n${red}*${reset} ${red}Path not writable: ${1}{reset}\n"
-	echo "${cyan}${m_tab}#####################################################${reset}"
-	echo -e "${red}${m_tab}Run once as root or with sudo user to create path${reset}\n"
-	send_mail "Path not writable: ${1} --> run once manually as root or with sudo user to create path."
-	exit 1
-}
-
-# Create log path
-# If executed by sudo user drop ownership
-if [[ ! -d "${wooaras_log%/*}" ]]; then
-	if [[ $SUDO_USER || $EUID -eq 0 ]]; then
-		mkdir -p "${wooaras_log%/*}" || { echo "Cannot create log path"; exit 1; }
-		[[ $SUDO_USER ]] && chown "$user":"$user" "${wooaras_log%/*}"
-		depriv "${wooaras_log}" && echo "$(timestamp): Log path created: ${wooaras_log%/*}" >> "${wooaras_log}"
-	else
-		path_pretty_error "/var/log"
-	fi
-fi
 
 # Check dependencies & Set explicit paths
 # =====================================================================
@@ -571,22 +589,6 @@ pid_pretty_error () {
 	echo "$(timestamp): FATAL ERROR: Cannot create PID" >> "${wooaras_log}"
 	send_mail "FATAL ERROR: Cannot create PID"
 }
-
-# Create runtime path
-# For @REBOOTS:
-#  -- We will create runtime folder via --> /etc/tmpfiles.d/ || rc.local for cron installation
-#  -- For systemd installation we will use 'RuntimeDirectory' so no need tmpfiles.
-runtime_path="${PIDFILE#/var}"
-if [[ ! -d "${runtime_path%/*}" ]]; then
-	if [[ $SUDO_USER || $EUID -eq 0 ]]; then
-		mkdir -p "${runtime_path%/*}" &&
-		echo "$(timestamp): Runtime path created: ${runtime_path%/*}" >> "${wooaras_log}" ||
-		{ echo "Cannot create runtime path"; echo "$(timestamp): Cannot create runtime path: ${runtime_path%/*}" >> "${wooaras_log}"; exit 1; }
-		[[ $SUDO_USER ]] && chown "${user}":"${user}" "${runtime_path%/*}"
-	else
-		path_pretty_error "/run"
-	fi
-fi
 
 # Create PID before long running process
 # Allow only one instance running at the same time
@@ -769,22 +771,23 @@ twoway_pretty_error () {
 
 validate_twoway () {
 	# Collect missing files if exist
-	declare -a missing_files=() # This acts as local variable!
+	missing_files=()
 	for i in "${my_files[@]}"
 	do
-		if ! grep -qw "${my_string}" "$i"; then
-			missing_files+=("$i")
+		if ! grep -qw "${my_string}" "${i}"; then
+			missing_files+=("${i}")
 		fi
 	done
 
-	if ! grep -qw "${my_string}" "$absolute_child_path/functions.php"; then
-		missing_files+=("$absolute_child_path/functions.php")
+	if ! grep -qw "${my_string}" "${absolute_child_path}/functions.php"; then
+		missing_files+=("${absolute_child_path}/functions.php")
 	fi
 
-	for i in "${missing_files[@]}"
-	do
-		echo "$i"
-	done
+	if [[ "${missing_files}" ]]; then
+		return 1
+	else
+		return 0
+	fi
 }
 
 check_delivered () {
@@ -1225,11 +1228,11 @@ install_twoway () {
 					cat "${this_script_path}/custom-order-status-package/functions.php" > "${absolute_child_path}/functions.php" &&
 					chown "$USER_OWNER":"$GROUP_OWNER" "${absolute_child_path}/functions.php" ||
 					{
-					echo -e "\n${red}*${reset} ${red}Installation aborted, as file cannot modified: ${reset}";
-					echo "${cyan}${m_tab}#####################################################${reset}";
-					echo -e "${m_tab}${red}$absolute_child_path/functions.php${reset}\n";
-					echo "$(timestamp): Installation aborted, as file cannot modified: $absolute_child_path/functions.php" >> "${wooaras_log}";
-					exit 1;
+					echo -e "\n${red}*${reset} ${red}Installation aborted, as file cannot modified: ${reset}"
+					echo "${cyan}${m_tab}#####################################################${reset}"
+					echo -e "${m_tab}${red}$absolute_child_path/functions.php${reset}\n"
+					echo "$(timestamp): Installation aborted, as file cannot modified: $absolute_child_path/functions.php" >> "${wooaras_log}"
+					exit 1
 					}
 				else
 					echo -e "\n${red}*${reset} ${red}Installation aborted, as file not writeable: ${reset}"
@@ -1245,11 +1248,11 @@ install_twoway () {
 					cp "${absolute_child_path}/functions.php" "${absolute_child_path}/functions.php.wo-aras-backup-$$-$(date +%d-%m-%Y)" &&
 					chown "${USER_OWNER}":"${GROUP_OWNER}" "${absolute_child_path}/functions.php.wo-aras-backup-$$-$(date +%d-%m-%Y)" ||
 					{
-					echo -e "\n${red}*${reset} ${red}Two way fulfillment workflow installation aborted: ${reset}";
-					echo "${cyan}${m_tab}#####################################################${reset}";
-					echo -e "${m_tab}${red}Cannot take backup of $absolute_child_path/functions.php${reset}\n";
-					echo "$(timestamp): Two way fulfillment workflow installation aborted: Cannot take backup of $absolute_child_path/functions.php" >> "${wooaras_log}";
-					exit 1;
+					echo -e "\n${red}*${reset} ${red}Two way fulfillment workflow installation aborted: ${reset}"
+					echo "${cyan}${m_tab}#####################################################${reset}"
+					echo -e "${m_tab}${red}Cannot take backup of ${absolute_child_path}/functions.php${reset}\n"
+					echo "$(timestamp): Two way fulfillment workflow installation aborted: Cannot take backup of ${absolute_child_path}/functions.php" >> "${wooaras_log}"
+					exit 1
 					}
 
 					if ! grep -q "${my_string}" "${absolute_child_path}/functions.php"; then
@@ -1268,9 +1271,9 @@ install_twoway () {
 			else
 				echo -e "\n${red}*${reset} ${red}Installation aborted, as file not writeable: ${reset}"
 				echo "${cyan}${m_tab}#####################################################${reset}"
-				echo "${m_tab}${red}$absolute_child_path/functions.php${reset}"
+				echo "${m_tab}${red}${absolute_child_path}/functions.php${reset}"
 				echo -e "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}\n"
-				echo "$(timestamp): Installation aborted, as file not writeable: $absolute_child_path/functions.php" >> "${wooaras_log}"
+				echo "$(timestamp): Installation aborted, as file not writeable: ${absolute_child_path}/functions.php" >> "${wooaras_log}"
 				exit 1
 			fi
 
@@ -1282,11 +1285,11 @@ install_twoway () {
 						mkdir "${i}" &&
 						chown "${USER_OWNER}":"${GROUP_OWNER}" "${i}" ||
 						{
-						echo -e "\n${red}*${reset} ${red}Two way fulfillment workflow Installation aborted: ${reset}";
-						echo "${cyan}${m_tab}#####################################################${reset}";
-						echo -e "${m_tab}${red}Cannot create folder: ${i}${reset}\n";
-						echo "$(timestamp): Cannot create folder ${i}" >> "${wooaras_log}";
-						exit 1;
+						echo -e "\n${red}*${reset} ${red}Two way fulfillment workflow Installation aborted: ${reset}"
+						echo "${cyan}${m_tab}#####################################################${reset}"
+						echo -e "${m_tab}${red}Cannot create folder: ${i}${reset}\n"
+						echo "$(timestamp): Installation aborted, cannot create folder ${i}" >> "${wooaras_log}"
+						exit 1
 						}
 					fi
 				done
@@ -1326,12 +1329,12 @@ install_twoway () {
 		fi
 
 		# Validate installation
-		if [[ -n $(validate_twoway) ]]; then
+		if ! validate_twoway; then
 			echo -e "\n${red}*${reset} ${red}Two way fulfillment workflow installation aborted: ${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
-			echo "${m_tab}${red}Missing file(s) $(validate_twoway)${reset}"
-			echo "$(timestamp): Missing file(s) $(validate_twoway)" >> "${wooaras_log}"
-			exit 1;
+			echo -e "${m_tab}${red}Missing file(s) ${missing_files[@]}${reset}\n"
+			echo "$(timestamp): Installation aborted, missing file(s) ${missing_files[@]}" >> "${wooaras_log}"
+			exit 1
 		else
 			# Time to enable functions.php modifications
 			$m_sed -i '/aras_woo_include/c include( get_stylesheet_directory() .'"'/woocommerce/aras-woo-delivered.php'"'); //aras_woo_enabled' "${absolute_child_path}/functions.php" ||
@@ -1425,7 +1428,7 @@ hard_reset () {
 			echo -e "\n${red}*${reset} ${red}Systemd uninstall aborted, as directory not writable: $systemd_dir${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			echo "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}"
-			echo "$(timestamp): Uninstallation error: $systemd_dir/$service_filename not writeable" >> "${wooaras_log}"
+			echo "$(timestamp): Uninstallation error: ${systemd_dir}/${service_filename} not writeable" >> "${wooaras_log}"
 		fi
 	fi
 
