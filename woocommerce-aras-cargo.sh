@@ -783,11 +783,7 @@ validate_twoway () {
 		missing_files+=("${absolute_child_path}/functions.php")
 	fi
 
-	if [[ "${missing_files}" ]]; then
-		return 1
-	else
-		return 0
-	fi
+	[[ "${missing_files}" ]] && return 1
 }
 
 check_delivered () {
@@ -1344,8 +1340,8 @@ install_twoway () {
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			echo "${m_tab}${yellow}Please check your website working correctly and able to login admin panel.${reset}"
 			echo "${m_tab}${yellow}Check 'delivered' order status registered and 'delivered' email template exist under woo commerce emails tab${reset}"
-			echo "${m_tab}${yellow}If your website or admin panel is broken don't panic.${reset}"
-			echo "${m_tab}${yellow}First try to restart your web server apache,nginx or php-fpm${reset}"
+			echo "${m_tab}${yellow}If your website or admin panel is broken:${reset}"
+			echo "${m_tab}${yellow}First try to restart your web server apache,nginx or php-fpm in an other session${reset}"
 			echo "${m_tab}${yellow}If still not working please select r for starting recovery process${reset}"
 			echo "${m_tab}${yellow}If everything on the way CONGRATS select c for continue the setup${reset}"
 
