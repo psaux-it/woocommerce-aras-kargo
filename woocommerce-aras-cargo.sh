@@ -231,11 +231,13 @@ version () {
 
 # Display user defined/adjustable options currently in use
 options () {
+	echo ""
 	while read -r opt
 	do
 		[[ "$opt" =~ ^#.* ]] && opt_color="${cyan}" || opt_color="${magenta}"
 		echo -e "${opt_color}$(echo "$opt" | sed 's/^/  /')${reset}"
 	done < <(sed -n '/^# USER DEFINED/,/^# END/p' 2>/dev/null "${0}")
+	echo ""
 }
 
 # @EARLY CRITICAL CONTROLS
