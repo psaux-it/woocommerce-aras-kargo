@@ -674,12 +674,12 @@ my_status () {
 	{ # Start redirection to file
 
 	# Setup status
-	if [ -e "${this_script_path}/.woo.aras.set" ]; then
+	if [[ -e "${this_script_path}/.woo.aras.set" ]]; then
 		local s_status="Completed"
 		echo -e "${green}Default-Setup: $s_status${reset}"
 
 		hide_me --enable
-		if [[ ! "$api_key" || ! "$api_secret" || ! "$api_endpoint" ]]; then
+		if [[ ! "${api_key}" || ! "${api_secret}" || ! "${api_endpoint}" ]]; then
 			api_key=$(< "$this_script_path/.key.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
 			api_secret=$(< "$this_script_path/.secret.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
 			api_endpoint=$(< "$this_script_path/.end.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
@@ -703,7 +703,7 @@ my_status () {
 	fi
 
 	# Automation status
-	if [ -e "${this_script_path}/.woo.aras.enb" ]; then
+	if [[ -e "${this_script_path}/.woo.aras.enb" ]]; then
 		local a_status="Enabled"
 		echo -e "${green}Automation-Status: $a_status${reset}"
 	else
@@ -712,7 +712,7 @@ my_status () {
 	fi
 
 	# Two-way status
-	if [ -e "${this_script_path}/.two.way.enb" ]; then
+	if [[ -e "${this_script_path}/.two.way.enb" ]]; then
 		local t_status="Enabled"
 		echo -e "${green}Two-Way-Status: $t_status${reset}"
 	else
@@ -721,11 +721,11 @@ my_status () {
 	fi
 
 	# Installation status
-	if [ -s "${cron_dir}/${cron_filename}" ]; then
+	if [[ -s "${cron_dir}/${cron_filename}" ]]; then
 		local i_status="Cron"
 		echo -e "${green}Installation: $i_status${reset}"
 	elif [[ -s "${systemd_dir}/${service_filename}" && -s "${systemd_dir}/${timer_filename}" ]]; then
-		if sudo systemctl -t timer | grep "${timer_filename}" | grep -q "active"; then
+		if systemctl -t timer | grep "${timer_filename}" | grep -q "active"; then
 			local i_status="Systemd"
 			echo -e "${green}Installation: $i_status${reset}"
 		else
@@ -738,7 +738,7 @@ my_status () {
 	fi
 
 	# Auto-update status
-	if [ -s "${cron_dir}/${cron_filename_update}" ]; then
+	if [[ -s "${cron_dir}/${cron_filename_update}" ]]; then
 		local u_status="Enabled"
 		echo -e "${green}Auto-Update: $u_status${reset}"
 	else
