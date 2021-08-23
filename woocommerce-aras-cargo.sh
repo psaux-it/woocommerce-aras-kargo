@@ -997,7 +997,7 @@ find_child_path () {
 				i="${i##*/}"
 				i="${i//[^[:alnum:]]/}"
 				i="${i,,}"
-				if grep -q "${theme_name:?}" <<< "${i}"; then
+				if grep -q "${theme_name}" <<< "${i}"; then
 					absolute_child_path="${j}"
 					break
 				fi
@@ -2026,21 +2026,21 @@ done
 add_cron () {
 	if [[ ! -e "${cron_dir}/${cron_filename}" ]]; then
 		if [[ ! -d "${cron_dir}" ]]; then
-			mkdir "$cron_dir" >/dev/null 2>&1 &&
+			mkdir "${cron_dir}" >/dev/null 2>&1 &&
 			touch "${cron_dir}/${cron_filename}" >/dev/null 2>&1 ||
 			{
-			echo -e "\n${red}*${reset} Cron install aborted, cannot create directory ${cron_dir}";
-			echo -e "${cyan}${m_tab}#####################################################${reset}\n";
-			echo "$(timestamp): SETUP: Cron install aborted, as cannot create directory ${cron_dir}" >> "${wooaras_log}";
-			exit 1;
+			echo -e "\n${red}*${reset} Cron install aborted, cannot create directory ${cron_dir}"
+			echo -e "${cyan}${m_tab}#####################################################${reset}\n"
+			echo "$(timestamp): Installation aborted, as cannot create directory ${cron_dir}" >> "${wooaras_log}"
+			exit 1
 			}
 		else
 			touch "${cron_dir}/${cron_filename}" >/dev/null 2>&1 ||
 			{
-                        echo -e "\n${red}*${reset} Cron install aborted, cannot create ${cron_dir}/${cron_filename}";
-			echo -e "${cyan}${m_tab}#####################################################${reset}\n";
-                        echo "$(timestamp): SETUP: could not create cron ${cron_filename}" >> "${wooaras_log}";
-                        exit 1;
+                        echo -e "\n${red}*${reset} Cron install aborted, cannot create ${cron_dir}/${cron_filename}"
+			echo -e "${cyan}${m_tab}#####################################################${reset}\n"
+                        echo "$(timestamp): SETUP: could not create cron ${cron_filename}" >> "${wooaras_log}"
+                        exit 1
                         }
 		fi
 	fi
@@ -2053,7 +2053,7 @@ add_cron () {
 		exit 1
 	else
 		if [[ "${auto_update}" -eq 1 ]]; then
-			cat <<- EOF > "${cron_dir:?}/${cron_filename_update:?}"
+			cat <<- EOF > "${cron_dir}/${cron_filename_update}"
 			# At 09:19 on Sunday.
 			# Via WooCommerce - ARAS Cargo Integration Script
 			# Copyright 2021 Hasan ÇALIŞIR
@@ -2063,7 +2063,7 @@ add_cron () {
 			EOF
                 fi
 
-		cat <<- EOF > "${cron_dir:?}/${cron_filename:?}"
+		cat <<- EOF > "${cron_dir}/${cron_filename}"
 		# At every 24th minute past every hour from 9 through 19 on every day-of-week from Monday through Saturday.
 		# Via WooCommerce - ARAS Cargo Integration Script
 		# Copyright 2021 Hasan ÇALIŞIR
@@ -2110,9 +2110,9 @@ add_cron () {
 			fi
 			echo "$(timestamp): Installation completed." >> "${wooaras_log}"
 		else
-			echo -e "\n${red}*${reset} ${green}Installation failed.${reset}"
+			echo -e "\n${red}*${reset} ${red}Installation failed.${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
-			echo "${m_tab}${red}Could not create cron {cron_dir}/${cron_filename}.${reset}"
+			echo -e "${m_tab}${red}Could not create cron {cron_dir}/${cron_filename}.${reset}\n"
 			echo "$(timestamp): Installation failed, could not create cron {cron_dir}/${cron_filename}" >> "${wooaras_log}"
 			exit 1
 		fi
@@ -2121,16 +2121,11 @@ add_cron () {
 }
 
 add_systemd () {
-	if ! command -v systemctl > /dev/null 2>&1; then
-		echo -e "\n${m_tab}${red}Systemd not found. Forwarding crontab..${reset}"
-		echo "${cyan}${m_tab}#####################################################${reset}"
-		add_cron
-	fi
-
-	[[ -d "/etc/systemd/system" ]] || { echo -e "\n${m_tab}${yellow}Directory /etc/systemd/system does not exists. Forwarding crontab..${reset}"; echo "${cyan}${m_tab}#####################################################${reset}"; add_cron; }
-
+	[[ -d "/etc/systemd/system" ]] &&
+	{
 	touch "${systemd_dir}/${service_filename}" 2>/dev/null
 	touch "${systemd_dir}/${timer_filename}" 2>/dev/null
+	}
 
 	if [[ ! -w "${systemd_dir}/${service_filename}" ]]; then
 		echo -e "\n${red}*${reset} ${red}Systemd install aborted, as file not writable:${reset} ${green}${systemd_dir}/${service_filename}${reset}"
@@ -2139,7 +2134,7 @@ add_systemd () {
 		echo "$(timestamp): Systemd install aborted, as file not writable: ${systemd_dir}/${service_filename}" >> "${wooaras_log}"
 		exit 1
 	else
-		cat <<- EOF > "${systemd_dir:?}/${service_filename:?}"
+		cat <<- EOF > "${systemd_dir}/${service_filename}"
 		[Unit]
 		Description=woocommerce aras cargo integration script.
 		RequiresMountsFor=/var/log
@@ -2160,9 +2155,10 @@ add_systemd () {
 		WantedBy=multi-user.target
 		EOF
 
-		cat <<- EOF > "${systemd_dir:?}/${timer_filename:?}"
+		cat <<- EOF > "${systemd_dir}/${timer_filename}"
 		[Unit]
 		Description=woocommerce-aras timer - At every 30th minute past every hour from 9AM through 20PM expect Sunday
+		Requires=network-online.target
 
 		[Timer]
 		OnCalendar=${on_calendar}
@@ -2186,14 +2182,14 @@ add_systemd () {
 			fi
 
 			if [[ ! -w "${cron_dir}/${cron_filename_update}" ]]; then
-				echo -e "\n${red}*${reset} Updater cron install aborted, as file not writable: ${cron_dir}/${cron_filename_update}"
+				echo -e "\n${red}*${reset} ${red}Updater cron install aborted, as file not writable: ${cron_dir}/${cron_filename_update}${reset}"
 				echo "${cyan}${m_tab}#####################################################${reset}"
 				echo -e "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}\n"
-				echo "$(timestamp): SETUP: Cron install aborted, as file not writable: ${cron_dir}/${cron_filename_update}." >> "${wooaras_log}"
+				echo "$(timestamp): Installation aborted, as file not writable: ${cron_dir}/${cron_filename_update}." >> "${wooaras_log}"
 				exit 1
 			else
 				if [[ "${auto_update}" -eq 1 ]]; then
-					cat <<- EOF > "${cron_dir:?}/${cron_filename_update:?}"
+					cat <<- EOF > "${cron_dir}/${cron_filename_update}"
 					# At 09:19 on Sunday.
 					# Via WooCommerce - ARAS Cargo Integration Script
 					# Copyright 2021 Hasan ÇALIŞIR
@@ -2241,9 +2237,9 @@ add_systemd () {
 			fi
 			echo "$(timestamp): Installation completed." >> "${wooaras_log}"
 		else
-			echo -e "\n${red}*${reset} ${green}Installation failed.${reset}"
+			echo -e "\n${red}*${reset} ${red}Installation failed.${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
-			echo "${m_tab}${red}Cannot enable/start ${timer_filename} systemd service.${reset}"
+			echo -e "${m_tab}${red}Cannot enable/start ${timer_filename} systemd service.${reset}\n"
 			echo "$(timestamp): Installation failed, cannot start ${timer_filename} service." >> "${wooaras_log}"
 			exit 1
 		fi
@@ -2263,7 +2259,7 @@ add_logrotate () {
 				exit 1
 			else
 				logrotate_installed="asfile"
-				cat <<- EOF > "${logrotate_dir:?}/${logrotate_filename:?}"
+				cat <<- EOF > "${logrotate_dir}/${logrotate_filename}"
 				${wooaras_log} {
 				prerotate
 				${cron_script_full_path} --rotate >/dev/null 2>&1
@@ -2286,12 +2282,12 @@ add_logrotate () {
 		if [[ ! -w "${logrotate_conf}" ]]; then
 			echo -e "\n${red}*${reset} ${red}Installation aborted, as file not writeable: ${logrotate_conf}${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
-			echo -e "${m_tab}${yellow}You can run script as root or execute with sudo.${reset}\n"
+			echo -e "${m_tab}${red}You can run script as root or execute with sudo.${reset}\n"
 			echo "$(timestamp): Installation aborted, as file not writeable: ${logrotate_conf}" >> "${wooaras_log}"
 			exit 1
 		else
 			logrotate_installed="conf"
-			cat <<- EOF >> "${logrotate_conf:?}"
+			cat <<- EOF >> "${logrotate_conf}"
 
 			# Via WooCommerce - ARAS Cargo Integration Script
 			# Copyright 2021 Hasan ÇALIŞIR
@@ -2318,7 +2314,7 @@ add_logrotate () {
 
 systemd_tmpfiles () {
 	if systemctl is-active --quiet "systemd-tmpfiles-setup.service"; then
-		if [[ ! -f "${tmpfiles_d}/${tmpfiles_f}" ]]; then
+		if [[ ! -e "${tmpfiles_d}/${tmpfiles_f}" ]]; then
 			if [[ ! -w "${tmpfiles_d}" ]]; then
 				echo -e "\n${red}*${reset} ${red}Installation aborted, as folder not writable: ${tmpfiles_d}${reset}"
 				echo "${cyan}${m_tab}#####################################################${reset}"
@@ -2326,7 +2322,7 @@ systemd_tmpfiles () {
 				echo "$(timestamp): Installation aborted, as folder not writable: ${tmpfiles_d}" >> "${wooaras_log}"
 				exit 1
 			else
-				cat <<- EOF > "${tmpfiles_d:?}/${tmpfiles_f:?}"
+				cat <<- EOF > "${tmpfiles_d}/${tmpfiles_f}"
 				d ${runtime_path%/*} 0755 $user $user
 				d ${wooaras_log%/*} 0755 $user $user
 				EOF
@@ -2350,7 +2346,7 @@ systemd_tmpfiles () {
 			echo -e "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}\n"
 			echo "$(timestamp): Installation aborted, as file not writable: /etc/rc.local" >> "${wooaras_log}"
 			exit 1
-		else
+		elif ! grep -q "woo-aras" "/etc/rc.local"; then
 			sed -i \
 				-e '$i \mkdir -p '"${runtime_path%/*}"' && chown '"${user}:${user}"' '"${runtime_path%/*}"'' \
 				-e '$i \mkdir -p '"${wooaras_log%/*}"' && chown '"${user}:${user}"' '"${wooaras_log%/*}"'' \
@@ -2941,7 +2937,7 @@ if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 		done
 
 		# Add IMMUTABLE to critical files
-		for i in "${this_script_path:?}"/.*lck
+		for i in "${this_script_path}"/.*lck
 		do
 			chattr +i "$i" >/dev/null 2>&1
 		done
