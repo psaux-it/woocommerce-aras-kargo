@@ -174,6 +174,7 @@ help () {
 	echo -e "${m_tab}#${m_tab}--uninstall        |-d      NEED SUDO! completely remove installed bundles aka twoway custom order status package, cron jobs, systemd services, logrotate, logs"
 	echo -e "${m_tab}#${m_tab}--upgrade          |-u      upgrade script to latest version"
 	echo -e "${m_tab}#${m_tab}--options          |-o      show user defined/adjustable options currently in use"
+	echo -e "${m_tab}#${m_tab}--usage            |-U      display basic usage of this script"
 	echo -e "${m_tab}#${m_tab}--status           |-S      display automation status"
 	echo -e "${m_tab}#${m_tab}--dependencies     |-p      display prerequisites & dependencies"
 	echo -e "${m_tab}#${m_tab}--version          |-v      display script info"
