@@ -2078,9 +2078,6 @@ add_cron () {
 			# Add logrotate
 			add_logrotate
 
-			# Drop ownership of script & script path & log file to sudo user
-			[[ $SUDO_USER ]] && { chown "${user}":"${user}" "${cron_script_full_path}"; chown "${user}":"${user}" "${this_script_path}"; chown "${user}":"${user}" "${wooaras_log}"; }
-
 			# Set status
 			on_fly_disable
 
@@ -2201,9 +2198,6 @@ add_systemd () {
 					if [[ "${result}" -eq 0 ]]; then
 						# Add logrotate
 						add_logrotate
-
-						# Take ownership of script & path
-						[[ $SUDO_USER ]] && { chown "${user}":"${user}" "${cron_script_full_path}"; chown "${user}":"${user}" "${this_script_path}"; chown "${user}":"${user}" "${wooaras_log}"; }
 
 						# Set status
 						on_fly_disable
