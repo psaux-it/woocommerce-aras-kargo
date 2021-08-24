@@ -379,6 +379,22 @@ if [[ "${1}" == "-s" || "${1}" == "--setup" || "${1}" == "-d" || "${1}" == "--un
 	fi
 fi
 
+# Determine user
+if [[ $SUDO_USER ]]; then user="${SUDO_USER}"; else user="$(whoami)"; fi
+
+# Drop file privileges back to non-root user if we got here with sudo
+depriv () {
+	if [[ $SUDO_USER ]]; then
+		if [[ ! -f "${1}" ]]; then
+			touch "${1}"
+		fi
+		chown "$user":"$user" "${1}"
+	elif [[ ! -f "${1}" ]]; then
+		touch "${1}" || { echo "Cannot create ${1}"; exit 1; }
+	fi
+}
+
+
 # Check runtime path (before logrotation prerotate rules called)
 # Later, For @REBOOTS:
 #  -- We will create runtime folder via --> /etc/tmpfiles.d/ || rc.local for cron installation
@@ -386,10 +402,9 @@ fi
 runtime_path="${PIDFILE#/var}"
 if [[ ! -d "${runtime_path%/*}" ]]; then
 	if [[ $SUDO_USER || $EUID -eq 0 ]]; then
-		mkdir "${runtime_path%/*}" &&
-		echo "$(timestamp): Runtime path created: ${runtime_path%/*}" >> "${wooaras_log}" ||
-		{ echo "Cannot create runtime path"; echo "$(timestamp): Cannot create runtime path: ${runtime_path%/*}" >> "${wooaras_log}"; exit 1; }
+		mkdir "${runtime_path%/*}"
 		[[ $SUDO_USER ]] && chown "${user}":"${user}" "${runtime_path%/*}"
+		depriv "${PIDFILE}"
 	else
 		path_pretty_error "/run"
 	fi
@@ -433,21 +448,6 @@ my_rotate () {
 
 # Reply the logrotate call
 if [[ "${1}" == "--rotate" ]]; then my_rotate; fi
-
-# Determine user
-if [[ $SUDO_USER ]]; then user="${SUDO_USER}"; else user="$(whoami)"; fi
-
-# Drop file privileges back to non-root user if we got here with sudo
-depriv () {
-	if [[ $SUDO_USER ]]; then
-		if [[ ! -f "${1}" ]]; then
-			touch "${1}"
-		fi
-		chown "$user":"$user" "${1}"
-	elif [[ ! -f "${1}" ]]; then
-		touch "${1}" || { echo "Cannot create ${1}"; exit 1; }
-	fi
-}
 
 # Check & create log path
 # If executed by sudo user drop ownership
