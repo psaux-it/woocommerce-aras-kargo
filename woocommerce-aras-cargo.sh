@@ -139,7 +139,7 @@ called_by () {
 called_by
 
 if [[ "${RUNNING_FROM_CRON}" -eq 0 && "${RUNNING_FROM_SYSTEMD}" -eq 0 ]]; then
-	# My style
+	# My code my style
 	{ green=$(tput setaf 2); red=$(tput setaf 1); reset=$(tput sgr0); cyan=$(tput setaf 6); }
 	{ magenta=$(tput setaf 5); yellow=$(tput setaf 3); BC=$'\e[32m'; EC=$'\e[0m'; }
 	{ m_tab='  '; m_tab_3=' '; }
@@ -241,7 +241,7 @@ options () {
 	echo ""
 }
 
-# @EARLY CRITICAL CONTROLS
+# @EARLY CRITICAL CONTROLS --> means that no spend cpu time anymore
 # =====================================================================
 # Prevent errors cause by uncompleted upgrade
 # Detect to make sure the entire script is available, fail if the script is missing contents
@@ -275,7 +275,7 @@ fi
 # =====================================================================
 
 # Guides placed at the beginning of the script
-# User able to reach them without any break immediately after critical controls passed
+# User able to reach them without any break, sure after critical controls passed
 while :; do
 	case "${1}" in
 	-o|--options          ) options
@@ -654,6 +654,7 @@ my_tmp_folder="${this_script_path}/tmp"
 my_string="woocommerce-aras-cargo-integration"
 tmpfiles_d="/etc/tmpfiles.d"
 tmpfiles_f="woo-aras.conf"
+this_script_lck_path="${this_script_path}/.lck"
 
 # Not allow -x that expose sensetive informations
 # Disable to write history
@@ -681,9 +682,9 @@ my_status () {
 
 		hide_me --enable
 		if [[ ! "${api_key}" || ! "${api_secret}" || ! "${api_endpoint}" ]]; then
-			api_key=$(< "$this_script_path/.key.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
-			api_secret=$(< "$this_script_path/.secret.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
-			api_endpoint=$(< "$this_script_path/.end.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
+			api_key=$(< "$this_script_lck_path/.key.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
+			api_secret=$(< "$this_script_lck_path/.secret.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
+			api_endpoint=$(< "$this_script_lck_path/.end.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
 		fi
 		hide_me --disable
 
@@ -972,9 +973,9 @@ find_child_path () {
 	local bridge="$1"
 	hide_me --enable
 	if [[ ! "${api_key}" || ! "${api_secret}" || ! "${api_endpoint}" ]]; then
-		api_key=$(< "$this_script_path/.key.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
-		api_secret=$(< "$this_script_path/.secret.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
-		api_endpoint=$(< "$this_script_path/.end.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
+		api_key=$(< "$this_script_lck_path/.key.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
+		api_secret=$(< "$this_script_lck_path/.secret.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
+		api_endpoint=$(< "$this_script_lck_path/.end.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
 	fi
 	hide_me --disable
 
@@ -1575,11 +1576,11 @@ un_install () {
 	fi
 
 	# Remove immutable bit & lock files
-	for i in "${this_script_path}"/.*lck
+	for i in "${this_script_lck_path}"/.*lck
 	do
 		chattr -i "$i" >/dev/null 2>&1
 	done
-	rm -rf "${this_script_path:?}"/.*lck >/dev/null 2>&1
+	rm -rf "${this_script_lck_path:?}"/.*lck >/dev/null 2>&1
 
 	rm -f "${this_script_path:?}/.woo.aras.set" >/dev/null 2>&1
 	rm -f "${this_script_path:?}/.woo.aras.enb" >/dev/null 2>&1
@@ -1599,11 +1600,11 @@ on_fly_disable () {
 on_fly_enable () {
 		# Remove lock files (hard-reset) to re-start fresh setup
 		# Remove IMMUTABLE bit
-		for i in "${this_script_path}"/.*lck
+		for i in "${this_script_lck_path}"/.*lck
 		do
 			chattr -i "${i}" >/dev/null 2>&1
 		done
-		rm -rf "${this_script_path:?}"/.*lck >/dev/null 2>&1
+		rm -rf "${this_script_lck_path:?}"/.*lck >/dev/null 2>&1
 
 		rm -f "${this_script_path:?}/.woo.aras.set" >/dev/null 2>&1
 		rm -f "${this_script_path:?}/.woo.aras.enb" >/dev/null 2>&1
@@ -2359,7 +2360,7 @@ systemd_tmpfiles () {
 
 # Check -s argument
 if [[ "$1" != "-s" && "$1" != "--setup" ]]; then
-	if [[ "$(ls -1q ${this_script_path}/.*lck 2>/dev/null | wc -l)" -lt 8 ]]; then
+	if [[ "$(ls -1q ${this_script_lck_path}/.*lck 2>/dev/null | wc -l)" -lt 8 ]]; then
 		echo -e "\n${yellow}*${reset} ${yellow}The previous installation was not completed or${reset}"
 		echo "${m_tab}${yellow}you are running the script first time without${reset}"
 		echo "${m_tab}${yellow}-s parameter.${reset}"
@@ -2379,7 +2380,7 @@ fi
 
 # Check uncompleted setup
 if [[ "$1" != "-s" && "$1" != "--setup" ]]; then
-	if [[ "$(ls -1q ${this_script_path}/.*lck 2>/dev/null | wc -l)" -eq 8 ]]; then
+	if [[ "$(ls -1q ${this_script_lck_path}/.*lck 2>/dev/null | wc -l)" -eq 8 ]]; then
 		if [[ ! -e "${this_script_path}/.woo.aras.set" ]]; then
 			echo -e "\n${yellow}*${reset} ${yellow}The previous installation was not completed.${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
@@ -2405,28 +2406,28 @@ encrypt_ops_exit () {
 
 encrypt_wc_auth () {
 	hide_me --enable
-	if [[ ! -s "${this_script_path}/.key.wc.lck" ]]; then
+	if [[ ! -s "${this_script_lck_path}/.key.wc.lck" ]]; then
 		if [[ "${RUNNING_FROM_CRON}" -eq 0 && "${RUNNING_FROM_SYSTEMD}" -eq 0 ]]; then
 			echo -e "\n${green}*${reset} ${magenta}Setting your woocommerce api_key, type q for quit${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			read -r -p "${m_tab}${BC}Enter WooCommerce API key:${EC} " my_wc_api_key < /dev/tty
 			if [[ "${my_wc_api_key}" == "q" || "${my_wc_api_key}" == "quit" ]]; then exit 1; fi
 			echo "${cyan}${m_tab}#####################################################${reset}"
-			echo "${my_wc_api_key}" | openssl enc -base64 -e -aes-256-cbc -nosalt  -pass pass:garbageKey  2>/dev/null > "${this_script_path}/.key.wc.lck"
+			echo "${my_wc_api_key}" | openssl enc -base64 -e -aes-256-cbc -nosalt  -pass pass:garbageKey  2>/dev/null > "${this_script_lck_path}/.key.wc.lck"
 		else
-			encrypt_ops_exit "${this_script_path}/.key.wc.lck"
+			encrypt_ops_exit "${this_script_lck_path}/.key.wc.lck"
 		fi
 	fi
-	if [[ ! -s "${this_script_path}/.secret.wc.lck" ]]; then
+	if [[ ! -s "${this_script_lck_path}/.secret.wc.lck" ]]; then
 		if [[ "${RUNNING_FROM_CRON}" -eq 0 && "${RUNNING_FROM_SYSTEMD}" -eq 0 ]]; then
 			echo -e "\n${green}*${reset} ${magenta}Setting your woocommerce api_secret, type q for quit${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			read -r -p "${m_tab}${BC}Enter WooCommerce API secret:${EC} " my_wc_api_secret < /dev/tty
 			if [[ "${my_wc_api_secret}" == "q" || "${my_wc_api_secret}" == "quit" ]]; then exit 1; fi
 			echo "${cyan}${m_tab}#####################################################${reset}"
-			echo "${my_wc_api_secret}" | openssl enc -base64 -e -aes-256-cbc -nosalt  -pass pass:garbageKey  2>/dev/null > "${this_script_path}/.secret.wc.lck"
+			echo "${my_wc_api_secret}" | openssl enc -base64 -e -aes-256-cbc -nosalt  -pass pass:garbageKey  2>/dev/null > "${this_script_lck_path}/.secret.wc.lck"
 		else
-			encrypt_ops_exit "${this_script_path}/.secret.wc.lck"
+			encrypt_ops_exit "${this_script_lck_path}/.secret.wc.lck"
 		fi
 	fi
 	hide_me --disable
@@ -2434,7 +2435,7 @@ encrypt_wc_auth () {
 
 encrypt_wc_end () {
 	hide_me --enable
-	if [[ ! -s "${this_script_path}/.end.wc.lck" ]]; then
+	if [[ ! -s "${this_script_lck_path}/.end.wc.lck" ]]; then
 		if [[ "${RUNNING_FROM_CRON}" -eq 0 && "${RUNNING_FROM_SYSTEMD}" -eq 0 ]]; then
 			echo -e "\n${green}*${reset} ${magenta}Setting your Wordpress installation url, type q for quit${reset}"
 			echo -e "${m_tab}${magenta}format --> www.example.com | www.example.com/wordpress.${reset}"
@@ -2442,9 +2443,9 @@ encrypt_wc_end () {
 			read -r -p "${m_tab}${BC}Enter Wordpress Domain URL:${EC} " my_wc_api_endpoint < /dev/tty
 			if [[ "${my_wc_api_endpoint}" == "q" || "${my_wc_api_endpoint}" == "quit" ]]; then exit 1; fi
 			echo "${cyan}${m_tab}#####################################################${reset}"
-			echo "${my_wc_api_endpoint}" | openssl enc -base64 -e -aes-256-cbc -nosalt  -pass pass:garbageKey  2>/dev/null > "${this_script_path}/.end.wc.lck"
+			echo "${my_wc_api_endpoint}" | openssl enc -base64 -e -aes-256-cbc -nosalt  -pass pass:garbageKey  2>/dev/null > "${this_script_lck_path}/.end.wc.lck"
 		else
-			encrypt_ops_exit "${this_script_path}/.end.wc.lck"
+			encrypt_ops_exit "${this_script_lck_path}/.end.wc.lck"
 		fi
 	fi
 	hide_me --disable
@@ -2452,31 +2453,31 @@ encrypt_wc_end () {
 
 encrypt_aras_auth () {
 	hide_me --enable
-	if [[ ! -s "${this_script_path}/.key.aras.lck" ]]; then
+	if [[ ! -s "${this_script_lck_path}/.key.aras.lck" ]]; then
 		if [[ "${RUNNING_FROM_CRON}" -eq 0 && "${RUNNING_FROM_SYSTEMD}" -eq 0 ]]; then
 			echo -e "\n${green}*${reset} ${magenta}Setting your ARAS SOAP api_key, type q for quit${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			read -r -p "${m_tab}${BC}Enter ARAS SOAP API Password:${EC} " my_aras_api_pass < /dev/tty
 			if [[ "${my_aras_api_pass}" == "q" || "${my_aras_api_pass}" == "quit" ]]; then exit 1; fi
 			echo "${cyan}${m_tab}#####################################################${reset}"
-			echo "${my_aras_api_pass}" | openssl enc -base64 -e -aes-256-cbc -nosalt  -pass pass:garbageKey  2>/dev/null > "${this_script_path}/.key.aras.lck"
+			echo "${my_aras_api_pass}" | openssl enc -base64 -e -aes-256-cbc -nosalt  -pass pass:garbageKey  2>/dev/null > "${this_script_lck_path}/.key.aras.lck"
 		else
-			encrypt_ops_exit "${this_script_path}/.end.wc.lck"
+			encrypt_ops_exit "${this_script_lck_path}/.end.wc.lck"
 		fi
 	fi
-	if [[ ! -s "${this_script_path}/.usr.aras.lck" ]]; then
+	if [[ ! -s "${this_script_lck_path}/.usr.aras.lck" ]]; then
 		if [[ "${RUNNING_FROM_CRON}" -eq 0 && "${RUNNING_FROM_SYSTEMD}" -eq 0 ]]; then
 			echo -e "\n${green}*${reset} ${magenta}Setting your ARAS SOAP api_username, type q for quit${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			read -r -p "${m_tab}${BC}Enter ARAS SOAP API Username:${EC} " my_aras_api_usr < /dev/tty
 			if [[ "${my_aras_api_usr}" == "q" || "${my_aras_api_usr}" == "quit" ]]; then exit 1; fi
 			echo "${cyan}${m_tab}#####################################################${reset}"
-			echo "${my_aras_api_usr}" | openssl enc -base64 -e -aes-256-cbc -nosalt  -pass pass:garbageKey  2>/dev/null > "${this_script_path}/.usr.aras.lck"
+			echo "${my_aras_api_usr}" | openssl enc -base64 -e -aes-256-cbc -nosalt  -pass pass:garbageKey  2>/dev/null > "${this_script_lck_path}/.usr.aras.lck"
 		else
-			encrypt_ops_exit "${this_script_path}/.usr.aras.lck"
+			encrypt_ops_exit "${this_script_lck_path}/.usr.aras.lck"
 		fi
 	fi
-	if [[ ! -s "${this_script_path}/.mrc.aras.lck" ]]; then
+	if [[ ! -s "${this_script_lck_path}/.mrc.aras.lck" ]]; then
 		if [[ "${RUNNING_FROM_CRON}" -eq 0 && "${RUNNING_FROM_SYSTEMD}" -eq 0 ]]; then
 			while true; do
 				echo -e "\n${green}*${reset} ${magenta}Setting your ARAS SOAP merchant_code, type q for quit${reset}"
@@ -2490,9 +2491,9 @@ encrypt_aras_auth () {
 					*) break;;
 				esac
 			done
-			echo "${my_aras_api_mrc}" | openssl enc -base64 -e -aes-256-cbc -nosalt  -pass pass:garbageKey  2>/dev/null > "${this_script_path}/.mrc.aras.lck"
+			echo "${my_aras_api_mrc}" | openssl enc -base64 -e -aes-256-cbc -nosalt  -pass pass:garbageKey  2>/dev/null > "${this_script_lck_path}/.mrc.aras.lck"
 		else
-			encrypt_ops_exit "${this_script_path}/.mrc.aras.lck"
+			encrypt_ops_exit "${this_script_lck_path}/.mrc.aras.lck"
 		fi
 	fi
 	hide_me --disable
@@ -2500,16 +2501,16 @@ encrypt_aras_auth () {
 
 encrypt_aras_end () {
 	hide_me --enable
-	if [[ ! -s "${this_script_path}/.end.aras.lck" ]]; then
+	if [[ ! -s "${this_script_lck_path}/.end.aras.lck" ]]; then
 		if [[ "${RUNNING_FROM_CRON}" -eq 0 && "${RUNNING_FROM_SYSTEMD}" -eq 0 ]]; then
 			echo -e "\n${green}*${reset} ${magenta}Setting your ARAS SOAP endpoint_url, type q for quit${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			read -r -p "${m_tab}${BC}Enter ARAS SOAP endpoint URL (wsdl):${EC} " my_aras_api_end < /dev/tty
 			if [[ "${my_aras_api_end}" == "q" || "${my_aras_api_end}" == "quit" ]]; then exit 1; fi
 			echo "${cyan}${m_tab}#####################################################${reset}"
-			echo "${my_aras_api_end}" | openssl enc -base64 -e -aes-256-cbc -nosalt  -pass pass:garbageKey  2>/dev/null > "${this_script_path}/.end.aras.lck"
+			echo "${my_aras_api_end}" | openssl enc -base64 -e -aes-256-cbc -nosalt  -pass pass:garbageKey  2>/dev/null > "${this_script_lck_path}/.end.aras.lck"
 		else
-			encrypt_ops_exit "${this_script_path}/.end.aras.lck"
+			encrypt_ops_exit "${this_script_lck_path}/.end.aras.lck"
 		fi
 	fi
 	hide_me --disable
@@ -2517,7 +2518,7 @@ encrypt_aras_end () {
 
 encrypt_aras_qry () {
 	hide_me --enable
-	if [[ ! -s "${this_script_path}/.qry.aras.lck" ]]; then
+	if [[ ! -s "${this_script_lck_path}/.qry.aras.lck" ]]; then
 		if [[ "${RUNNING_FROM_CRON}" -eq 0 && "${RUNNING_FROM_SYSTEMD}" -eq 0 ]]; then
 			echo -e "\n${green}*${reset} ${magenta}Setting your ARAS SOAP query_type.${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
@@ -2531,9 +2532,9 @@ encrypt_aras_qry () {
 				esac
 			done
 			echo "${cyan}${m_tab}#####################################################${reset}"
-			echo "${my_aras_api_qry}" | openssl enc -base64 -e -aes-256-cbc -nosalt  -pass pass:garbageKey  2>/dev/null > "${this_script_path}/.qry.aras.lck"
+			echo "${my_aras_api_qry}" | openssl enc -base64 -e -aes-256-cbc -nosalt  -pass pass:garbageKey  2>/dev/null > "${this_script_lck_path}/.qry.aras.lck"
 		else
-			encrypt_ops_exit "${this_script_path}/.qry.aras.lck"
+			encrypt_ops_exit "${this_script_lck_path}/.qry.aras.lck"
 		fi
 	fi
 	hide_me --disable
@@ -2550,28 +2551,28 @@ exit 1;
 # decrypt ARAS SOAP API credentials
 decrypt_aras_auth () {
 	hide_me --enable
-	api_key_aras=$(< "${this_script_path}/.key.aras.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
-	api_usr_aras=$(< "${this_script_path}/.usr.aras.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
-	api_mrc_aras=$(< "${this_script_path}/.mrc.aras.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
+	api_key_aras=$(< "${this_script_lck_path}/.key.aras.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
+	api_usr_aras=$(< "${this_script_lck_path}/.usr.aras.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
+	api_mrc_aras=$(< "${this_script_lck_path}/.mrc.aras.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
 	hide_me --disable
 }
 decrypt_aras_end () {
 	hide_me --enable
-	api_end_aras=$(< "${this_script_path}/.end.aras.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
+	api_end_aras=$(< "${this_script_lck_path}/.end.aras.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
 	hide_me --disable
 }
-api_qry_aras=$(< "${this_script_path}/.qry.aras.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
+api_qry_aras=$(< "${this_script_lck_path}/.qry.aras.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
 
 # decrypt WooCommerce API credentials
 decrypt_wc_auth () {
 	hide_me --enable
-	api_key=$(< "${this_script_path}/.key.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
-	api_secret=$(< "${this_script_path}/.secret.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
+	api_key=$(< "${this_script_lck_path}/.key.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
+	api_secret=$(< "${this_script_lck_path}/.secret.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
 	hide_me --disable
 }
 decrypt_wc_end () {
 	hide_me --enable
-	api_endpoint=$(< "${this_script_path}/.end.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
+	api_endpoint=$(< "${this_script_lck_path}/.end.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
 	hide_me --disable
 }
 
@@ -2642,7 +2643,7 @@ if [[ "${RUNNING_FROM_CRON}" -eq 0 && "${RUNNING_FROM_SYSTEMD}" -eq 0 ]]; then
 			read -r -n 1 -p "${m_tab}${BC}Do you want to reset your Wordpress domain now? --> (Y)es | (N)o${EC} " yn < /dev/tty
 			echo ""
 			case "${yn}" in
-				[Yy]* ) rm -rf "${this_script_path:?}/.end.wc.lck";
+				[Yy]* ) rm -rf "${this_script_lck_path:?}/.end.wc.lck";
 					encrypt_wc_end;
 					decrypt_wc_end;
 					w_curl_a; break;;
@@ -2700,7 +2701,7 @@ if [[ "${RUNNING_FROM_CRON}" -eq 0 && "${RUNNING_FROM_SYSTEMD}" -eq 0 ]]; then
 			read -r -n 1 -p "${m_tab}${BC}Do you want to reset your WooCommerce REST API credentials now? --> (Y)es | (N)o${EC} " yn < /dev/tty
 			echo ""
 			case "${yn}" in
-				[Yy]* ) rm -rf "${this_script_path:?}/.key.wc.lck" "${this_script_path:?}/.secret.wc.lck";
+				[Yy]* ) rm -rf "${this_script_lck_path:?}/.key.wc.lck" "${this_script_lck_path:?}/.secret.wc.lck";
 					encrypt_wc_auth;
 					decrypt_wc_auth;
 					w_curl_a; break;;
@@ -2786,7 +2787,7 @@ if [[ "${RUNNING_FROM_CRON}" -eq 0 && "${RUNNING_FROM_SYSTEMD}" -eq 0 ]]; then
 			read -r -n 1 -p "${m_tab}${BC}Do you want to reset your ARAS SOAP endpoint URL now? --> (Y)es | (N)o${EC}" yn < /dev/tty
 			echo ""
 			case "${yn}" in
-				[Yy]* ) rm -f "${this_script_path}/.end.aras.lck";
+				[Yy]* ) rm -f "${this_script_lck_path:?}/.end.aras.lck";
 					encrypt_aras_end;
 					decrypt_aras_end;
 					$m_sed -i -z 's!([^(]*,!("'"$api_end_aras"'",!' "${this_script_path}/aras_request.php";
@@ -2818,7 +2819,7 @@ if [[ "${RUNNING_FROM_CRON}" -eq 0 && "${RUNNING_FROM_SYSTEMD}" -eq 0 ]]; then
 			read -r -n 1 -p "${m_tab}${BC}Do you want to reset your ARAS SOAP API credentials now? --> (Y)es | (N)o${EC}" yn < /dev/tty
 			echo ""
 			case "${yn}" in
-				[Yy]* ) rm -rf "${this_script_path:?}/.key.aras.lck" "${this_script_path:?}/.usr.aras.lck" "${this_script_path:?}/.mrc.aras.lck";
+				[Yy]* ) rm -rf "${this_script_lck_path:?}/.key.aras.lck" "${this_script_lck_path:?}/.usr.aras.lck" "${this_script_lck_path:?}/.mrc.aras.lck";
 					encrypt_aras_auth;
 					decrypt_aras_auth;
 					$m_sed -i \
@@ -2935,7 +2936,7 @@ if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 		done
 
 		# Add IMMUTABLE to critical files
-		for i in "${this_script_path}"/.*lck
+		for i in "${this_script_lck_path}"/.*lck
 		do
 			chattr +i "$i" >/dev/null 2>&1
 		done
