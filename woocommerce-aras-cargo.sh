@@ -2133,6 +2133,7 @@ add_systemd () {
 		[Unit]
 		Description=woocommerce aras cargo integration script.
 		RequiresMountsFor=/var/log
+		RequiresMountsFor=/tmp
 
 		[Service]
 		Type=oneshot
@@ -2145,6 +2146,9 @@ add_systemd () {
 		RuntimeDirectoryPreserve=yes
 		Environment=RUNNING_FROM_SYSTEMD=1
 		PrivateTmp=true
+		ReadOnlyPaths=/
+		ReadWritePaths=/var /run ${this_script_path}
+		InaccessiblePaths=-/lost+found
 		ExecStart=${my_bash} ${systemd_script_full_path}
 
 		[Install]
@@ -2154,6 +2158,7 @@ add_systemd () {
 		cat <<- EOF > "${systemd_dir}/${timer_filename}"
 		[Unit]
 		Description=woocommerce-aras timer - At every 30th minute past every hour from 9AM through 20PM expect Sunday
+		After=network-online.target
 		Requires=network-online.target
 
 		[Timer]
@@ -2172,7 +2177,7 @@ add_systemd () {
 
 		if [[ "${result}" -eq 0 ]]; then
 			if [[ ! -e "${cron_dir}/${cron_filename_update}" ]]; then
-				mkdir -p "$cron_dir" /dev/null 2>&1
+				mkdir -p "$cron_dir" >/dev/null 2>&1
 				touch "${cron_dir}/${cron_filename_update}" /dev/null 2>&1 ||
 				{ echo "could not create cron ${cron_filename_update}";  echo "$(timestamp): SETUP: could not create cron ${cron_filename_update}" >> "${wooaras_log}";  exit 1; }
 			fi
