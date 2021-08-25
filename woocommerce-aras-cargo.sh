@@ -361,12 +361,19 @@ fi
 # PID File
 PIDFILE="/var/run/woo-aras/woocommerce-aras-cargo.pid"
 
+# Notify broken installations via email
+broken_installation () {
+	if [[ "${RUNNING_FROM_CRON}" -eq 0 && "${RUNNING_FROM_SYSTEMD}" -eq 0 ]]; then
+		send_mail "${1}"
+	fi
+}
+
 # Path pretty error
 path_pretty_error () {
 	echo -e "\n${red}*${reset} ${red}Path not writable: ${1}${reset}"
 	echo "${cyan}${m_tab}#####################################################${reset}"
 	echo -e "${red}${m_tab}Run once as root or with sudo user to create path${reset}\n"
-	send_mail "Path not writable: ${1} --> run once manually as root or with sudo user to create path."
+	broken_installation "Broken installation, path not writable: ${1}, please re-start setup"
 	exit 1
 }
 
@@ -379,18 +386,14 @@ if [[ "${1}" == "-s" || "${1}" == "--setup" || "${1}" == "-d" || "${1}" == "--un
 	fi
 fi
 
-# Verify installation & make immutable calling script directly till setup completed
+# Verify installation & make immutable calling script without argument till setup completed
 if [[ $# -eq 0 ]]; then
 	if [[ ! -e "${this_script_path}/.woo.aras.set" ]]; then
 		echo -e "\n${red}*${reset} ${red}Broken installation or${reset}"
                 echo -e "${m_tab}${red}you are running the script first time${reset}"
 		echo -e "${m_tab}${red}Check below instructions for basic usage${reset}\n"
 		usage
-
-		# If running from cron or systemd thats mean installation completed but broken
-		if [[ "${RUNNING_FROM_CRON}" -eq 0 && "${RUNNING_FROM_SYSTEMD}" -eq 0 ]]; then
-			send_mail "Broken installation, please re-start setup"
-		fi
+		broken_installation "Broken installation, please re-start setup"
 		exit 1
 	fi
 fi
@@ -398,15 +401,30 @@ fi
 # Determine user
 if [[ $SUDO_USER ]]; then user="${SUDO_USER}"; else user="$(whoami)"; fi
 
+# @FILE OPS
 # Drop file privileges back to non-root user if we got here with sudo
 depriv () {
 	if [[ $SUDO_USER ]]; then
 		if [[ ! -f "${1}" ]]; then
-			touch "${1}"
+			touch "${1}" || { echo "Could not create file ${1}"; exit 1; }
 		fi
 		chown "$user":"$user" "${1}"
 	elif [[ ! -f "${1}" ]]; then
-		touch "${1}" || { echo "Cannot create ${1}"; exit 1; }
+		touch "${1}" || { echo "Could not create file ${1}"; exit 1; }
+	fi
+}
+
+# @FOLDER OPS
+# Drop folder privileges back to non-root user if we got here with sudo
+depriv_f () {
+	if [[ ! -d "${1}" ]]; then
+		mkdir "${1}" ||
+		{
+		  echo "Could not create folder ${1}"
+		  broken_installation "Broken installation, could not find ${1}, please re-start setup"
+		  exit 1
+		}
+		[[ $SUDO_USER ]] && chown "${user}":"${user}" "${1}"
 	fi
 }
 
@@ -417,7 +435,7 @@ depriv () {
 runtime_path="${PIDFILE#/var}"
 if [[ ! -d "${runtime_path%/*}" ]]; then
 	if [[ $SUDO_USER || $EUID -eq 0 ]]; then
-		mkdir "${runtime_path%/*}"
+		mkdir "${runtime_path%/*}" || { echo "Could not create runtime folder ${runtime_path%/*}"; exit 1; }
 		[[ $SUDO_USER ]] && chown "${user}":"${user}" "${runtime_path%/*}"
 		depriv "${PIDFILE}"
 	else
@@ -464,13 +482,16 @@ my_rotate () {
 # Reply the logrotate call
 if [[ "${1}" == "--rotate" ]]; then my_rotate; fi
 
+# Check & create lock and tmp paths
+depriv_f "${this_script_path}/tmp"
+depriv_f "${this_script_path}/.lck"
+
 # Check & create log path
-# If executed by sudo user drop ownership
 if [[ ! -d "${wooaras_log%/*}" ]]; then
 	if [[ $SUDO_USER || $EUID -eq 0 ]]; then
 		mkdir -p "${wooaras_log%/*}" || { echo "Cannot create log path"; exit 1; }
 		[[ $SUDO_USER ]] && chown "$user":"$user" "${wooaras_log%/*}"
-		depriv "${wooaras_log}" && echo "$(timestamp): Log path created: Logging started..${wooaras_log%/*}" >> "${wooaras_log}"
+		depriv "${wooaras_log}" && echo "$(timestamp): Log path created: Logging started.." >> "${wooaras_log}"
 	else
 		path_pretty_error "/var/log"
 	fi
@@ -2353,6 +2374,7 @@ systemd_tmpfiles () {
 			fi
 		fi
 	elif systemctl is-active --quiet "rc-local.service"; then
+		[[ ! -e "/etc/rc.local" ]] && mkdir /etc/rc.local
 		if [[ ! -w "/etc/rc.local" ]]; then
 			echo -e "\n${red}*${reset} ${red}Installation aborted, as file not writable: /etc/rc.local${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
@@ -2365,6 +2387,12 @@ systemd_tmpfiles () {
 				-e '$i \mkdir -p '"${wooaras_log%/*}"' && chown '"${user}:${user}"' '"${wooaras_log%/*}"'' \
 				"/etc/rc.local" && tmpfiles_installed="rclocal" || { echo "Installation failed, as sed failed"; exit 1; }
 		fi
+	else
+		echo -e "\n${red}*${reset} ${red}Installation aborted, as required systemd services not active${reset}"
+		echo "${cyan}${m_tab}#####################################################${reset}"
+		echo -e "${m_tab}${red}Activate systemd-tmpfiles-setup.service || rc-local.service${reset}\n"
+		echo "$(timestamp): Installation aborted, as required systemd services not active" >> "${wooaras_log}"
+		exit 1
 	fi
 }
 #=====================================================================
@@ -3208,9 +3236,6 @@ exit_curl_fail () {
 if [[ -e "${this_script_path}/.woo.aras.enb" ]]; then
 	if [[ -s "${my_tmp}" ]]; then
 		# For debugging purpose save the parsed data first
-		if [[ ! -d "${this_script_path}/tmp" ]]; then
-			mkdir "${this_script_path}/tmp" || { echo "Updating order failed, could not create folder ${this_script_path}/tmp"; exit 1; }
-		fi
 		cat <(cat "${my_tmp}") > "${my_tmp_folder}/$(date +%d-%m-%Y)-main.$$"
 		cat <(cat "${this_script_path}/wc.proc.en") > "${my_tmp_folder}/$(date +%d-%m-%Y)-wc.proc.en.$$"
 		cat <(cat "${this_script_path}/aras.proc.en") > "${my_tmp_folder}/$(date +%d-%m-%Y)-aras.proc.en.$$"
@@ -3246,9 +3271,6 @@ if [[ -e "${this_script_path}/.woo.aras.enb" ]]; then
 	if [[ -e "${this_script_path}/.two.way.enb" ]]; then
 		if [[ -s "${my_tmp_del}" ]]; then
 			# For debugging purpose save the parsed data first
-			if [[ ! -d "${this_script_path}/tmp" ]]; then
-				mkdir "${this_script_path}/tmp" || { echo "Updating order failed, could not create folder ${this_script_path}/tmp"; exit 1; }
-			fi
 			cat <(cat "${my_tmp_del}") > "${my_tmp_folder}/$(date +%d-%m-%Y)-main.del.$$"
 			cat <(cat "${this_script_path}/wc.proc.del") > "${my_tmp_folder}/$(date +%d-%m-%Y)-wc.proc.del.$$"
 			cat <(cat "${this_script_path}/aras.proc.del") > "${my_tmp_folder}/$(date +%d-%m-%Y)-aras.proc.del.$$"
