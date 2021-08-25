@@ -40,7 +40,7 @@ If you are implementing two-way workflow 'processing -> shipped -> delivered' we
 
 ## Two-way workflow installation (Optional)
 ![twoway_fulfillment](https://user-images.githubusercontent.com/25556606/126962984-d0c6a0e5-e22c-45f4-ba04-500c0f30e405.png)
-Script will ask you for auto implementation during the setup. You can choose auto installation or you can go with manual implementation. If auto implementation can't find your child theme path correctly follow manual implementation instructions below.
+Automation script will ask you for auto implementation during the setup. You can choose auto installation or you can go with manual implementation. If auto implementation can't find your child theme path correctly follow manual implementation instructions below.
 In both cases there are 4 prerequisites:
 
 ### Two-way workflow prerequisites
@@ -49,7 +49,7 @@ In both cases there are 4 prerequisites:
 - 3-Be sure you work with default woocommerce fulfillment workflow (e.g don't have any custom order status which has been already implemented before)
 - 4-Complete default setup first
 
-If you go with auto implementation script will find your absolute child theme path and will ask your approval for modifications. If child theme path is wrong please DON'T CONTINUE and go with manual implementation.
+If you go with auto implementation, automation script will find your absolute child theme path and will ask your approval for modifications. If child theme path is wrong please DON'T CONTINUE and go with manual implementation.
 
 ![child_theme](https://user-images.githubusercontent.com/25556606/126969002-c6346955-feaa-4ad1-adff-3cde1217fe13.png)
 
@@ -147,7 +147,6 @@ Critical part such as success mails, fronted&admin side custom order status labe
 ## Tested Linux Distros
 - Gentoo
 - Ubuntu
-- Debian
 
 ## Requirements During Interactive Setup
 - WooCommerce REST API Key (v3)
@@ -169,8 +168,7 @@ If you use mutt, ssmtp, sendmail etc. please edit mail function as you wish. You
 - cron_minute
 - cron_minute_update
 - on_calendar
-- error_log
-- access_log
+- wooaras_log
 - company_name
 - company_domain
 - send_mail_command
@@ -189,7 +187,7 @@ If you use mutt, ssmtp, sendmail etc. please edit mail function as you wish. You
 ![araskargo-11](https://user-images.githubusercontent.com/25556606/125905483-99941283-cd59-4ac5-b9ea-afc54132dc7b.png)
 - Enable and setup WooCommerce REST API, get credentials (only support REST API v3)
 - Adjust user defined settings such as mail_to, company_name as mentioned before
-- Be sure you have some data both on woocommerce and ARAS for validations (if not create test orders)
+- Be sure you have some data both on woocommerce(order) and ARAS(cargo) for validations (if not create test orders)
 - Clone repo ```git clone https://github.com/hsntgm/woocommerce-aras-kargo.git``` (Never manually copy/paste script)
 - Start setup as sudo user ```sudo ./woocommerce-aras-cargo.sh --setup```
 
