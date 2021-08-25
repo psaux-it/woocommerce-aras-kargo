@@ -147,9 +147,9 @@ fi
 
 # Display usage instruction
 usage () {
-        echo -e "\n${m_tab}${cyan}# BASIC USAGE${reset}"
-        echo -e "${m_tab}${magenta}###############################################################################${reset}"
-        echo -e "\n${m_tab}${cyan}# Clone git repository (non-root user is recommended)${reset}"
+        echo -e "\n${m_tab}${cyan}# WOOCOMMERCE - ARAS CARGO INTEGRATION BASIC USAGE${reset}"
+        echo -e "${m_tab}${magenta}---------------------------------------------------------------------${reset}"
+        echo -e "\n${m_tab}${cyan}# Clone git repository (non-root user)${reset}"
         echo -e "${m_tab}${magenta}git clone https://github.com/hsntgm/woocommerce-aras-kargo.git${reset}"
         echo -e "\n${m_tab}${cyan}# Setup needs sudo privileges${reset}"
         echo -e "${m_tab}${magenta}sudo ./woocommerce-aras-cargo.sh --setup${reset}"
@@ -159,7 +159,7 @@ usage () {
         echo -e "${m_tab}${magenta}Check './woocommerce-aras-cargo.sh --help' for details.${reset}"
         echo -e "\n${m_tab}${cyan}# For detailed installation instruction please visit github page.${reset}"
         echo -e "${m_tab}${magenta}https://github.com/hsntgm/woocommerce-aras-kargo${reset}\n"
-        echo -e "${m_tab}${magenta}###############################################################################${reset}\n"
+        echo -e "${m_tab}${magenta}---------------------------------------------------------------------${reset}\n"
 }
 
 # Display script controls
@@ -184,7 +184,7 @@ help () {
 
 # Display script hard dependencies (may not included in default linux installations)
 dependencies () {
-	echo -e "\n${m_tab}${magenta}# WOOCOMMERCE - ARAS CARGO INTEGRATION HARD DEPENDENCIES"
+	echo -e "\n${m_tab}${magenta}# WOOCOMMERCE - ARAS CARGO INTEGRATION DEPENDENCIES"
 	echo -e "${m_tab}${magenta} (may not included in default linux installations)${reset}"
 	echo -e "${cyan}${m_tab}# ---------------------------------------------------------------------"
 	echo -e "${m_tab}# curl"
@@ -379,6 +379,22 @@ if [[ "${1}" == "-s" || "${1}" == "--setup" || "${1}" == "-d" || "${1}" == "--un
 	fi
 fi
 
+# Verify installation & make immutable calling script directly till setup completed
+if [[ $# -eq 0 ]]; then
+	if [[ ! -e "${this_script_path}/.woo.aras.set" ]]; then
+		echo -e "\n${red}*${reset} ${red}Broken installation or${reset}"
+                echo -e "${m_tab}${red}you are running the script first time${reset}"
+		echo -e "${m_tab}${red}Check below instructions for basic usage${reset}\n"
+		usage
+
+		# If running from cron or systemd thats mean installation completed but broken
+		if [[ "${RUNNING_FROM_CRON}" -eq 0 && "${RUNNING_FROM_SYSTEMD}" -eq 0 ]]; then
+			send_mail "Broken installation, please re-start setup"
+		fi
+		exit 1
+	fi
+fi
+
 # Determine user
 if [[ $SUDO_USER ]]; then user="${SUDO_USER}"; else user="$(whoami)"; fi
 
@@ -393,7 +409,6 @@ depriv () {
 		touch "${1}" || { echo "Cannot create ${1}"; exit 1; }
 	fi
 }
-
 
 # Check runtime path (before logrotation prerotate rules called)
 # Later, For @REBOOTS:
@@ -2356,46 +2371,6 @@ systemd_tmpfiles () {
 
 # WooCommerce REST & ARAS SOAP encryption/decryption operations
 #=====================================================================
-
-# Check -s argument
-if [[ "$1" != "-s" && "$1" != "--setup" ]]; then
-	if [[ "$(ls -1q ${this_script_lck_path}/.*lck 2>/dev/null | wc -l)" -lt 8 ]]; then
-		echo -e "\n${yellow}*${reset} ${yellow}The previous installation was not completed or${reset}"
-		echo "${m_tab}${yellow}you are running the script first time without${reset}"
-		echo "${m_tab}${yellow}-s parameter.${reset}"
-		echo "${cyan}${m_tab}#####################################################${reset}"
-		echo "${m_tab}${yellow}We can continue the installation if you wish but${reset}"
-		echo "${m_tab}${yellow}If you are running the script first time please use${reset}"
-		echo "${m_tab}${yellow}-s argument for guided installation. Check below table.${reset}"
-		help
-
-		read -n 1 -s -r -p "${green}>  Press any key to continue, q for quit${reset}" reply < /dev/tty; echo
-		if [ "$reply" == "q" ]; then
-			echo
-			exit 0
-		fi
-	fi
-fi
-
-# Check uncompleted setup
-if [[ "$1" != "-s" && "$1" != "--setup" ]]; then
-	if [[ "$(ls -1q ${this_script_lck_path}/.*lck 2>/dev/null | wc -l)" -eq 8 ]]; then
-		if [[ ! -e "${this_script_path}/.woo.aras.set" ]]; then
-			echo -e "\n${yellow}*${reset} ${yellow}The previous installation was not completed.${reset}"
-			echo "${cyan}${m_tab}#####################################################${reset}"
-			echo "${m_tab}${yellow}We will continue the installation.${reset}"
-			echo "${m_tab}${yellow}If you encounter any problem please use${reset}"
-			echo "${m_tab}${yellow}-s argument for hard reset/restart the installation.${reset}"
-			help
-
-			read -n 1 -s -r -p "${green}>  Press any key to continue, q for quit${reset}" reply < /dev/tty; echo
-			if [[ "${reply}" == "q" ]]; then
-				echo
-				exit 0
-			fi
-		fi
-	fi
-fi
 
 encrypt_ops_exit () {
 	send_mail "Woocommerce-Aras Cargo integration error, missing file ${1}, please re-start setup"
