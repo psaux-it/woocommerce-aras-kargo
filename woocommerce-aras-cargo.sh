@@ -391,7 +391,7 @@ if [[ $# -eq 0 ]]; then
 	if [[ ! -e "${this_script_path}/.woo.aras.set" ]]; then
 		echo -e "\n${red}*${reset} ${red}Broken installation:${reset}"
 		echo "${cyan}${m_tab}#####################################################${reset}"
-                echo -e "${m_tab}${red}Or you are running the script first time${reset}"
+		echo -e "${m_tab}${red}Or you are running the script first time${reset}"
 		echo -e "${m_tab}${red}Check below instructions for basic usage${reset}\n"
 		usage
 		broken_installation "Broken installation, please re-start setup"
