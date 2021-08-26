@@ -812,7 +812,7 @@ my_status () {
 	fi
 
 	# Get total processed order status (include rotated logs)
-	total_processed=$(find "${wooaras_log%/*}/" -name '\*.log*' -print0 2>/dev/null |
+	total_processed=$(find "${wooaras_log%/*}/" -name \*.log* -print0 2>/dev/null |
 				xargs -0 zgrep -ci "SHIPPED" |
 				$m_awk 'BEGIN {cnt=0;FS=":"}; {cnt+=$2;}; END {print cnt;}')
 	echo "${green}Total_Processed_Orders: $total_processed${reset}"
