@@ -401,7 +401,7 @@ fi
 
 # Verify twoway installation content
 if [[ "${1}" == "-s" || "${1}" == "--setup" ]]; then
-	if [[ "$(ls -A "${this_script_path}/custom-order-status-package" 2>/dev/null | wc -l)" -ne 0 ]]; then
+	if [[ "$(ls -A "${this_script_path}/custom-order-status-package" 2>/dev/null | wc -l)" -eq 0 ]]; then
 		echo -e "\n${red}*${reset} ${red}Missing installation contents found:${reset}"
 		echo "${cyan}${m_tab}#####################################################${reset}"
 		echo -e "${m_tab}${red}Check usage details below and git clone repo again${reset}\n"
