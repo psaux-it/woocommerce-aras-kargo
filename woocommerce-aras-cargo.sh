@@ -73,7 +73,7 @@ cron_minute_update="19 9 * * 0"
 
 # Systemd job schedule timer
 # At every 30th minute past every hour from 9 through 19 on every day-of-week from Monday through Saturday.
-on_calendar="Mon..Sat 9..19:00/30:00"
+on_calendar="Mon..Sat 9..19:00/30:00 Europe/Istanbul"
 
 # Logrotate configuration
 # Keeping log file size small is important for performance (kb)
@@ -272,6 +272,15 @@ fi
 
 # Accept only one argument
 [[ "${#}" -gt 1 ]] && { help; exit 1; }
+
+# For @SETUP && @UNINSTALL:
+# Display usage for necessary privileges
+if [[ "${1}" == "-s" || "${1}" == "--setup" || "${1}" == "-d" || "${1}" == "--uninstall" ]]; then
+	if [[ ! $SUDO_USER && $EUID -ne 0 ]]; then
+		usage
+		exit 1
+	fi
+fi
 # =====================================================================
 
 # Guides placed at the beginning of the script
@@ -377,23 +386,26 @@ path_pretty_error () {
 	exit 1
 }
 
-# For @SETUP && @UNINSTALL:
-# Display usage for necessary privileges
-if [[ "${1}" == "-s" || "${1}" == "--setup" || "${1}" == "-d" || "${1}" == "--uninstall" ]]; then
-	if [[ ! $SUDO_USER && $EUID -ne 0 ]]; then
+# Verify installation & make immutable calling script without argument till setup completed
+if [[ $# -eq 0 ]]; then
+	if [[ ! -e "${this_script_path}/.woo.aras.set" ]]; then
+		echo -e "\n${red}*${reset} ${red}Broken installation:${reset}"
+		echo "${cyan}${m_tab}#####################################################${reset}"
+                echo -e "${m_tab}${red}Or you are running the script first time${reset}"
+		echo -e "${m_tab}${red}Check below instructions for basic usage${reset}\n"
 		usage
+		broken_installation "Broken installation, please re-start setup"
 		exit 1
 	fi
 fi
 
-# Verify installation & make immutable calling script without argument till setup completed
-if [[ $# -eq 0 ]]; then
-	if [[ ! -e "${this_script_path}/.woo.aras.set" ]]; then
-		echo -e "\n${red}*${reset} ${red}Broken installation or${reset}"
-                echo -e "${m_tab}${red}you are running the script first time${reset}"
-		echo -e "${m_tab}${red}Check below instructions for basic usage${reset}\n"
+# Verify twoway installation content
+if [[ "${1}" == "-s" || "${1}" == "--setup" ]]; then
+	if [[ "$(ls -A "${this_script_path}/custom-order-status-package" 2>/dev/null | wc -l)" -ne 0 ]]; then
+		echo -e "\n${red}*${reset} ${red}Missing installation contents found:${reset}"
+		echo "${cyan}${m_tab}#####################################################${reset}"
+		echo -e "${m_tab}${red}Check usage details below and git clone repo again${reset}\n"
 		usage
-		broken_installation "Broken installation, please re-start setup"
 		exit 1
 	fi
 fi
