@@ -1418,8 +1418,8 @@ install_twoway () {
 		if ! validate_twoway; then
 			echo -e "\n${red}*${reset} ${red}Two way fulfillment workflow installation aborted: ${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
-			echo -e "${m_tab}${red}Missing file(s) ${missing_files[@]}${reset}\n"
-			echo "$(timestamp): Installation aborted, missing file(s) ${missing_files[@]}" >> "${wooaras_log}"
+			echo -e "${m_tab}${red}Missing file(s) ${missing_files[*]}${reset}\n"
+			echo "$(timestamp): Installation aborted, missing file(s) ${missing_files[*]}" >> "${wooaras_log}"
 			exit 1
 		else
 			# Time to enable functions.php modifications
