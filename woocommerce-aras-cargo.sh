@@ -736,7 +736,7 @@ my_status () {
 		fi
 		hide_me --disable
 
-		local w_delivered=$($m_curl -s -X GET -u "$api_key":"$api_secret" -H "Content-Type: application/json" "https://$api_endpoint/wp-json/wc/v3/orders?status=delivered")
+		local w_delivered=$($m_curl -s -X GET -K- <<< "-u "$api_key":"$api_secret"" -H "Content-Type: application/json" "https://$api_endpoint/wp-json/wc/v3/orders?status=delivered")
 		if ! grep -q "rest_invalid_param" <<< "${w_delivered}"; then
 			local ts_status="Completed"
 			echo -e "${green}Two-way_Workflow-Setup: $ts_status${reset}"
@@ -837,7 +837,7 @@ validate_twoway () {
 }
 
 check_delivered () {
-	local w_delivered=$($m_curl -s -X GET -u "$api_key":"$api_secret" -H "Content-Type: application/json" "https://$api_endpoint/wp-json/wc/v3/orders?status=delivered")
+	local w_delivered=$($m_curl -s -X GET -K- <<< "-u "$api_key":"$api_secret"" -H "Content-Type: application/json" "https://$api_endpoint/wp-json/wc/v3/orders?status=delivered")
 	if ! grep -q "rest_invalid_param" <<< "${w_delivered}"; then
 		echo -e "\n${yellow}*${reset} ${yellow}WARNING: Two way fulfillment workflow installation:${reset}"
 		echo "${cyan}${m_tab}#####################################################${reset}"
@@ -874,8 +874,8 @@ pre_check () {
 	echo -ne "${cyan}${m_tab}########                                             [20%]\r${reset}"
 
 	# AST Plugin version
-	$m_curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/system_status" -u "$api_key":"$api_secret" -H "Content-Type: application/json" | $m_jq -r '[.active_plugins[].plugin]' | tr -d '[],"' | $m_awk -F/ '{print $2}' | $m_awk -F. '{print $1}' | $m_sed '/^[[:space:]]*$/d' > "${this_script_path}"/.plg.proc
-	$m_curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/system_status" -u "$api_key":"$api_secret" -H "Content-Type: application/json" | $m_jq -r '[.active_plugins[].version]' | tr -d '[],"' | $m_sed '/^[[:space:]]*$/d' | $m_awk '{$1=$1};1' > "${this_script_path}"/.plg.ver.proc
+	$m_curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/system_status" -K- <<< "-u "$api_key":"$api_secret"" -H "Content-Type: application/json" | $m_jq -r '[.active_plugins[].plugin]' | tr -d '[],"' | $m_awk -F/ '{print $2}' | $m_awk -F. '{print $1}' | $m_sed '/^[[:space:]]*$/d' > "${this_script_path}"/.plg.proc
+	$m_curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/system_status" -K- <<< "-u "$api_key":"$api_secret"" -H "Content-Type: application/json" | $m_jq -r '[.active_plugins[].version]' | tr -d '[],"' | $m_sed '/^[[:space:]]*$/d' | $m_awk '{$1=$1};1' > "${this_script_path}"/.plg.ver.proc
 
 	paste "${this_script_path}/.plg.proc" "${this_script_path}/.plg.ver.proc" > "${this_script_path}/.plg.act.proc"
 	echo -ne "${cyan}${m_tab}##################                                   [40%]\r${reset}"
@@ -888,7 +888,7 @@ pre_check () {
 	fi
 
 	# WooCommerce version
-	local woo_ver=$($m_curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/system_status" -u "$api_key":"$api_secret" -H "Content-Type: application/json" | $m_jq -r '[.environment.version]|join(" ")')
+	local woo_ver=$($m_curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/system_status" -K- <<< "-u "$api_key":"$api_secret"" -H "Content-Type: application/json" | $m_jq -r '[.environment.version]|join(" ")')
 	echo -ne "${cyan}${m_tab}##########################################           [85%]\r${reset}"
 
 	# Bash Version
@@ -1028,12 +1028,12 @@ find_child_path () {
 	hide_me --disable
 
 	# Get active child theme info
-	local theme_child=$($m_curl -s -X GET -u "$api_key":"$api_secret" -H "Content-Type: application/json" "https://$api_endpoint/wp-json/wc/v3/system_status" | $m_jq -r '[.theme.is_child_theme]|join(" ")')
+	local theme_child=$($m_curl -s -X GET -K- <<< "-u "$api_key":"$api_secret"" -H "Content-Type: application/json" "https://$api_endpoint/wp-json/wc/v3/system_status" | $m_jq -r '[.theme.is_child_theme]|join(" ")')
 
 	# Find absolute path of child theme if exist
 	if [[ "${theme_child}" == "true" ]]; then
-		theme_path=$($m_curl -s -X GET -u "$api_key":"$api_secret" -H "Content-Type: application/json" "https://$api_endpoint/wp-json/wc/v3/system_status" | $m_jq -r '[.environment.log_directory]|join(" ")' | $m_awk -F 'wp-content' '{print $1"wp-content"}')
-		theme_name=$($m_curl -s -X GET -u "$api_key":"$api_secret" -H "Content-Type: application/json" "https://$api_endpoint/wp-json/wc/v3/system_status" | $m_jq -r '[.theme.name]|join(" ")')
+		theme_path=$($m_curl -s -X GET -K- <<< "-u "$api_key":"$api_secret"" -H "Content-Type: application/json" "https://$api_endpoint/wp-json/wc/v3/system_status" | $m_jq -r '[.environment.log_directory]|join(" ")' | $m_awk -F 'wp-content' '{print $1"wp-content"}')
+		theme_name=$($m_curl -s -X GET -K- <<< "-u "$api_key":"$api_secret"" -H "Content-Type: application/json" "https://$api_endpoint/wp-json/wc/v3/system_status" | $m_jq -r '[.theme.name]|join(" ")')
 		theme_name="${theme_name//[^[:alnum:]]/}"
 		theme_name="${theme_name,,}"
 		for i in "${theme_path}"/themes/*
@@ -1167,7 +1167,7 @@ uninstall_twoway () {
 	if [[ -e "${this_script_path}/.woo.aras.set" ]]; then # Check default installation is completed
 		find_child_path
 		if [[ -e "${this_script_path}/.two.way.enb" ]]; then # Check twoway installation
-			local get_delivered=$($m_curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/orders?status=delivered" -u "$api_key":"$api_secret" -H "Content-Type: application/json") # Get data
+			local get_delivered=$($m_curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/orders?status=delivered" -K- <<< "-u "$api_key":"$api_secret"" -H "Content-Type: application/json") # Get data
 			if [[ "${get_delivered}" ]]; then # Any data
 				if [[ "${get_delivered}" != "[]" ]]; then # Check for null data
 					if grep -q "${my_string}" "${absolute_child_path}/functions.php"; then # Lastly, check the file is not modified
@@ -1184,13 +1184,13 @@ uninstall_twoway () {
 						}
 
 						# Get ids to array --> need bash_ver => 4
-						readarray -t delivered_ids < <($m_curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/orders?status=delivered" -u "$api_key":"$api_secret" -H "Content-Type: application/json" | $m_jq -r '.[]|[.id]|join(" ")')
+						readarray -t delivered_ids < <($m_curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/orders?status=delivered&per_page=100" -K- <<< "-u "$api_key":"$api_secret"" -H "Content-Type: application/json" | $m_jq -r '.[]|[.id]|join(" ")')
 
 						# Update orders status to completed
 						for id in "${delivered_ids[@]}"
 						do
 							if ! $m_curl -s -o /dev/null -X PUT "https://$api_endpoint/wp-json/wc/v3/orders/${id}" --fail \
-								-u "$api_key":"$api_secret" \
+								-K- <<< "-u "$api_key":"$api_secret"" \
 								-H "Content-Type: application/json" \
 								-d '{
 								"status": "completed"
@@ -2620,7 +2620,7 @@ w_curl_s () {
 
 w_curl_a () {
 	$m_curl -X GET \
-		-u "$api_key":"$api_secret" \
+		-K- <<< "-u "$api_key":"$api_secret"" \
 		-H "Content-Type: application/json" \
 		"https://$api_endpoint/wp-json/wc/v3/settings" > "${this_script_path}/curl.proc" 2>&1
 }
@@ -2873,7 +2873,7 @@ if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 		sleep 1
 		echo -ne "${cyan}${m_tab}#####################################################[100%]\r${reset}"
 		echo -ne '\n'
-		data_test=$($m_curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/orders?per_page=5" -u "$api_key":"$api_secret" -H "Content-Type: application/json")
+		data_test=$($m_curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/orders?per_page=5" -K- <<< "-u "$api_key":"$api_secret"" -H "Content-Type: application/json")
 		if [[ "${data_test}" == "[]" ]]; then
 			echo -e "\n${red}*${reset} ${red}Couldn't find any woocommerce order data to validate.${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
@@ -3004,8 +3004,8 @@ catch_trap_fail () {
 
 # Get WC order's ID (processing status) & WC customer info
 # As of 2021 max 100 orders fetchable with one query
-if $m_curl -s -o /dev/null -X GET --fail "https://$api_endpoint/wp-json/wc/v3/orders?status=processing&per_page=100" -u "$api_key":"$api_secret" -H "Content-Type: application/json"; then
-	$m_curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/orders?status=processing&per_page=100" -u "$api_key":"$api_secret" -H "Content-Type: application/json" |
+if $m_curl -s -o /dev/null -X GET --fail "https://$api_endpoint/wp-json/wc/v3/orders?status=processing&per_page=100" -K- <<< "-u "$api_key":"$api_secret"" -H "Content-Type: application/json"; then
+	$m_curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/orders?status=processing&per_page=100" -K- <<< "-u "$api_key":"$api_secret"" -H "Content-Type: application/json" |
 	$m_jq -r '.[]|[.id,.shipping.first_name,.shipping.last_name]|join(" ")' > "$this_script_path/wc.proc"
 else
 	echo -e "\n${red}*${reset}${red} WooCommerce REST API Connection Error${reset}"
@@ -3076,7 +3076,7 @@ if [[ -e "${this_script_path}/.two.way.enb" ]]; then
 		if ! [[ -e "${this_script_path}/wc.proc.del.tmp1" && -e "${this_script_path}/wc.proc.del.tmp" ]]; then # These are always appended file and trap(cleanup) can fail
 			for i in "${!check_status_del[@]}"
 			do
-				check_status_del_new[$i]=$($m_curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/orders/${check_status_del[$i]}" -u "$api_key":"$api_secret" -H "Content-Type: application/json" | $m_jq -r '[.status]|join(" ")')
+				check_status_del_new[$i]=$($m_curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/orders/${check_status_del[$i]}" -K- <<< "-u "$api_key":"$api_secret"" -H "Content-Type: application/json" | $m_jq -r '[.status]|join(" ")')
 				echo "${i}" "${check_status_del_new[$i]}" >> "${this_script_path}/wc.proc.del.tmp1"
 				echo "${i}" "${check_status_del[$i]}" >> "${this_script_path}/wc.proc.del.tmp"
 			done
@@ -3256,14 +3256,14 @@ if [[ -e "${this_script_path}/.woo.aras.enb" ]]; then
 		do
 			# Update order with AST Plugin REST API
 			if $m_curl -s -o /dev/null -X POST --fail \
-				-u "$api_key":"$api_secret" \
+				-K- <<< "-u "$api_key":"$api_secret"" \
 				-H "Content-Type: application/json" \
 				-d '{"tracking_provider": "Aras Kargo","tracking_number": "'"${track}"'","date_shipped": "'"${t_date}"'","status_shipped": 1}' \
 				"https://$api_endpoint/wp-json/wc-ast/v3/orders/$id/shipment-trackings"; then
 				sleep 5
-				c_name=$($m_curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/orders/$id" -u "$api_key":"$api_secret" -H "Content-Type: application/json" | $m_jq -r '[.shipping.first_name,.shipping.last_name]|join(" ")')
+				c_name=$($m_curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/orders/$id" -K- <<< "-u "$api_key":"$api_secret"" -H "Content-Type: application/json" | $m_jq -r '[.shipping.first_name,.shipping.last_name]|join(" ")')
 				# If you use 'sequential order number' plugins
-				order_number=$($m_curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/orders/$id" -u "$api_key":"$api_secret" -H "Content-Type: application/json" | $m_jq -r '[.meta_data]' | $m_awk '/_order_number/{getline; print}' | $m_awk -F: '{print $2}' | tr -d '"' | $m_sed -r 's/\s+//g' | tr " " "*" | tr "\t" "&")
+				order_number=$($m_curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/orders/$id" -K- <<< "-u "$api_key":"$api_secret"" -H "Content-Type: application/json" | $m_jq -r '[.meta_data]' | $m_awk '/_order_number/{getline; print}' | $m_awk -F: '{print $2}' | tr -d '"' | $m_sed -r 's/\s+//g' | tr " " "*" | tr "\t" "&")
 				# Notify shop manager -- HTML mail
 				send_mail_suc <<- EOF >/dev/null 2>&1
 				<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd"><html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"/></head><body><table id="v1template_container" style="background-color: #ffffff; border: 1px solid #dedede; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1); border-radius: 3px;" border="0" width="600" cellspacing="0" cellpadding="0"><tbody><tr><td align="center" valign="top"><table id="v1template_header" style="background-color: #567d46; color: #ffffff; border-bottom: 0; font-weight: bold; line-height: 100%; vertical-align: middle; font-family: 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif; border-radius: 3px 3px 0 0;" border="0" width="100%" cellspacing="0" cellpadding="0"><tbody><tr><td id="v1header_wrapper" style="padding: 36px 48px; display: block;"><h2 style="font-family: 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif; font-size: 30px; font-weight: 300; line-height: 150%; margin: 0px; text-shadow: #78976b 0px 1px 0px; color: #ffffff; background-color: inherit; text-align: center;">Aras Kargo Otomatik Güncelleme: $id - $order_number</h2></td></tr></tbody></table></td></tr><tr><td align="center" valign="top"><table id="v1template_body" border="0" width="600" cellspacing="0" cellpadding="0"><tbody><tr><td id="v1body_content" style="background-color: #ffffff;" valign="top"><table border="0" width="100%" cellspacing="0" cellpadding="20"><tbody><tr><td style="padding: 48px 48px 32px;" valign="top"><div id="v1body_content_inner" style="color: #636363; font-family: 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif; font-size: 14px; line-height: 150%; text-align: left;"><p style="margin: 0 0 16px;">Merhaba $company_name, $c_name siparişi kargoya verildi ve sipariş durumu tamamlandı olarak güncellendi: Müşteriye kargo takip kodunu da içeren bir bilgilendirme maili gönderildi.</p><h2 style="color: #567d46; display: block; font-family: 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif; font-size: 18px; font-weight: bold; line-height: 130%; margin: 0 0 18px; text-align: left;"><a class="v1link" style="font-weight: normal; text-decoration: underline; color: #567d46;" href="#" target="_blank" rel="noreferrer">[Sipariş #$id]</a> ($t_date)</h2><div style="margin-bottom: 40px;"><table class="v1td" style="color: #636363; border: 1px solid #e5e5e5; vertical-align: middle; width: 100%; font-family: 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif;" border="1" cellspacing="0" cellpadding="6"><thead><tr><th class="v1td" style="color: #636363; border: 1px solid #e5e5e5; vertical-align: middle; padding: 12px; text-align: left;">KARGO</th><th class="v1td" style="color: #636363; border: 1px solid #e5e5e5; vertical-align: middle; padding: 12px; text-align: left;">İSİM</th><th class="v1td" style="color: #636363; border: 1px solid #e5e5e5; vertical-align: middle; padding: 12px; text-align: left;">TAKİP KODU</th></tr></thead><tbody><tr class="v1order_item"><td class="v1td" style="color: #636363; border: 1px solid #e5e5e5; padding: 12px; text-align: left; vertical-align: middle; font-family: 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif; word-wrap: break-word;">ARAS KARGO</td><td class="v1td" style="color: #636363; border: 1px solid #e5e5e5; padding: 12px; text-align: left; vertical-align: middle; font-family: 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif;">$c_name</td><td class="v1td" style="color: #636363; border: 1px solid #e5e5e5; padding: 12px; text-align: left; vertical-align: middle; font-family: 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif;">$track</td></tr></tbody></table></div></div></td></tr></tbody></table></td></tr></tbody></table></td></tr></tbody></table></body></html>
@@ -3291,14 +3291,14 @@ if [[ -e "${this_script_path}/.woo.aras.enb" ]]; then
 			do
 				# Update order as delivered via WooCommerce REST API
 				if $m_curl -s -o /dev/null -X PUT --fail \
-					-u "$api_key":"$api_secret" \
+					-K- <<< "-u "$api_key":"$api_secret"" \
 					-H "Content-Type: application/json" \
 					-d '{"status": "delivered"}' \
 					"https://$api_endpoint/wp-json/wc/v3/orders/$id"; then
 					sleep 5
-					c_name=$($m_curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/orders/$id" -u "$api_key":"$api_secret" -H "Content-Type: application/json" | $m_jq -r '[.shipping.first_name,.shipping.last_name]|join(" ")')
+					c_name=$($m_curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/orders/$id" -K- <<< "-u "$api_key":"$api_secret"" -H "Content-Type: application/json" | $m_jq -r '[.shipping.first_name,.shipping.last_name]|join(" ")')
 					# Get order number if you use 'sequential order number' plugin
-					order_number=$($m_curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/orders/$id" -u "$api_key":"$api_secret" -H "Content-Type: application/json" | $m_jq -r '[.meta_data]' | $m_awk '/_order_number/{getline; print}' | $m_awk -F: '{print $2}' | tr -d '"' | $m_sed -r 's/\s+//g' | tr " " "*" | tr "\t" "&")
+					order_number=$($m_curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/orders/$id" -K- <<< "-u "$api_key":"$api_secret"" -H "Content-Type: application/json" | $m_jq -r '[.meta_data]' | $m_awk '/_order_number/{getline; print}' | $m_awk -F: '{print $2}' | tr -d '"' | $m_sed -r 's/\s+//g' | tr " " "*" | tr "\t" "&")
 					# Notify shop manager -- HTML mail
 					send_mail_suc <<- EOF >/dev/null 2>&1
 					<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd"><html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"/></head><body><table id="v1template_container" style="background-color: #ffffff; border: 1px solid #dedede; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1); border-radius: 3px;" border="0" width="600" cellspacing="0" cellpadding="0"><tbody><tr><td align="center" valign="top"><table id="v1template_header" style="background-color: #567d46; color: #ffffff; border-bottom: 0; font-weight: bold; line-height: 100%; vertical-align: middle; font-family: 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif; border-radius: 3px 3px 0 0;" border="0" width="100%" cellspacing="0" cellpadding="0"><tbody><tr><td id="v1header_wrapper" style="padding: 36px 48px; display: block;"><h2 style="font-family: 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif; font-size: 30px; font-weight: 300; line-height: 150%; margin: 0px; text-shadow: #78976b 0px 1px 0px; color: #ffffff; background-color: inherit; text-align: center;">Aras Kargo Otomatik Güncelleme: $id - $order_number</h2></td></tr></tbody></table></td></tr><tr><td align="center" valign="top"><table id="v1template_body" border="0" width="600" cellspacing="0" cellpadding="0"><tbody><tr><td id="v1body_content" style="background-color: #ffffff;" valign="top"><table border="0" width="100%" cellspacing="0" cellpadding="20"><tbody><tr><td style="padding: 48px 48px 32px;" valign="top"><div id="v1body_content_inner" style="color: #636363; font-family: 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif; font-size: 14px; line-height: 150%; text-align: left;"><p style="margin: 0 0 16px;">Merhaba <strong>$company_name</strong>, <strong>$c_name</strong> siparişi müşteriye ulaştı ve sipariş durumu <strong>Teslim Edildi</strong> olarak güncellendi. Müşteriye sipariş durumunu içeren bir bilgilendirme e-mail'i gönderildi.</p><h2 style="color: #567d46; display: block; font-family: 'Helvetica Neue', Helvetica, Roboto, Arial, sans-serif; font-size: 18px; font-weight: bold; line-height: 130%; margin: 0 0 18px; text-align: left;"><a class="v1link" style="font-weight: normal; text-decoration: underline; color: #567d46;" href="#" target="_blank" rel="noopener noreferrer">[Sipariş #$id]</a> ($t_date)</h2><div style="margin-bottom: 40px;">&nbsp;</div></div></td></tr></tbody></table></td></tr></tbody></table></td></tr></tbody></table></body></html>
