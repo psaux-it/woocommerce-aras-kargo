@@ -311,6 +311,30 @@ while :; do
 	shift
 done
 
+# Check smtp ports are listening to determine mail server running
+if command -v lsof >/dev/null 2>&1; then
+	if lsof -i -P -n | grep -q "25\|587\|465\|2525"; then
+		check_mail_server=0
+	else
+		send_mail_err=0
+		check_mail_server=1
+	fi
+elif command -v netstat >/dev/null 2>&1; then
+	if netstat -tulpn | grep -q "25\|587\|465\|2525"; then
+		check_mail_server=0
+	else
+		send_mail_err=0
+		check_mail_server=1
+	fi
+elif command -v ss >/dev/null 2>&1; then
+	if ss -tulpn | grep -q "25\|587\|465\|2525"; then
+		check_mail_server=0
+	else
+		send_mail_err=0
+		check_mail_server=1
+	fi
+fi
+
 # Pretty send mail function
 send_mail () {
 	if [[ $send_mail_err -eq 1 ]]; then
@@ -558,32 +582,6 @@ dynamic_vars () {
 	suffix="m"
 	eval "${suffix}"_"${1}"="$(command -v "${1}" 2>/dev/null)"
 }
-
-# Check mailserver > as smtp port 587 is open and listening
-# Still using port 25? I don't care..
-if timeout 1 bash -c "cat < /dev/null > /dev/tcp/${my_ip}/587" >/dev/null 2>&1; then
-	if command -v lsof >/dev/null 2>&1; then
-		if lsof -i -P -n | grep -q 587; then
-			check_mail_server=0
-		else
-			check_mail_server=1
-		fi
-	elif command -v netstat >/dev/null 2>&1; then
-		if netstat -tulpn | grep -q 587; then
-			check_mail_server=0
-		else
-			check_mail_server=1
-		fi
-	elif command -v ss >/dev/null 2>&1; then
-		if ss -tulpn | grep -q 587; then
-			check_mail_server=0
-		else
-			check_mail_server=1
-		fi
-	fi
-else
-	check_mail_server=1
-fi
 
 # Check dependencies
 declare -a dependencies=("curl" "iconv" "openssl" "jq" "php" "perl" "awk" "sed" "pstree" "stat" "$send_mail_command" "whiptail" "logrotate" "paste" "column" "zgrep" "mapfile" "readarray" "locale" "systemctl" "chattr")
