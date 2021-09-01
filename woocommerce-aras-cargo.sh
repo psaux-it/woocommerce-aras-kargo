@@ -122,11 +122,11 @@ send_mail_suc () {
 
 # Script called by
 called_by () {
-	# Cron
 	local FROM_CRON
 	local FROM_CRON_2
 	local FROM_SYSTEMD
 
+	# Cron
 	FROM_CRON="$(pstree -s $$ | grep -c cron 2>/dev/null)"
 	FROM_CRON_2=$([[ ! "$TERM" || "$TERM" = "dumb" ]] && echo '1' || echo '0')
 
