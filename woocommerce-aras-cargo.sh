@@ -584,7 +584,7 @@ dynamic_vars () {
 }
 
 # Check dependencies
-declare -a dependencies=("curl" "iconv" "openssl" "jq" "php" "perl" "awk" "sed" "pstree" "stat" "$send_mail_command" "whiptail" "logrotate" "paste" "column" "zgrep" "mapfile" "readarray" "locale" "systemctl" "chattr")
+declare -a dependencies=("curl" "iconv" "openssl" "jq" "php" "perl" "awk" "sed" "pstree" "stat" "$send_mail_command" "whiptail" "logrotate" "paste" "column" "zgrep" "mapfile" "readarray" "locale" "systemctl")
 for i in "${dependencies[@]}"
 do
 	if ! command -v "$i" > /dev/null 2>&1; then
@@ -1661,11 +1661,6 @@ un_install () {
 		echo -e "${yellow}${m_tab}${wooaras_log}${reset}\n"
 	fi
 
-	# Remove immutable bit & lock files
-	for i in "${this_script_lck_path}"/.*lck
-	do
-		chattr -i "$i" >/dev/null 2>&1
-	done
 	rm -rf "${this_script_lck_path:?}"/.*lck >/dev/null 2>&1
 
 	rm -f "${this_script_path:?}/.woo.aras.set" >/dev/null 2>&1
@@ -1685,11 +1680,6 @@ on_fly_disable () {
 # Pre-setup operations
 on_fly_enable () {
 		# Remove lock files (hard-reset) to re-start fresh setup
-		# Remove IMMUTABLE bit
-		for i in "${this_script_lck_path}"/.*lck
-		do
-			chattr -i "${i}" >/dev/null 2>&1
-		done
 		rm -rf "${this_script_lck_path:?}"/.*lck >/dev/null 2>&1
 
 		rm -f "${this_script_path:?}/.woo.aras.set" >/dev/null 2>&1
@@ -2472,6 +2462,7 @@ encrypt_wc_auth () {
 			if [[ "${my_wc_api_key}" == "q" || "${my_wc_api_key}" == "quit" ]]; then exit 1; fi
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			echo "${my_wc_api_key}" | openssl enc -base64 -e -aes-256-cbc -nosalt  -pass pass:garbageKey  2>/dev/null > "${this_script_lck_path}/.key.wc.lck"
+			depriv "${this_script_lck_path}/.key.wc.lck"
 		else
 			encrypt_ops_exit "${this_script_lck_path}/.key.wc.lck"
 		fi
@@ -2484,6 +2475,7 @@ encrypt_wc_auth () {
 			if [[ "${my_wc_api_secret}" == "q" || "${my_wc_api_secret}" == "quit" ]]; then exit 1; fi
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			echo "${my_wc_api_secret}" | openssl enc -base64 -e -aes-256-cbc -nosalt  -pass pass:garbageKey  2>/dev/null > "${this_script_lck_path}/.secret.wc.lck"
+			depriv "${this_script_lck_path}/.secret.wc.lck"
 		else
 			encrypt_ops_exit "${this_script_lck_path}/.secret.wc.lck"
 		fi
@@ -2502,6 +2494,7 @@ encrypt_wc_end () {
 			if [[ "${my_wc_api_endpoint}" == "q" || "${my_wc_api_endpoint}" == "quit" ]]; then exit 1; fi
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			echo "${my_wc_api_endpoint}" | openssl enc -base64 -e -aes-256-cbc -nosalt  -pass pass:garbageKey  2>/dev/null > "${this_script_lck_path}/.end.wc.lck"
+			depriv "${this_script_lck_path}/.end.wc.lck"
 		else
 			encrypt_ops_exit "${this_script_lck_path}/.end.wc.lck"
 		fi
@@ -2519,6 +2512,7 @@ encrypt_aras_auth () {
 			if [[ "${my_aras_api_pass}" == "q" || "${my_aras_api_pass}" == "quit" ]]; then exit 1; fi
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			echo "${my_aras_api_pass}" | openssl enc -base64 -e -aes-256-cbc -nosalt  -pass pass:garbageKey  2>/dev/null > "${this_script_lck_path}/.key.aras.lck"
+			depriv "${this_script_lck_path}/.key.aras.lck"
 		else
 			encrypt_ops_exit "${this_script_lck_path}/.end.wc.lck"
 		fi
@@ -2531,6 +2525,7 @@ encrypt_aras_auth () {
 			if [[ "${my_aras_api_usr}" == "q" || "${my_aras_api_usr}" == "quit" ]]; then exit 1; fi
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			echo "${my_aras_api_usr}" | openssl enc -base64 -e -aes-256-cbc -nosalt  -pass pass:garbageKey  2>/dev/null > "${this_script_lck_path}/.usr.aras.lck"
+			depriv "${this_script_lck_path}/.key.aras.lck"
 		else
 			encrypt_ops_exit "${this_script_lck_path}/.usr.aras.lck"
 		fi
@@ -2550,6 +2545,7 @@ encrypt_aras_auth () {
 				esac
 			done
 			echo "${my_aras_api_mrc}" | openssl enc -base64 -e -aes-256-cbc -nosalt  -pass pass:garbageKey  2>/dev/null > "${this_script_lck_path}/.mrc.aras.lck"
+			depriv "${this_script_lck_path}/.mrc.aras.lck"
 		else
 			encrypt_ops_exit "${this_script_lck_path}/.mrc.aras.lck"
 		fi
@@ -2567,6 +2563,7 @@ encrypt_aras_end () {
 			if [[ "${my_aras_api_end}" == "q" || "${my_aras_api_end}" == "quit" ]]; then exit 1; fi
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			echo "${my_aras_api_end}" | openssl enc -base64 -e -aes-256-cbc -nosalt  -pass pass:garbageKey  2>/dev/null > "${this_script_lck_path}/.end.aras.lck"
+			depriv "${this_script_lck_path}/.end.aras.lck"
 		else
 			encrypt_ops_exit "${this_script_lck_path}/.end.aras.lck"
 		fi
@@ -2591,6 +2588,7 @@ encrypt_aras_qry () {
 			done
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			echo "${my_aras_api_qry}" | openssl enc -base64 -e -aes-256-cbc -nosalt  -pass pass:garbageKey  2>/dev/null > "${this_script_lck_path}/.qry.aras.lck"
+			depriv "${this_script_lck_path}/.qry.aras.lck"
 		else
 			encrypt_ops_exit "${this_script_lck_path}/.qry.aras.lck"
 		fi
@@ -2600,10 +2598,10 @@ encrypt_aras_qry () {
 
 encrypt_wc_auth && encrypt_wc_end && encrypt_aras_auth && encrypt_aras_end && encrypt_aras_qry ||
 {
-echo -e "\n${red}*${reset} ${red}Encrypt Error: ${reset}";
-echo -e "${cyan}${m_tab}#####################################################${reset}\n";
-echo "$(timestamp): Encrypt error." >> "${wooaras_log}";
-exit 1;
+echo -e "\n${red}*${reset} ${red}Encrypt Error: ${reset}"
+echo -e "${cyan}${m_tab}#####################################################${reset}\n"
+echo "$(timestamp): Encrypt error." >> "${wooaras_log}"
+exit 1
 }
 
 # decrypt ARAS SOAP API credentials
@@ -2636,16 +2634,14 @@ decrypt_wc_end () {
 
 decrypt_aras_auth && decrypt_aras_end && decrypt_wc_auth && decrypt_wc_end ||
 {
-echo -e "\n${red}*${reset} ${red}Decrypt Error: ${reset}";
-echo -e "${cyan}${m_tab}#####################################################${reset}\n";
-echo "$(timestamp): Decrypt error." >> "${wooaras_log}";
-exit 1;
+echo -e "\n${red}*${reset} ${red}Decrypt Error: ${reset}"
+echo -e "${cyan}${m_tab}#####################################################${reset}\n"
+echo "$(timestamp): Decrypt error." >> "${wooaras_log}"
+exit 1
 }
 
-# Write out the current history(memory) to the history file
-history -w
-
 # Double check any sensetive data written to history
+history -w
 if [[ "${HISTFILE}" ]]; then
 	declare -a lock_files=(".key.wc.lck" ".secret.wc.lck" ".end.wc.lck" ".key.aras.lck" ".usr.aras.lck" ".mrc.aras.lck" ".end.aras.lck" ".qry.aras.lck")
 	for i in "${lock_files[@]}"
@@ -2894,14 +2890,11 @@ if [[ "${RUNNING_FROM_CRON}" -eq 0 && "${RUNNING_FROM_SYSTEMD}" -eq 0 ]]; then
 elif grep -q "error_75546475052" "${this_script_path}/aras.json"; then
 		control_ops_exit "ARAS SOAP API Authentication error, check your ARAS SOAP API credentials"
 fi
-
-# disabled trap clean_up may expose credentials so delete file immediately
-rm -f "${this_script_path:?}/aras_request.php"
 # END CONTROLS
 #=====================================================================
 
-# Passed all controls, time to call INSTALLATION functions
-# Also validate the data that parsed by script.
+# @INSTALLATION
+# Validate the data that parsed by script.
 # If ARAS data is empty first check 'merchant code' which not return any error from ARAS SOAP end
 if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 	if [[ ! -e "${this_script_path}/.woo.aras.set" ]]; then
@@ -2991,12 +2984,6 @@ if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
 				[Nn]* ) auto_update=0; break;;
 				* ) echo -e "\n${m_tab}${magenta}Please answer yes or no.${reset}"; echo "${cyan}${m_tab}#####################################################${reset}";;
 			esac
-		done
-
-		# Add IMMUTABLE to critical files
-		for i in "${this_script_lck_path}"/.*lck
-		do
-			chattr +i "$i" >/dev/null 2>&1
 		done
 
 		echo -e "\n${green}*${reset} ${green}Default setup completed.${reset}"
