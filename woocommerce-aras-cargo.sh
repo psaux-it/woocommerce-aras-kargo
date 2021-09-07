@@ -2350,12 +2350,12 @@ add_logrotate () {
 				logrotate_installed="asfile"
 				cat <<- EOF > "${logrotate_dir}/${logrotate_filename}"
 				${wooaras_log} {
-				prerotate
+				firstaction
 				${cron_script_full_path} --rotate >/dev/null 2>&1
-				exit \$?
 				endscript
+				su ${user} ${user}
 				daily
-				rotate 10000000000
+				rotate 100
 				size ${l_maxsize}
 				compress
 				create 0660 ${user} ${user}
