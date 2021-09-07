@@ -3312,7 +3312,7 @@ if [[ -e "${this_script_path}/.woo.aras.enb" ]]; then
 							-e 's|$id|'"${id}"'|g' \
 							-e 's|$c_name|'"${c_name}"'|g' \
 							-e 's|$order_number|'"${order_number}"'|g' \
-							-e 's|$t_date|'"${t_date}"'|g' "${this_script_path}/emails/shipped.html.min") >/dev/null 2>&1
+							-e 's|$t_date|'"${t_date}"'|g' "${this_script_path}/emails/shipped.min.html") >/dev/null 2>&1
 				echo "$(date +"%T,%d-%b-%Y"): ORDER MARKED AS SHIPPED: Order_Id=$id Order_Number=$order_number Aras_Tracking_Number=$track Customer_Info=$c_name" >> "${wooaras_log}"
 				echo "${green}*${reset} ${green}ORDER UPDATED AS COMPLETED: Order_Id=$id Order_Number=$order_number Aras_Tracking_Number=$track Customer_Info=$c_name${reset}"
 				sleep 10
@@ -3351,7 +3351,7 @@ if [[ -e "${this_script_path}/.woo.aras.enb" ]]; then
 								-e 's|$id|'"${id}"'|g' \
 								-e 's|$c_name|'"${c_name}"'|g' \
 								-e 's|$order_number|'"${order_number}"'|g' \
-								-e 's|$t_date|'"${t_date}"'|g' "${this_script_path}/emails/delivered.html.min") >/dev/null 2>&1
+								-e 's|$t_date|'"${t_date}"'|g' "${this_script_path}/emails/delivered.min.html") >/dev/null 2>&1
 					echo "$(date +"%T,%d-%b-%Y"): ORDER MARKED AS DELIVERED: Order_Id=$id Order_Number=$order_number Customer_Info=$c_name" >> "${wooaras_log}"
 					echo "${green}*${reset} ${green}ORDER UPDATED AS DELIVERED: Order_Id=$id Order_Number=$order_number Customer_Info=$c_name${reset}"
 					sleep 10
