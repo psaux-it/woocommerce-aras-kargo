@@ -652,10 +652,9 @@ done
 # Prevent iconv text translation errors
 # Set locale category for character handling functions (otherwise this script not work correctly)
 m_ctype=$(locale | grep LC_CTYPE | cut -d= -f2 | cut -d_ -f1 | tr -d '"')
-if [ "$m_ctype" != "en" ]; then
+if [[ "${m_ctype}" != "en" ]]; then
 	if locale -a | grep -iq "en_US.utf8"; then
 		export LC_ALL=en_US.UTF-8
-		export LC_CTYPE=en_US.UTF-8
 		lang_setted=1
 	else
 		echo -e "\n${red}*${reset} ${red}English locale not found${reset}"
@@ -686,7 +685,6 @@ clean_up () {
 	# Unset locale if setted before
 	if [[ "${lang_setted}" ]]; then
 		unset LC_ALL
-		unset LC_CTYPE
 	fi
 }
 
