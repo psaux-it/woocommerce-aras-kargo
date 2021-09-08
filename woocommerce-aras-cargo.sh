@@ -752,9 +752,9 @@ my_status () {
 
 		hide_me --enable
 		if [[ ! "${api_key}" || ! "${api_secret}" || ! "${api_endpoint}" ]]; then
-			api_key=$(< "$this_script_lck_path/.key.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
-			api_secret=$(< "$this_script_lck_path/.secret.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
-			api_endpoint=$(< "$this_script_lck_path/.end.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
+			api_key=$(< "${this_script_lck_path}/.key.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
+			api_secret=$(< "${this_script_lck_path}/.secret.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
+			api_endpoint=$(< "${this_script_lck_path}/.end.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
 		fi
 		hide_me --disable
 
@@ -1065,9 +1065,9 @@ find_child_path () {
 
 	hide_me --enable
 	if [[ ! "${api_key}" || ! "${api_secret}" || ! "${api_endpoint}" ]]; then
-		api_key=$(< "$this_script_lck_path/.key.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
-		api_secret=$(< "$this_script_lck_path/.secret.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
-		api_endpoint=$(< "$this_script_lck_path/.end.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
+		api_key=$(< "${this_script_lck_path}/.key.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
+		api_secret=$(< "${this_script_lck_path}/.secret.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
+		api_endpoint=$(< "${this_script_lck_path}/.end.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
 	fi
 	hide_me --disable
 
@@ -1121,15 +1121,15 @@ find_child_path () {
 			done
 
 			# After user approval assign files and paths to array
-			my_paths=("$absolute_child_path/woocommerce"
-				  "$absolute_child_path/woocommerce/emails"
-				  "$absolute_child_path/woocommerce/templates"
-				  "$absolute_child_path/woocommerce/templates/emails"
-				  "$absolute_child_path/woocommerce/templates/emails/plain")
-			my_files=("$absolute_child_path/woocommerce/emails/class-wc-delivered-status-order.php"
-				  "$absolute_child_path/woocommerce/templates/emails/wc-customer-delivered-status-order.php"
-				  "$absolute_child_path/woocommerce/templates/emails/plain/wc-customer-delivered-status-order.php"
-				  "$absolute_child_path/woocommerce/aras-woo-delivered.php")
+			my_paths=("${absolute_child_path}/woocommerce"
+				  "${absolute_child_path}/woocommerce/emails"
+				  "${absolute_child_path}/woocommerce/templates"
+				  "${absolute_child_path}/woocommerce/templates/emails"
+				  "${absolute_child_path}/woocommerce/templates/emails/plain")
+			my_files=("${absolute_child_path}/woocommerce/emails/class-wc-delivered-status-order.php"
+				  "${absolute_child_path}/woocommerce/templates/emails/wc-customer-delivered-status-order.php"
+				  "${absolute_child_path}/woocommerce/templates/emails/plain/wc-customer-delivered-status-order.php"
+				  "${absolute_child_path}/woocommerce/aras-woo-delivered.php")
 		fi
 	else
 		echo -e "\n${red}*${reset} ${red}You have no activated child theme${reset}"
