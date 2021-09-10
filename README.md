@@ -130,7 +130,7 @@ Critical part such as success mails, fronted&admin side custom order status labe
 ## Top-level Directory & File Layout
 
     .
-    ├── CHANGELOG					  # Changelog Info
+    ├── CHANGELOG					  # Documentation file
     ├── custom-order-status-package                       # Holds build-time dependencies (twoway)
     │   ├── action-unhook-email.php                         # Two-way installation file
     │   ├── aras-woo-delivered.php                          # Two-way installation file
