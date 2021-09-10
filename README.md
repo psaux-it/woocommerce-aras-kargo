@@ -130,16 +130,16 @@ Critical part such as success mails, fronted&admin side custom order status labe
 ## Top-level Directory & File Layout
 
     .
-    ├── CHANGELOG
-    ├── custom-order-status-package                       # Build-time dependency (twoway)
-    │   ├── action-unhook-email.php                       
-    │   ├── aras-woo-delivered.php
-    │   ├── class-wc-delivered-status-order.php
-    │   ├── functions.php
-    │   └── wc-customer-delivered-status-order.php
+    ├── CHANGELOG					  # Changelog Info
+    ├── custom-order-status-package                       # Holds build-time dependencies (twoway)
+    │   ├── action-unhook-email.php                         # Two-way installation file
+    │   ├── aras-woo-delivered.php                          # Two-way installation file
+    │   ├── class-wc-delivered-status-order.php             # Two-way installation file
+    │   ├── functions.php                                   # Two-way installation file
+    │   └── wc-customer-delivered-status-order.php          # Two-way installation file
     ├── emails                                            # Holds runtime dependencies
-    │   ├── delivered.min.html                            # Delivered mail template
-    │   └── shipped.min.html                              # Shipped mail template
+    │   ├── delivered.min.html                              # Delivered mail template
+    │   └── shipped.min.html                                # Shipped mail template
     ├── .lck                                              # Holds runtime dependencies
     ├── README.md                                         # Documentation file
     ├── tmp                                               # Holds runtime dependencies
