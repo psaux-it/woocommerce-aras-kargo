@@ -396,6 +396,11 @@ if [[ ! "${this_script_full_path}" || ! "${this_script_path}" || ! "${this_scrip
 	script_path_pretty_error
 fi
 
+# If cloned remove git history to get bare working copy
+if [[ -d "${this_script_path}/.git" ]]; then
+	rm -rf "${this_script_path:?}/.git"
+fi
+
 # PID File
 PIDFILE="/var/run/woo-aras/woocommerce-aras-cargo.pid"
 
