@@ -127,13 +127,23 @@ Critical part such as success mails, fronted&admin side custom order status labe
 
 ![setup](https://user-images.githubusercontent.com/25556606/124499928-7e2c6080-ddc7-11eb-9df2-672a0f5ab2d1.png)
 
+## Top-level Directory & File Layout
 
-## Top-level Directory Layout
     .
-    ├── custom-order-status-package # Build-time dependency (twoway)
-    ├── emails                      # Runtime dependency
-    ├── .lck                        # Runtime dependency
-    └── tmp                         # Runtime dependency
+    ├── CHANGELOG
+    ├── custom-order-status-package                       # Build-time dependency (twoway)
+    │   ├── action-unhook-email.php                       
+    │   ├── aras-woo-delivered.php
+    │   ├── class-wc-delivered-status-order.php
+    │   ├── functions.php
+    │   └── wc-customer-delivered-status-order.php
+    ├── emails                                            # Holds runtime dependencies
+    │   ├── delivered.min.html                            # Delivered mail template
+    │   └── shipped.min.html                              # Shipped mail template
+    ├── .lck                                              # Holds runtime dependencies
+    ├── README.md                                         # Documentation file
+    ├── tmp                                               # Holds runtime dependencies
+    └── woocommerce-aras-cargo.sh                         # Main executable
 
 ## Hard Dependencies (may not included in default linux installations)
 - curl
