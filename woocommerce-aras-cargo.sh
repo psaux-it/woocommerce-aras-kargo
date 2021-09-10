@@ -396,7 +396,8 @@ if [[ ! "${this_script_full_path}" || ! "${this_script_path}" || ! "${this_scrip
 	script_path_pretty_error
 fi
 
-# If cloned remove git history to get bare working copy
+# If cloned, remove git history to get bare working copy
+# Keep folder layout clean
 if [[ -d "${this_script_path}/.git" ]]; then
 	rm -rf "${this_script_path:?}/.git"
 fi
