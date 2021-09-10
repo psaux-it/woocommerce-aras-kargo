@@ -128,13 +128,12 @@ Critical part such as success mails, fronted&admin side custom order status labe
 ![setup](https://user-images.githubusercontent.com/25556606/124499928-7e2c6080-ddc7-11eb-9df2-672a0f5ab2d1.png)
 
 
-## Folder Structer
-.
-├── custom-order-status-package --> Build-time dependency
-├── emails                      --> Runtime dependency
-├── .lck                        --> Runtime dependency
-└── tmp                         --> Runtime dependency
-
+## Top-level Directory Layout
+    .
+    ├── custom-order-status-package # Build-time dependency (twoway)
+    ├── emails                      # Runtime dependency
+    ├── .lck                        # Runtime dependency
+    └── tmp                         # Runtime dependency
 
 ## Hard Dependencies (may not included in default linux installations)
 - curl
