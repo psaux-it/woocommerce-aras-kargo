@@ -80,6 +80,10 @@ on_calendar="Mon..Sat 9..19:00/30:00 Europe/Istanbul"
 maxsize="35"
 l_maxsize="35k"
 
+# Set how many days you want to keep debug data
+# Default 14 days
+keep_debug="14"
+
 # Logging paths
 wooaras_log="/var/log/woo-aras/woocommerce_aras.log"
 
@@ -603,7 +607,7 @@ dynamic_vars () {
 }
 
 # Check dependencies
-declare -a dependencies=("curl" "iconv" "openssl" "jq" "php" "perl" "awk" "sed" "pstree" "stat" "$send_mail_command" "whiptail" "logrotate" "paste" "column" "zgrep" "mapfile" "readarray" "locale" "systemctl")
+declare -a dependencies=("curl" "iconv" "openssl" "jq" "php" "perl" "awk" "sed" "pstree" "stat" "$send_mail_command" "whiptail" "logrotate" "paste" "column" "zgrep" "mapfile" "readarray" "locale" "systemctl" "find" "sort")
 for i in "${dependencies[@]}"
 do
 	if ! command -v "$i" > /dev/null 2>&1; then
@@ -685,11 +689,15 @@ my_tmp_del=$(mktemp)
 # Listen exit signals to destroy temporary files
 trap clean_up 0 1 2 3 6 15
 clean_up () {
+	# Remove temporary runtime files
 	rm -f "${this_script_path:?}"/aras_request.php >/dev/null 2>&1
 	rm -rf "${this_script_path:?}"/*.en >/dev/null 2>&1
 	rm -rf "${this_script_path:?}"/{*proc*,.*proc} >/dev/null 2>&1
 	rm -rf "${this_script_path:?}"/{*json*,.*json} >/dev/null 2>&1
 	rm -rf "${this_script_path:?}"/.lvn* >/dev/null 2>&1
+	# Removes debug data that keeped in /tmp, older than user defined setting --> keep_debug
+	find "${this_script_path:?}/tmp" -maxdepth 1 -type f -mtime +"${keep_debug}" -print0 | xargs -r0 rm --
+	# Revome other files
 	rm -rf ${my_tmp:?} ${my_tmp_del:?} ${PIDFILE:?}
 
 	# Unset locale if setted before
