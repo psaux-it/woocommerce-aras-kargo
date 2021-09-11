@@ -404,8 +404,10 @@ if [[ ! "${this_script_full_path}" || ! "${this_script_path}" || ! "${this_scrip
 	script_path_pretty_error
 fi
 
+# Enable extglob
 # Remove trailing / (removes / and //) from script path
-shopt -s extglob; this_script_path="${this_script_path%%+(/)}"
+shopt -s extglob
+this_script_path="${this_script_path%%+(/)}"
 
 # If cloned, remove git history to get bare working copy
 # Keep folder layout clean
@@ -735,11 +737,8 @@ tmpfiles_d="/etc/tmpfiles.d"
 tmpfiles_f="woo-aras.conf"
 this_script_lck_path="${this_script_path}/.lck"
 
-# If you wonder what 'shopt -s extglob' does here;
-# Removes any number of trailing slash from path
-# Assigning folder paths to variable with or without trailing slashes is old topic.
-# My way = without trailing slash
-shopt -s extglob
+# Remove any number of trailing slash from path
+# Assigning folder paths to variable with or without trailing slash is old topic.
 cron_dir="${cron_dir%%+(/)}"
 systemd_dir="${systemd_dir%%+(/)}"
 logrotate_dir="${logrotate_dir%%+(/)}"
