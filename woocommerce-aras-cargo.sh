@@ -404,6 +404,9 @@ if [[ ! "${this_script_full_path}" || ! "${this_script_path}" || ! "${this_scrip
 	script_path_pretty_error
 fi
 
+# Remove trailing / (removes / and //) from script path
+shopt -s extglob; this_script_path="${this_script_path%%+(/)}"
+
 # If cloned, remove git history to get bare working copy
 # Keep folder layout clean
 if [[ -d "${this_script_path}/.git" ]]; then
@@ -706,20 +709,19 @@ clean_up () {
 	fi
 }
 
-# Global variables
+# Global Variables
+# =====================================================================
 cron_dir="/etc/cron.d"
-shopt -s extglob; cron_dir="${cron_dir%%+(/)}"
 cron_filename="woocommerce_aras"
 cron_filename_update="woocommerce_aras_update"
 cron_user="${user}"
 systemd_user="${user}"
-cron_script_full_path="$this_script_path/$this_script_name"
+cron_script_full_path="${this_script_path}/${this_script_name}"
 systemd_dir="/etc/systemd/system"
-shopt -s extglob; systemd_dir="${systemd_dir%%+(/)}"
 service_filename="woocommerce_aras.service"
 timer_filename="woocommerce_aras.timer"
 my_bash="$(command -v bash 2> /dev/null)"
-systemd_script_full_path="$this_script_path/$this_script_name"
+systemd_script_full_path="${this_script_path}/${this_script_name}"
 logrotate_dir="/etc/logrotate.d"
 logrotate_conf="/etc/logrotate.conf"
 logrotate_filename="woocommerce_aras"
@@ -732,6 +734,20 @@ my_string="woocommerce-aras-cargo-integration"
 tmpfiles_d="/etc/tmpfiles.d"
 tmpfiles_f="woo-aras.conf"
 this_script_lck_path="${this_script_path}/.lck"
+
+# If you wonder what 'shopt -s extglob' does here;
+# Removes any number of trailing slash from path
+# Assigning folder paths to variable with or without trailing slashes is old topic.
+# My way = without trailing slash
+shopt -s extglob
+cron_dir="${cron_dir%%+(/)}"
+systemd_dir="${systemd_dir%%+(/)}"
+logrotate_dir="${logrotate_dir%%+(/)}"
+logrotate_conf="${logrotate_conf%%+(/)}"
+my_tmp_folder="${my_tmp_folder%%+(/)}"
+tmpfiles_d="${tmpfiles_d%%+(/)}"
+this_script_lck_path="${this_script_lck_path%%+(/)}"
+# =====================================================================
 
 # Not allow -x that expose sensetive informations
 # Disable to write history
