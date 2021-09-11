@@ -2425,7 +2425,7 @@ add_logrotate () {
 				cat <<- EOF > "${logrotate_dir}/${logrotate_filename}"
 				${wooaras_log} {
 				firstaction
-				${cron_script_full_path} --rotate >/dev/null 2>&1
+				su -s /bin/bash -c '${cron_script_full_path} --rotate >/dev/null 2>&1' ${user}
 				endscript
 				su ${user} ${user}
 				daily
@@ -2456,7 +2456,7 @@ add_logrotate () {
 			# Copyright 2021 Hasan ÇALIŞIR
 			${wooaras_log} {
 			firstaction
-			${cron_script_full_path} --rotate >/dev/null 2>&1
+			su -s /bin/bash -c '${cron_script_full_path} --rotate >/dev/null 2>&1' ${user}
 			endscript
 			su ${user} ${user}
 			daily
