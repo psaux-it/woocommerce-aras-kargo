@@ -1934,7 +1934,7 @@ download () {
 			   "t_date" "s_date" "e_date" "wooaras_log" "send_mail_err"
 			   "company_name" "company_domain" "cron_minute" "cron_minute_update"
 			   "on_calendar" "delivery_time" "max_distance" "send_mail_command"
-			   "maxsize" "l_maxsize")
+			   "maxsize" "l_maxsize" "keep_debug")
 
 	for i in "${getold[@]}"
 	do
