@@ -181,6 +181,8 @@ help () {
 	echo -e "${m_tab}#${m_tab}--usage            |-U      display basic usage of this script"
 	echo -e "${m_tab}#${m_tab}--status           |-S      display automation status"
 	echo -e "${m_tab}#${m_tab}--dependencies     |-p      display prerequisites & dependencies"
+	echo -e "${m_tab}#${m_tab}--debug-shipped    |-g      debug shipped data via second argument [date]"
+	echo -e "${m_tab}#${m_tab}--debug-delivered  |-z      debug delivered data via second argument [date]"
 	echo -e "${m_tab}#${m_tab}--version          |-v      display script info"
 	echo -e "${m_tab}#${m_tab}--help             |-h      display help"
 	echo -e "${m_tab}# ---------------------------------------------------------------------${reset}\n"
@@ -2085,6 +2087,66 @@ upgrade () {
 	fi
 }
 
+debug_delivered () {
+	if [[ "$(ls -A "${this_script_path}/tmp" 2>/dev/null | wc -l)" -ne 0 ]]; then
+		local data_info
+		echo -e "\n${m_tab}${cyan}# WOOCOMMERCE - ARAS CARGO INTEGRATION DELIVERED DATA DEBUGGING"
+		echo -e "${m_tab}# ---------------------------------------------------------------------\n"
+		while read -r line
+		do
+			[[ "$line" =~ ^=.* ]] && opt_color="${cyan}" || opt_color="${magenta}"
+			if grep -q "wc" <<< "${line}"; then
+				data_info="--> WooC Data PATH:"
+				data_info="${data_info/#/   }"
+			elif grep -q "aras" <<< "${line}"; then
+				data_info="--> Aras Data PATH:"
+				data_info="${data_info/#/ }"
+			elif grep -q "=" <<< "${line}"; then
+				data_info=""
+			else
+				data_info="--> Main Data PATH:"
+				data_info="${data_info/#/      }"
+			fi
+			echo -e "${opt_color}$(echo "${line}" | sed 's/^/  /')${reset} ${green}${data_info}${reset} ${cyan}$(ls ${this_script_path}/tmp/${line} 2>/dev>
+		done < <(grep "wc.proc.del\|aras.proc.del\|main.del" <<< $(ls -p "${this_script_path}/tmp" | grep -v /) |
+									 sort -t_ -k2 | grep "${1}" |
+									 awk '{print;} NR % 3 == 0 { print "================================"; }')
+		echo ""
+        else
+                echo "There is no data for debug"
+        fi
+}
+
+debug_shipped () {
+	if [[ "$(ls -A "${this_script_path}/tmp" 2>/dev/null | wc -l)" -ne 0 ]]; then
+		local data_info
+		echo -e "\n${m_tab}${cyan}# WOOCOMMERCE - ARAS CARGO INTEGRATION SHIPPED DATA DEBUGGING"
+		echo -e "${m_tab}# ---------------------------------------------------------------------\n"
+		while read -r line
+		do
+			[[ "$line" =~ ^=.* ]] && opt_color="${cyan}" || opt_color="${magenta}"
+			if grep -q "wc" <<< "${line}"; then
+				data_info="--> WooC Data PATH:"
+				data_info="${data_info/#/   }"
+			elif grep -q "aras" <<< "${line}"; then
+				data_info="--> Aras Data PATH:"
+				data_info="${data_info/#/ }"
+			elif grep -q "=" <<< "${line}"; then
+				data_info=""
+			else
+				data_info="--> Main Data PATH:"
+				data_info="${data_info/#/         }"
+			fi
+			echo -e "${opt_color}$(echo "${line}" | sed 's/^/  /')${reset} ${green}${data_info}${reset} ${cyan}$(ls ${this_script_path}/tmp/${line} 2>/dev>
+		done < <(grep "wc.proc.en\|aras.proc.en\|main_" <<< $(ls -p "${this_script_path}/tmp" | grep -v /) |
+								 sort -t_ -k2 | grep "${1}" |
+								 awk '{print;} NR % 3 == 0 { print "================================"; }')
+		echo ""
+	else
+		echo "There is no data for debug"
+	fi
+}
+
 while :; do
 	case "${1}" in
 	-s|--setup	      ) on_fly_enable
@@ -2109,6 +2171,12 @@ while :; do
 				exit
 				;;
 	-d|--uninstall        ) un_install
+				exit
+				;;
+	-g|--debug-shipped    ) debug_shipped "${2}"
+				exit
+				;;
+	-z|--debug-delivered  ) debug_delivered "${2}"
 				exit
 				;;
 	*                     ) break;;
