@@ -274,8 +274,10 @@ else
 	read -r my_ip < <(tail -n1 <&3)
 fi
 
-# Accept only one argument
-[[ "${#}" -gt 1 ]] && { help; exit 1; }
+# Accept only one argument except debug arguments
+if [[ "${1}" != "-g" || "${1}" != "--debug-shipped" || "${1}" != "-z" || "${1}" != "--debug-delivered" ]]; then
+	[[ "${#}" -gt 1 ]] && { help; exit 1; }
+fi
 
 # For @SETUP && @UNINSTALL:
 # Display usage for necessary privileges
@@ -3286,16 +3288,16 @@ exit_curl_fail () {
 	echo "${m_tab}${red}Wrong Order ID or REST endpoint error${reset}"
 	echo -e "${m_tab}${red}Check ${1} to validate data${reset}\n"
 	echo "$(timestamp): Could not update order ${id} status, wrong Order ID(corrupt data) or REST endpoint error, check ${1} to validate data" >> "${wooaras_log}"
-	send_mail "Could not update order [${id}] status, wrong Order ID(couupt data) or WooCommerce REST API endpoint error, check ${1} to validate data"
+	send_mail "Could not update order [${id}] status, wrong Order ID(corrupt data) or WooCommerce REST API endpoint error, check ${1} to validate data"
 	exit 1
 }
 
 if [[ -e "${this_script_path}/.woo.aras.enb" ]]; then
 	if [[ -s "${my_tmp}" ]]; then
 		# For debugging purpose save the parsed data first
-		cat <(cat "${my_tmp}") > "${my_tmp_folder}/$(date +%d-%m-%Y)-main.$$"
-		cat <(cat "${this_script_path}/wc.proc.en") > "${my_tmp_folder}/$(date +%d-%m-%Y)-wc.proc.en.$$"
-		cat <(cat "${this_script_path}/aras.proc.en") > "${my_tmp_folder}/$(date +%d-%m-%Y)-aras.proc.en.$$"
+		cat <(cat "${my_tmp}") > "${my_tmp_folder}/$(date +%d-%m-%Y)-main_$$"
+		cat <(cat "${this_script_path}/wc.proc.en") > "${my_tmp_folder}/$(date +%d-%m-%Y)-wc.proc.en_$$"
+		cat <(cat "${this_script_path}/aras.proc.en") > "${my_tmp_folder}/$(date +%d-%m-%Y)-aras.proc.en_$$"
 
 		while read -r id track
 		do
@@ -3321,7 +3323,7 @@ if [[ -e "${this_script_path}/.woo.aras.enb" ]]; then
 				echo "${green}*${reset} ${green}ORDER UPDATED AS COMPLETED: Order_Id=$id Order_Number=$order_number Aras_Tracking_Number=$track Customer_Info=$c_name${reset}"
 				sleep 10
 			else
-				exit_curl_fail "${my_tmp_folder}/$(date +%d-%m-%Y)-main.$$"
+				exit_curl_fail "${my_tmp_folder}/$(date +%d-%m-%Y)-main_$$"
 			fi
 		done < "${my_tmp}"
 	else
@@ -3332,9 +3334,9 @@ if [[ -e "${this_script_path}/.woo.aras.enb" ]]; then
 	if [[ -e "${this_script_path}/.two.way.enb" ]]; then
 		if [[ -s "${my_tmp_del}" ]]; then
 			# For debugging purpose save the parsed data first
-			cat <(cat "${my_tmp_del}") > "${my_tmp_folder}/$(date +%d-%m-%Y)-main.del.$$"
-			cat <(cat "${this_script_path}/wc.proc.del") > "${my_tmp_folder}/$(date +%d-%m-%Y)-wc.proc.del.$$"
-			cat <(cat "${this_script_path}/aras.proc.del") > "${my_tmp_folder}/$(date +%d-%m-%Y)-aras.proc.del.$$"
+			cat <(cat "${my_tmp_del}") > "${my_tmp_folder}/$(date +%d-%m-%Y)-main.del_$$"
+			cat <(cat "${this_script_path}/wc.proc.del") > "${my_tmp_folder}/$(date +%d-%m-%Y)-wc.proc.del_$$"
+			cat <(cat "${this_script_path}/aras.proc.del") > "${my_tmp_folder}/$(date +%d-%m-%Y)-aras.proc.del_$$"
 
 			while read -r id
 			do
@@ -3360,7 +3362,7 @@ if [[ -e "${this_script_path}/.woo.aras.enb" ]]; then
 					echo "${green}*${reset} ${green}ORDER UPDATED AS DELIVERED: Order_Id=$id Order_Number=$order_number Customer_Info=$c_name${reset}"
 					sleep 10
 				else
-					exit_curl_fail "${my_tmp_folder}/$(date +%d-%m-%Y)-main.del.$$"
+					exit_curl_fail "${my_tmp_folder}/$(date +%d-%m-%Y)-main.del_$$"
 				fi
 			done < "${my_tmp_del}"
 		else
