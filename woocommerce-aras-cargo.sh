@@ -764,12 +764,14 @@ hide_me () {
 my_status () {
 	local s_status
 	local w_delivered
+	local w_processing
 	local ts_status
 	local a_status
 	local t_status
 	local i_status
 	local u_status
 	local total_processed
+	local total_processed_del
 
 	echo -e "\n${m_tab}${cyan}# WOOCOMMERCE - ARAS CARGO INTEGRATION STATUS${reset}"
 	echo -e "${m_tab}${cyan}# ---------------------------------------------------------------------${reset}"
@@ -790,6 +792,7 @@ my_status () {
 		hide_me --disable
 
 		w_delivered=$($m_curl -s -X GET -K- <<< "-u ${api_key}:${api_secret}" -H "Content-Type: application/json" "https://$api_endpoint/wp-json/wc/v3/orders?status=delivered")
+		w_processing=$($m_curl -s -X GET -K- <<< "-u ${api_key}:${api_secret}" -H "Content-Type: application/json" "https://$api_endpoint/wp-json/wc/v3/orders?status=processing&per_page=100" | $m_jq -r '.[]|[.id]|join(" ")' | wc -l)
 		if ! grep -q "rest_invalid_param" <<< "${w_delivered}"; then
 			ts_status="Completed"
 			echo -e "${green}Two-way_Workflow-Setup: $ts_status${reset}"
@@ -849,11 +852,26 @@ my_status () {
 		echo -e "${green}Auto-Update: ${yellow}$u_status${reset}"
 	fi
 
-	# Get total processed order status (include rotated logs)
-	total_processed=$(find "${wooaras_log%/*}/" -name \*.log* -print0 2>/dev/null |
-				xargs -0 zgrep -ci "SHIPPED" |
-				$m_awk 'BEGIN {cnt=0;FS=":"}; {cnt+=$2;}; END {print cnt;}')
-	echo "${green}Total_Processed_Orders: $total_processed${reset}"
+	# Get total processed orders via automation (include rotated logs)
+	if [[ "${s_status}" == "Completed" && -s "${wooaras_log}" ]]; then
+		total_processed=$(find "${wooaras_log%/*}/" -name \*.log* -print0 2>/dev/null |
+					xargs -0 zgrep -ci "SHIPPED" |
+					$m_awk 'BEGIN {cnt=0;FS=":"}; {cnt+=$2;}; END {print cnt;}')
+		if [[ "${ts_status}" == "Completed" ]]; then
+			total_processed_del=$(find "${wooaras_log%/*}/" -name \*.log* -print0 2>/dev/null |
+						xargs -0 zgrep -ci "DELIVERED" |
+						$m_awk 'BEGIN {cnt=0;FS=":"}; {cnt+=$2;}; END {print cnt;}')
+		fi
+		echo -e "\n${m_tab}${cyan}# PROCESSED ORDERS ONLY VIA AUTOMATION${reset}"
+		# ---------------------------------------------------------------------
+		echo "${green}Shipped: ${total_processed}${reset}"
+		echo "${green}Awaiting Shipment: ${w_processing}${reset}"
+		if [[ "${ts_status}" == "Completed" ]]; then
+			echo "${green}Delivered: ${total_processed_del}${reset}"
+			echo "${green}Awaiting Delivery: $((total_processed-total_processed_del))${reset}"
+		fi
+	fi
+	# ---------------------------------------------------------------------
 
 	} > "${this_script_path}/.status.proc" # End redirection to file
 
