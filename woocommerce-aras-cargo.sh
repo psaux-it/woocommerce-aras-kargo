@@ -2130,7 +2130,7 @@ debug_delivered () {
 				data_info="--> Main Data PATH:"
 				data_info="${data_info/#/      }"
 			fi
-			echo -e "${opt_color}$(echo "${line}" | sed 's/^/  /')${reset} ${green}${data_info}${reset} ${cyan}$(ls ${this_script_path}/tmp/${line} 2>/dev>
+			echo -e "${opt_color}$(echo "${line}" | sed 's/^/  /')${reset} ${green}${data_info}${reset} ${cyan}$(ls ${this_script_path}/tmp/${line} 2>/dev/null)${reset}"
 		done < <(grep "wc.proc.del\|aras.proc.del\|main.del" <<< $(ls -p "${this_script_path}/tmp" | grep -v /) |
 									 sort -t_ -k2 | grep "${1}" |
 									 awk '{print;} NR % 3 == 0 { print "================================"; }')
@@ -2160,7 +2160,7 @@ debug_shipped () {
 				data_info="--> Main Data PATH:"
 				data_info="${data_info/#/         }"
 			fi
-			echo -e "${opt_color}$(echo "${line}" | sed 's/^/  /')${reset} ${green}${data_info}${reset} ${cyan}$(ls ${this_script_path}/tmp/${line} 2>/dev>
+			echo -e "${opt_color}$(echo "${line}" | sed 's/^/  /')${reset} ${green}${data_info}${reset} ${cyan}$(ls ${this_script_path}/tmp/${line} 2>/dev/null)${reset}"
 		done < <(grep "wc.proc.en\|aras.proc.en\|main_" <<< $(ls -p "${this_script_path}/tmp" | grep -v /) |
 								 sort -t_ -k2 | grep "${1}" |
 								 awk '{print;} NR % 3 == 0 { print "================================"; }')
