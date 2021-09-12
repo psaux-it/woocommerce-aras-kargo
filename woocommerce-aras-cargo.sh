@@ -281,7 +281,7 @@ else
 fi
 
 # Accept only one argument except debug arguments
-if [[ "${1}" != "-g" || "${1}" != "--debug-shipped" || "${1}" != "-z" || "${1}" != "--debug-delivered" ]]; then
+if [[ "${1}" != "-g" && "${1}" != "--debug-shipped" && "${1}" != "-z" && "${1}" != "--debug-delivered" ]]; then
 	[[ "${#}" -gt 1 ]] && { help; exit 1; }
 fi
 
