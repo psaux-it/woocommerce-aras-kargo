@@ -875,8 +875,7 @@ my_status () {
 	} > "${this_script_path}/.status.proc" # End redirection to file
 
 	column -t -s ' ' <<< "$(< "${this_script_path}/.status.proc")" | $m_sed 's/^/  /'
-	echo "${m_tab}${cyan}# ---------------------------------------------------------------------${reset}"
-	echo ""
+	echo -e "${m_tab}${cyan}# ---------------------------------------------------------------------${reset}\n"
 }
 
 # Twoway pretty error
