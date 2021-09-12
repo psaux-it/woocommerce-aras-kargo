@@ -774,14 +774,14 @@ my_status () {
 	local total_processed_del
 
 	echo -e "\n${m_tab}${cyan}# WOOCOMMERCE - ARAS CARGO INTEGRATION STATUS${reset}"
-	echo -e "${m_tab}${cyan}# ---------------------------------------------------------------------${reset}"
+	echo "${m_tab}${cyan}# ---------------------------------------------------------------------${reset}"
 
 	{ # Start redirection to file
 
 	# Setup status
 	if [[ -e "${this_script_path}/.woo.aras.set" ]]; then
 		s_status="Completed"
-		echo -e "${green}Default-Setup: $s_status${reset}"
+		echo "${green}Default-Setup: $s_status${reset}"
 
 		hide_me --enable
 		if [[ ! "${api_key}" || ! "${api_secret}" || ! "${api_endpoint}" ]]; then
@@ -795,61 +795,61 @@ my_status () {
 		w_processing=$($m_curl -s -X GET -K- <<< "-u ${api_key}:${api_secret}" -H "Content-Type: application/json" "https://$api_endpoint/wp-json/wc/v3/orders?status=processing&per_page=100" | $m_jq -r '.[]|[.id]|join(" ")' | wc -l)
 		if ! grep -q "rest_invalid_param" <<< "${w_delivered}"; then
 			ts_status="Completed"
-			echo -e "${green}Two-way_Workflow-Setup: $ts_status${reset}"
+			echo "${green}Two-way_Workflow-Setup: $ts_status${reset}"
 		else
 			ts_status="Not_Completed"
-			echo -e "${green}Two-way_Workflow-Setup: ${yellow}$ts_status${reset}"
+			echo "${green}Two-way_Workflow-Setup: ${yellow}$ts_status${reset}"
 		fi
 
 	else
 		ts_status="Null"
 		s_status="Not_Completed"
-		echo -e "${green}Default-Setup: ${red}$s_status${reset}"
-		echo -e "${green}Two-way_Workflow-Setup: ${yellow}$ts_status${reset}"
+		echo "${green}Default-Setup: ${red}$s_status${reset}"
+		echo "${green}Two-way_Workflow-Setup: ${yellow}$ts_status${reset}"
 	fi
 
 	# Automation status
 	if [[ -e "${this_script_path}/.woo.aras.enb" ]]; then
 		a_status="Enabled"
-		echo -e "${green}Automation-Status: $a_status${reset}"
+		echo "${green}Automation-Status: $a_status${reset}"
 	else
 		a_status="Disabled"
-		echo -e "${green}Automation-Status: ${red}$a_status${reset}"
+		echo "${green}Automation-Status: ${red}$a_status${reset}"
 	fi
 
 	# Two-way status
 	if [[ -e "${this_script_path}/.two.way.enb" ]]; then
 		t_status="Enabled"
-		echo -e "${green}Two-Way-Status: $t_status${reset}"
+		echo "${green}Two-Way-Status: $t_status${reset}"
 	else
 		t_status="Disabled"
-		echo -e "${green}Two-Way-Status: ${red}$t_status${reset}"
+		echo "${green}Two-Way-Status: ${red}$t_status${reset}"
 	fi
 
 	# Installation status
 	if [[ -s "${cron_dir}/${cron_filename}" ]]; then
 		i_status="Cron"
-		echo -e "${green}Installation: $i_status${reset}"
+		echo "${green}Installation: $i_status${reset}"
 	elif [[ -s "${systemd_dir}/${service_filename}" && -s "${systemd_dir}/${timer_filename}" ]]; then
 		if systemctl -t timer | grep "${timer_filename}" | grep -q "active"; then
 			i_status="Systemd"
-			echo -e "${green}Installation: $i_status${reset}"
+			echo "${green}Installation: $i_status${reset}"
 		else
 			i_status="Broken"
-			echo -e "${green}Installation: ${red}$i_status${reset}"
+			echo "${green}Installation: ${red}$i_status${reset}"
 		fi
 	else
 		i_status="Failed"
-		echo -e "${green}Installation: ${red}$i_status${reset}"
+		echo "${green}Installation: ${red}$i_status${reset}"
 	fi
 
 	# Auto-update status
 	if [[ -s "${cron_dir}/${cron_filename_update}" ]]; then
 		u_status="Enabled"
-		echo -e "${green}Auto-Update: $u_status${reset}"
+		echo "${green}Auto-Update: $u_status${reset}"
 	else
 		u_status="Disabled"
-		echo -e "${green}Auto-Update: ${yellow}$u_status${reset}"
+		echo "${green}Auto-Update: ${yellow}$u_status${reset}"
 	fi
 
 	# Get total processed orders via automation (include rotated logs)
@@ -863,11 +863,11 @@ my_status () {
 						$m_awk 'BEGIN {cnt=0;FS=":"}; {cnt+=$2;}; END {print cnt;}')
 		fi
 		echo "${cyan}#STATISTICS_VIA_AUTOMATION_DATA${reset}"
-		echo "${green}Shipped: ${total_processed}${reset}"
-		echo "${green}Awaiting_Shipment: ${w_processing}${reset}"
+		echo "${green}Shipped: ${magenta}${total_processed}${reset}"
+		echo "${green}Awaiting_Shipment: ${magenta}${w_processing}${reset}"
 		if [[ "${ts_status}" == "Completed" ]]; then
-			echo "${green}Delivered: ${total_processed_del}${reset}"
-			echo "${green}Awaiting_Delivery: $((total_processed-total_processed_del))${reset}"
+			echo "${green}Delivered: ${magenta}${total_processed_del}${reset}"
+			echo "${green}Awaiting_Delivery: ${magenta}$((total_processed-total_processed_del))${reset}"
 		fi
 	fi
 	# ---------------------------------------------------------------------
