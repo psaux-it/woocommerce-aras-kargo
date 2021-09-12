@@ -862,13 +862,12 @@ my_status () {
 						xargs -0 zgrep -ci "DELIVERED" |
 						$m_awk 'BEGIN {cnt=0;FS=":"}; {cnt+=$2;}; END {print cnt;}')
 		fi
-		echo -e "\n${m_tab}${cyan}# PROCESSED ORDERS ONLY VIA AUTOMATION${reset}"
-		# ---------------------------------------------------------------------
+		echo "${cyan}#STATISTICS_VIA_AUTOMATION_DATA${reset}"
 		echo "${green}Shipped: ${total_processed}${reset}"
-		echo "${green}Awaiting Shipment: ${w_processing}${reset}"
+		echo "${green}Awaiting_Shipment: ${w_processing}${reset}"
 		if [[ "${ts_status}" == "Completed" ]]; then
 			echo "${green}Delivered: ${total_processed_del}${reset}"
-			echo "${green}Awaiting Delivery: $((total_processed-total_processed_del))${reset}"
+			echo "${green}Awaiting_Delivery: $((total_processed-total_processed_del))${reset}"
 		fi
 	fi
 	# ---------------------------------------------------------------------
@@ -876,7 +875,7 @@ my_status () {
 	} > "${this_script_path}/.status.proc" # End redirection to file
 
 	column -t -s ' ' <<< "$(< "${this_script_path}/.status.proc")" | $m_sed 's/^/  /'
-	echo -e "${m_tab}${cyan}# ---------------------------------------------------------------------${reset}"
+	echo "${m_tab}${cyan}# ---------------------------------------------------------------------${reset}"
 	echo ""
 }
 
