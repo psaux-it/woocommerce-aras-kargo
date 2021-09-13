@@ -934,6 +934,8 @@ pre_check () {
 	local ast_ver
 	local woo_ver
 	local bash_ver
+	local find_ver
+	local gnu_find
 	local w_ver
 	local gnu_awk
 	local gnu_awk_v
@@ -941,10 +943,12 @@ pre_check () {
 	local gnu_sed_v
 	local jq_ver
 	local woo_old
+	local find_old
 	local jq_old
 	local word_old
 	local bash_old
 	local awk_old
+	local find_not_gnu
 	local awk_not_gnu
 	local sed_old
 	local sed_not_gnu
@@ -999,6 +1003,12 @@ pre_check () {
 	# jq version
 	jq_ver=$($m_jq --help | grep "version" | tr -d [] | $m_awk '{print $7}')
 
+	# find version (checking for print0 support for xargs -0 rm)
+	# this is mandatory check for safe rm operations
+	find_ver="$(find --version | grep GNU | $m_perl -pe '($_)=/([0-9]+([.][0-9]+)+)/')"
+	find_ver="${find_ver%.*}"
+	gnu_find="$(find --version | grep GNU)"
+
 	echo -ne "${cyan}${m_tab}#####################################################[100%]\r${reset}"
 	echo -ne '\n'
 	echo -e "${m_tab}${green}Done${reset}"
@@ -1026,6 +1036,18 @@ pre_check () {
 			echo "${red}jq_Version: $jq_ver x${reset}"
 			jq_old=1
 		fi
+	fi
+
+	if [[ "${gnu_find}" ]]; then
+		if [ "${find_ver//.}" -ge 48 ]; then
+			echo "${green}find_Version: $find_ver ✓${reset}"
+		else
+			echo "${red}find_Version: $find_ver x${reset}"
+			find_old=1
+		fi
+	else
+		echo "${red}GNU_Find: NOT_GNU x${reset}"
+		find_not_gnu=1
 	fi
 
 	if [[ "${w_ver}" ]]; then
@@ -1084,7 +1106,7 @@ pre_check () {
 	column -t -s ' ' <<< "$(< "${this_script_path}/.msg.proc")" | $m_sed 's/^/  /'
 
 	# Quit
-	if [[ "${awk_not_gnu}" || "${sed_not_gnu}" || "${awk_old}" || "${sed_old}" || "${woo_old}" || "${bash_old}" || "${word_old}" || "${ast_ver}" == "false" ]]; then
+	if [[ "${awk_not_gnu}" || "${sed_not_gnu}" || "${find_not_gnu}" || "${awk_old}" || "${find_old}" || "${sed_old}" || "${woo_old}" || "${bash_old}" || "${word_old}" || "${ast_ver}" == "false" ]]; then
 		exit 1
 	fi
 }
