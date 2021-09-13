@@ -952,6 +952,12 @@ pre_check () {
 	local awk_not_gnu
 	local sed_old
 	local sed_not_gnu
+	local woo_unknown
+	local jq_unknown
+	local word_unknown
+	local find_unknown
+	local gnu_awk_v_unknown
+	local gnu_sed_v_unknown
 
 	# Find distro
 	echo -e "\n${green}*${reset} ${green}Checking system requirements.${reset}"
@@ -1003,6 +1009,14 @@ pre_check () {
 	# jq version
 	jq_ver=$($m_jq --help | grep "version" | tr -d [] | $m_awk '{print $7}')
 
+	# Bug: https://bugs.gentoo.org/808471
+	if [[ "${o_s}" == "gentoo" ]]; then
+		jq_ver="$(equery --quiet check app-misc/jq 2>/dev/null | $m_perl -pe '($_)=/([0-9]+([.][0-9]+)+)/')"
+		if [[ ! "${jq_ver}" ]]; then
+			jq_ver="$(qlist -IRv | grep jq | $m_perl -pe '($_)=/([0-9]+([.][0-9]+)+)/')"
+		fi
+	fi
+
 	# find version (checking for print0 support for xargs -0 rm)
 	# this is mandatory check for safe rm operations
 	find_ver="$(find --version | grep GNU | $m_perl -pe '($_)=/([0-9]+([.][0-9]+)+)/')"
@@ -1016,34 +1030,45 @@ pre_check () {
 	echo -e "\n${green}*${reset} ${magenta}System Status:${reset}"
 	echo "${cyan}${m_tab}#####################################################${reset}"
 
-	{ # Start redirection to file
+	{ # Start redirection
 
 	if [[ "${woo_ver}" ]]; then
-		if [ "${woo_ver%%.*}" -ge 5 ]; then
+		if [[ "${woo_ver%%.*}" -ge 5 ]]; then
 			echo "${green}WooCommerce_Version: $woo_ver ✓${reset}"
-		elif [ "${woo_ver%%.*}" -ge 4 ]; then
+		elif [[ "${woo_ver%%.*}" -ge 4 ]]; then
 			echo "${yellow}WooCommerce_Version: $woo_ver x${reset}"
 		else
 			echo "${red}WooCommerce_Version: $woo_ver x${reset}"
 			woo_old=1
 		fi
+	else
+		echo "${red}WooCommerce_Version: Unknown x${reset}"
+		woo_unknown=1
 	fi
 
 	if [[ "${jq_ver}" ]]; then
-		if [ "${jq_ver//./}" -ge 16 ]; then
+		if [[ "${jq_ver//./}" -ge 16 ]]; then
 			echo "${green}jq_Version: $jq_ver ✓${reset}"
 		else
 			echo "${red}jq_Version: $jq_ver x${reset}"
 			jq_old=1
 		fi
+	else
+		echo "${red}jq_Version: Unknown x${reset}"
+		jq_unknown=1
 	fi
 
 	if [[ "${gnu_find}" ]]; then
-		if [ "${find_ver//.}" -ge 48 ]; then
-			echo "${green}find_Version: $find_ver ✓${reset}"
+		if [[ "${find_ver}" ]]; then
+			if [[ "${find_ver//.}" -ge 48 ]]; then
+				echo "${green}find_Version: $find_ver ✓${reset}"
+			else
+				echo "${red}find_Version: $find_ver x${reset}"
+				find_old=1
+			fi
 		else
-			echo "${red}find_Version: $find_ver x${reset}"
-			find_old=1
+			echo "${red}find_Version: Unknown x${reset}"
+			find_unknown=1
 		fi
 	else
 		echo "${red}GNU_Find: NOT_GNU x${reset}"
@@ -1051,15 +1076,18 @@ pre_check () {
 	fi
 
 	if [[ "${w_ver}" ]]; then
-		if [ "${w_ver%%.*}" -ge 5 ]; then
+		if [[ "${w_ver%%.*}" -ge 5 ]]; then
 			echo "${green}Wordpress_Version: $w_ver ✓${reset}"
 		else
 			echo "${red}Wordpress_Version: $w_ver x${reset}"
 			word_old=1
 		fi
+	else
+		echo "${red}Wordpress_Version: Unknown x${reset}"
+		word_unknown=1
 	fi
 
-	if [ "${ast_ver}" != "false" ]; then
+	if [[ "${ast_ver}" != "false" ]]; then
 		echo "${green}AST_Plugin: ACTIVE ✓${reset}"
 		echo "${green}AST_Plugin_Version: $ast_ver ✓${reset}"
 	else
@@ -1067,7 +1095,7 @@ pre_check () {
 		echo "${red}AST_Plugin_Version: NOT_FOUND x${reset}"
 	fi
 
-	if [ "${bash_ver}" -ge 5 ]; then
+	if [[ "${bash_ver}" -ge 5 ]]; then
 		echo "${green}Bash_Version: $bash_ver ✓${reset}"
 	else
 		echo "${red}Bash_Version: $bash_ver x${reset}"
@@ -1075,11 +1103,16 @@ pre_check () {
 	fi
 
 	if [[ "${gnu_awk}" ]]; then
-		if [ "${gnu_awk_v%%.*}" -ge 5 ]; then
-			echo "${green}GNU_Awk_Version: $gnu_awk_v ✓${reset}"
+		if [[ "${gnu_awk_v}" ]]; then
+			if [[ "${gnu_awk_v%%.*}" -ge 5 ]]; then
+				echo "${green}GNU_Awk_Version: $gnu_awk_v ✓${reset}"
+			else
+				echo "${red}GNU_Awk_Version: $gnu_awk_v x${reset}"
+				awk_old=1
+			fi
 		else
-			echo "${red}GNU_Awk_Version: $gnu_awk_v x${reset}"
-			awk_old=1
+			echo "${red}GNU_Awk_Version: Unknown x${reset}"
+			gnu_awk_v_unknown=1
 		fi
 	else
 		echo "${red}GNU_Awk: NOT_GNU x${reset}"
@@ -1087,11 +1120,16 @@ pre_check () {
 	fi
 
 	if [[ "${gnu_sed}" ]]; then
-		if [ "${gnu_sed_v%%.*}" -ge 4 ]; then
-			echo "${green}GNU_Sed_Version: $gnu_sed_v ✓${reset}"
+		if [[ "${gnu_sed_v}" ]]; then
+			if [[ "${gnu_sed_v%%.*}" -ge 4 ]]; then
+				echo "${green}GNU_Sed_Version: $gnu_sed_v ✓${reset}"
+			else
+				echo "${red}GNU_Sed_Version: $gnu_sed_v x${reset}"
+				sed_old=1
+			fi
 		else
-			echo "${red}GNU_Sed_Version: $gnu_sed_v x${reset}"
-			sed_old=1
+			echo "${red}GNU_Sed_Version: Unknown x${reset}"
+			gnu_sed_v_unknown=1
 		fi
 	else
 		echo "${red}GNU_Sed: NOT_GNU x${reset}"
@@ -1101,13 +1139,26 @@ pre_check () {
 	echo "${green}Operating_System: $o_s ✓${reset}"
 	echo "${green}Dependencies: Ok ✓${reset}"
 
-	} > "${this_script_path}/.msg.proc" # End redirection to file
+	} | column -t -s ' ' | $m_sed 's/^/  /'
 
-	column -t -s ' ' <<< "$(< "${this_script_path}/.msg.proc")" | $m_sed 's/^/  /'
+	#> "${this_script_path}/.msg.proc" # End redirection to file
+	#column -t -s ' ' <<< "$(< "${this_script_path}/.msg.proc")" | $m_sed 's/^/  /'
 
 	# Quit
-	if [[ "${awk_not_gnu}" || "${sed_not_gnu}" || "${find_not_gnu}" || "${awk_old}" || "${find_old}" || "${sed_old}" || "${woo_old}" || "${bash_old}" || "${word_old}" || "${ast_ver}" == "false" ]]; then
-		exit 1
+	declare -a quit_now=("${awk_not_gnu}" "${sed_not_gnu}" "${find_not_gnu}" "${awk_old}"
+			     "${find_old}" "${sed_old}" "${woo_old}" "${jq_old}" "${bash_old}"
+			     "${word_old}" "${gnu_sed_v_unknown}" "${gnu_awk_v_unknown}"
+			     "${jq_unknown}" "${word_unknown}" "${find_unknown}" "${woo_unknown}")
+
+	for i in "${quit_now[@]}"
+	do
+		if [[ "${i}" ]]; then
+			exit 1
+		fi
+	done
+
+	if [[ "${ast_ver}" == "false" ]]; then
+		exit  1
 	fi
 }
 
