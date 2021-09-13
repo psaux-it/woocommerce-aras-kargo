@@ -930,33 +930,13 @@ check_delivered () {
 
 # Check dependency version
 pre_check () {
-	local running_os
-	local ast_ver
-	local woo_ver
-	local bash_ver
-	local find_ver
-	local gnu_find
-	local w_ver
-	local gnu_awk
-	local gnu_awk_v
-	local gnu_sed
-	local gnu_sed_v
-	local jq_ver
-	local woo_old
-	local find_old
-	local jq_old
-	local word_old
-	local bash_old
-	local awk_old
-	local find_not_gnu
-	local awk_not_gnu
-	local sed_old
-	local sed_not_gnu
-	local woo_unknown
-	local jq_unknown
-	local word_unknown
-	local find_unknown
-	local gnu_awk_v_unknown
+	local running_os; local ast_ver; local woo_ver; local bash_ver
+	local find_ver; local gnu_find; local w_ver; local gnu_awk
+	local gnu_awk_v; local gnu_sed; local gnu_sed_v; local jq_ver
+	local woo_old; local find_old; local jq_old; local word_old
+	local bash_old; local awk_old; local find_not_gnu; local awk_not_gnu
+	local sed_old; local sed_not_gnu; local woo_unknown; local jq_unknown
+	local word_unknown; local find_unknown; local gnu_awk_v_unknown
 	local gnu_sed_v_unknown
 
 	# Find distro
