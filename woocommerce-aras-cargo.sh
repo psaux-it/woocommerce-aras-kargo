@@ -618,7 +618,7 @@ dynamic_vars () {
 }
 
 # Check dependencies
-declare -a dependencies=("curl" "iconv" "openssl" "jq" "php" "perl" "awk" "sed" "pstree" "stat" "$send_mail_command" "whiptail" "logrotate" "paste" "column" "zgrep" "mapfile" "readarray" "locale" "systemctl" "find" "sort")
+declare -a dependencies=("curl" "iconv" "openssl" "jq" "php" "perl" "awk" "sed" "pstree" "stat" "$send_mail_command" "whiptail" "logrotate" "paste" "column" "mapfile" "readarray" "locale" "systemctl" "find" "sort")
 for i in "${dependencies[@]}"
 do
 	if ! command -v "$i" > /dev/null 2>&1; then
@@ -768,21 +768,14 @@ hide_me () {
 
 # Display automation status
 my_status () {
-	local s_status
-	local w_delivered
-	local w_processing
-	local ts_status
-	local a_status
-	local t_status
-	local i_status
-	local u_status
-	local total_processed
-	local total_processed_del
+	local s_status; local w_delivered
+	local w_processing; local ts_status
+	local total_processed; local total_processed_del
 
 	echo -e "\n${m_tab}${cyan}# WOOCOMMERCE - ARAS CARGO INTEGRATION STATUS${reset}"
 	echo "${m_tab}${cyan}# ---------------------------------------------------------------------${reset}"
 
-	{ # Start redirection to file
+	{ # Start redirection
 
 	# Setup status
 	if [[ -e "${this_script_path}/.woo.aras.set" ]]; then
@@ -816,72 +809,68 @@ my_status () {
 
 	# Automation status
 	if [[ -e "${this_script_path}/.woo.aras.enb" ]]; then
-		a_status="Enabled"
-		echo "${green}Automation-Status: $a_status${reset}"
+		echo "${green}Automation-Status: Enabled${reset}"
 	else
-		a_status="Disabled"
-		echo "${green}Automation-Status: ${red}$a_status${reset}"
+		echo "${green}Automation-Status: ${red}Disabled${reset}"
 	fi
 
 	# Two-way status
 	if [[ -e "${this_script_path}/.two.way.enb" ]]; then
-		t_status="Enabled"
-		echo "${green}Two-Way-Status: $t_status${reset}"
+		echo "${green}Two-Way-Status: Enabled${reset}"
 	else
-		t_status="Disabled"
-		echo "${green}Two-Way-Status: ${red}$t_status${reset}"
+		echo "${green}Two-Way-Status: ${red}Disabled${reset}"
 	fi
 
 	# Installation status
 	if [[ -s "${cron_dir}/${cron_filename}" ]]; then
-		i_status="Cron"
-		echo "${green}Installation: $i_status${reset}"
+		echo "${green}Installation: Cron${reset}"
 	elif [[ -s "${systemd_dir}/${service_filename}" && -s "${systemd_dir}/${timer_filename}" ]]; then
 		if systemctl -t timer | grep "${timer_filename}" | grep -q "active"; then
-			i_status="Systemd"
-			echo "${green}Installation: $i_status${reset}"
+			echo "${green}Installation: Systemd${reset}"
 		else
-			i_status="Broken"
-			echo "${green}Installation: ${red}$i_status${reset}"
+			echo "${green}Installation: ${red}Broken${reset}"
 		fi
 	else
-		i_status="Failed"
-		echo "${green}Installation: ${red}$i_status${reset}"
+		echo "${green}Installation: ${red}Failed${reset}"
 	fi
 
 	# Auto-update status
 	if [[ -s "${cron_dir}/${cron_filename_update}" ]]; then
-		u_status="Enabled"
-		echo "${green}Auto-Update: $u_status${reset}"
+		echo "${green}Auto-Update: Enabled${reset}"
 	else
-		u_status="Disabled"
-		echo "${green}Auto-Update: ${yellow}$u_status${reset}"
+		echo "${green}Auto-Update: ${yellow}Disabled${reset}"
 	fi
 
 	# Get total processed orders via automation (include rotated logs)
-	if [[ "${s_status}" == "Completed" && -s "${wooaras_log}" ]]; then
-		total_processed=$(find "${wooaras_log%/*}/" -name \*.log* -print0 2>/dev/null |
-					xargs -0 zgrep -ci "SHIPPED" |
-					$m_awk 'BEGIN {cnt=0;FS=":"}; {cnt+=$2;}; END {print cnt;}')
-		if [[ "${ts_status}" == "Completed" ]]; then
-			total_processed_del=$(find "${wooaras_log%/*}/" -name \*.log* -print0 2>/dev/null |
-						xargs -0 zgrep -ci "DELIVERED" |
+	if command -v zgrep >/dev/null 2>&1; then
+		if [[ "${s_status}" == "Completed" && -s "${wooaras_log}" ]]; then
+			total_processed=$(find "${wooaras_log%/*}/" -name \*.log* -print0 2>/dev/null |
+						xargs -0 zgrep -ci "SHIPPED" |
 						$m_awk 'BEGIN {cnt=0;FS=":"}; {cnt+=$2;}; END {print cnt;}')
-		fi
-		echo "${cyan}#STATISTICS_VIA_AUTOMATION_DATA${reset}"
-		echo "${green}Shipped: ${magenta}${total_processed}${reset}"
-		echo "${green}Awaiting_Shipment: ${magenta}${w_processing}${reset}"
-		if [[ "${ts_status}" == "Completed" ]]; then
-			echo "${green}Delivered: ${magenta}${total_processed_del}${reset}"
-			echo "${green}Awaiting_Delivery: ${magenta}$((total_processed-total_processed_del))${reset}"
+			if [[ "${ts_status}" == "Completed" ]]; then
+				total_processed_del=$(find "${wooaras_log%/*}/" -name \*.log* -print0 2>/dev/null |
+							xargs -0 zgrep -ci "DELIVERED" |
+							$m_awk 'BEGIN {cnt=0;FS=":"}; {cnt+=$2;}; END {print cnt;}')
+			fi
+			echo "${cyan}#STATISTICS_VIA_AUTOMATION_DATA${reset}"
+			echo "${green}Shipped: ${magenta}${total_processed}${reset}"
+			echo "${green}Awaiting_Shipment: ${magenta}${w_processing}${reset}"
+			if [[ "${ts_status}" == "Completed" ]]; then
+				echo "${green}Delivered: ${magenta}${total_processed_del}${reset}"
+				echo "${green}Awaiting_Delivery: ${magenta}$((total_processed-total_processed_del))${reset}"
+			fi
 		fi
 	fi
-	# ---------------------------------------------------------------------
 
-	} > "${this_script_path}/.status.proc" # End redirection to file
+	} | column -t -s ' ' | $m_sed 's/^/  /' # End redirection to column
+	echo "${m_tab}${cyan}# ---------------------------------------------------------------------${reset}"
 
-	column -t -s ' ' <<< "$(< "${this_script_path}/.status.proc")" | $m_sed 's/^/  /'
-	echo -e "${m_tab}${cyan}# ---------------------------------------------------------------------${reset}\n"
+	if ! command -v zgrep >/dev/null 2>&1; then
+		echo -e "\n${red}*${reset} ${red}zgrep not found!${reset}"
+		echo "${cyan}${m_tab}#######################################################################${reset}"
+		echo -e "${m_tab}${red}Install 'zgrep' to see statistics via automation${reset}\n"
+		echo "$(timestamp): zgrep not found, install 'zgrep' to see statistics via automation" >> "${wooaras_log}"
+	fi
 }
 
 # Twoway pretty error
