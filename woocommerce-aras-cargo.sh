@@ -768,10 +768,8 @@ hide_me () {
 
 # Display automation status
 my_status () {
-	local s_status; local w_delivered
-	local w_processing; local ts_status
-	local total_processed; local total_processed_del
-
+	# Variables in this function not visible by rest of script (subshell)
+	# So no need to set them locally
 	echo -e "\n${m_tab}${cyan}# WOOCOMMERCE - ARAS CARGO INTEGRATION STATUS${reset}"
 	echo "${m_tab}${cyan}# ---------------------------------------------------------------------${reset}"
 
@@ -862,7 +860,8 @@ my_status () {
 		fi
 	fi
 
-	} | column -t -s ' ' | $m_sed 's/^/  /' # End redirection to column
+	} | column -t -s ' ' | $m_sed 's/^/  /' # End redirection { Piping created subshell and we lost all variables in command grouping }
+						# But we don't need these variables within following code block
 	echo "${m_tab}${cyan}# ---------------------------------------------------------------------${reset}"
 
 	if ! command -v zgrep >/dev/null 2>&1; then
@@ -1115,7 +1114,9 @@ pre_check () {
 	echo "${green}Operating_System: $o_s ✓${reset}"
 	echo "${green}Dependencies: Ok ✓${reset}"
 
-	} | column -t -s ' ' | $m_sed 's/^/  /'
+	} > "${this_script_path}/.msg.proc" # End redirection to file
+					    # Why to file? Cannot directly pipe to column here that creates subshell and we lose variables
+	column -t -s ' ' <<< "$(< "${this_script_path}/.msg.proc")" | $m_sed 's/^/  /'
 
 	# Quit
 	declare -a quit_now=("${awk_not_gnu}" "${sed_not_gnu}" "${find_not_gnu}" "${awk_old}"
@@ -1125,8 +1126,7 @@ pre_check () {
 
 	for i in "${quit_now[@]}"
 	do
-		read var <<< "${i}"
-		if [[ "${var}" ]]; then
+		if [[ "${i}" ]]; then
 			exit 1
 		fi
 	done
