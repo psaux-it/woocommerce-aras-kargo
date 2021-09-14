@@ -185,8 +185,8 @@ help () {
 	echo -e "${m_tab}#${m_tab}--usage            |-U      display basic usage of this script"
 	echo -e "${m_tab}#${m_tab}--status           |-S      display automation status"
 	echo -e "${m_tab}#${m_tab}--dependencies     |-p      display prerequisites & dependencies"
-	echo -e "${m_tab}#${m_tab}--debug-shipped    |-g      debug shipped data via second argument [date]"
-	echo -e "${m_tab}#${m_tab}--debug-delivered  |-z      debug delivered data via second argument [date]"
+	echo -e "${m_tab}#${m_tab}--debug-shipped    |-g      search logs in shipped data via search criteria [date] [ORDER_ID\|TRACKING_NUMBER]"
+	echo -e "${m_tab}#${m_tab}--debug-delivered  |-z      search logs in delivered data via search criteria [date] [ORDER_ID\|TRACKING_NUMBER]"
 	echo -e "${m_tab}#${m_tab}--version          |-v      display script info"
 	echo -e "${m_tab}#${m_tab}--help             |-h      display help"
 	echo -e "${m_tab}# ---------------------------------------------------------------------${reset}\n"
@@ -741,7 +741,7 @@ tmpfiles_d="/etc/tmpfiles.d"
 tmpfiles_f="woo-aras.conf"
 this_script_lck_path="${this_script_path}/.lck"
 
-# Remove any number of trailing slash from path
+# Force remove any number of trailing slash from paths
 # Assigning folder paths to variable with or without trailing slash is old topic.
 cron_dir="${cron_dir%%+(/)}"
 systemd_dir="${systemd_dir%%+(/)}"
@@ -766,7 +766,7 @@ hide_me () {
 
 # Display automation status
 my_status () {
-	# Variables in this function not visible by rest of script (subshell)
+	# NOTE: Variables in this function not visible by rest of script (subshell caused by pipe)
 	# So no need to set them locally
 	echo -e "\n${m_tab}${cyan}# WOOCOMMERCE - ARAS CARGO INTEGRATION STATUS${reset}"
 	echo "${m_tab}${cyan}# ---------------------------------------------------------------------${reset}"
@@ -858,8 +858,8 @@ my_status () {
 		fi
 	fi
 
-	} | column -t -s ' ' | $m_sed 's/^/  /' # End redirection { Piping created subshell and we lost all variables in command grouping }
-						# But we don't need these variables within following code block
+	} | column -t -s ' ' | $m_sed 's/^/  /' # NOTE: End redirection { Piping created subshell and we lost all variables in command grouping }
+						# But we don't need these variables within the following code block
 	echo "${m_tab}${cyan}# ---------------------------------------------------------------------${reset}"
 
 	if ! command -v zgrep >/dev/null 2>&1; then
@@ -1112,8 +1112,8 @@ pre_check () {
 	echo "${green}Operating_System: $o_s ✓${reset}"
 	echo "${green}Dependencies: Ok ✓${reset}"
 
-	} > "${this_script_path}/.msg.proc" # End redirection to file
-					    # Why to file? Cannot directly pipe to column here that creates subshell and we lose variables
+	} > "${this_script_path}/.msg.proc" # NOTE: End redirection to file
+					    # Cannot directly pipe to column here that creates subshell and we lose variables
 	column -t -s ' ' <<< "$(< "${this_script_path}/.msg.proc")" | $m_sed 's/^/  /'
 
 	# Quit
@@ -2171,11 +2171,19 @@ upgrade () {
 	fi
 }
 
+# Debug shipped data
 debug_delivered () {
 	if [[ "$(ls -A "${this_script_path}/tmp" 2>/dev/null | wc -l)" -ne 0 ]]; then
 		local data_info
-		echo -e "\n${m_tab}${cyan}# WOOCOMMERCE - ARAS CARGO INTEGRATION DELIVERED DATA DEBUGGING"
-		echo -e "${m_tab}# ---------------------------------------------------------------------\n"
+		if [[ "${2}" ]]; then
+			if [[ ! "${2}" =~ ^[+-]?[[:digit:]]+$ ]]; then
+				echo -e "\n${m_tab}${cyan}USAGE: ${magenta}${cron_script_full_path} --debug-delivered|-z [date] ['ORDER_ID\|TRACKING_NUMBER']${reset}"
+				echo -e "${m_tab}${cyan}EXAMPLE: ${magenta}./${cron_script_full_path} -z 14-09-2021 '13241\|108324345362'${reset}\n"
+			fi
+		fi
+		echo -e "\n${m_tab}${cyan}# WOOCOMMERCE - ARAS CARGO INTEGRATION DELIVERED DATA DEBUGGING${reset}"
+		echo "${m_tab}${magenta}# ---------------------------------------------------------------------${reset}"
+		echo -e "${m_tab}${cyan}# These are the related logs that match with your search criteria${reset}\n"
 		while read -r line
 		do
 			[[ "$line" =~ ^=.* ]] && opt_color="${cyan}" || opt_color="${magenta}"
@@ -2191,7 +2199,14 @@ debug_delivered () {
 				data_info="--> Main Data PATH:"
 				data_info="${data_info/#/      }"
 			fi
-			echo -e "${opt_color}$(echo "${line}" | sed 's/^/  /')${reset} ${green}${data_info}${reset} ${cyan}$(ls ${this_script_path}/tmp/${line} 2>/dev/null)${reset}"
+
+			if [[ "${2}" ]]; then
+				if grep -q "${2}" "${this_script_path}/tmp/${line}"; then
+					echo -e "${opt_color}$(echo "${line}" | sed 's/^/  /')${reset} ${green}${data_info}${reset} ${cyan}$(ls ${this_script_path}/tmp/${line} 2>/dev/null)${reset}"
+				fi
+			else
+				echo -e "${opt_color}$(echo "${line}" | sed 's/^/  /')${reset} ${green}${data_info}${reset} ${cyan}$(ls ${this_script_path}/tmp/${line} 2>/dev/null)${reset}"
+			fi
 		done < <(grep "wc.proc.del\|aras.proc.del\|main.del" <<< $(ls -p "${this_script_path}/tmp" | grep -v /) |
 									 sort -t_ -k2 | grep "${1}" |
 									 awk '{print;} NR % 3 == 0 { print "================================"; }')
@@ -2201,11 +2216,20 @@ debug_delivered () {
         fi
 }
 
+# Debug shipped data
 debug_shipped () {
 	if [[ "$(ls -A "${this_script_path}/tmp" 2>/dev/null | wc -l)" -ne 0 ]]; then
 		local data_info
-		echo -e "\n${m_tab}${cyan}# WOOCOMMERCE - ARAS CARGO INTEGRATION SHIPPED DATA DEBUGGING"
-		echo -e "${m_tab}# ---------------------------------------------------------------------\n"
+		# Accept second argument only numbers ORDER_ID or TRACKING_NUMBER
+		if [[ "${2}" ]]; then
+			if [[ ! "${2}" =~ ^[+-]?[[:digit:]]+$ ]]; then
+				echo -e "\n${m_tab}${cyan}USAGE: ${magenta}${cron_script_full_path} --debug-shipped|-g [date] ['ORDER_ID\|TRACKING_NUMBER']${reset}"
+				echo -e "${m_tab}${cyan}EXAMPLE: ${magenta}./${cron_script_full_path} -g 14-09-2021 '13241\|108324345362'${reset}\n"
+			fi
+		fi
+		echo -e "\n${m_tab}${cyan}# WOOCOMMERCE - ARAS CARGO INTEGRATION SHIPPED DATA DEBUGGING${reset}"
+		echo "${m_tab}${magenta}# ---------------------------------------------------------------------${reset}"
+		echo -e "${m_tab}${cyan}# These are the related logs that match with your search criteria${reset}\n"
 		while read -r line
 		do
 			[[ "$line" =~ ^=.* ]] && opt_color="${cyan}" || opt_color="${magenta}"
@@ -2221,7 +2245,14 @@ debug_shipped () {
 				data_info="--> Main Data PATH:"
 				data_info="${data_info/#/         }"
 			fi
-			echo -e "${opt_color}$(echo "${line}" | sed 's/^/  /')${reset} ${green}${data_info}${reset} ${cyan}$(ls ${this_script_path}/tmp/${line} 2>/dev/null)${reset}"
+
+			if [[ "${2}" ]]; then
+				if grep -q "${2}" "${this_script_path}/tmp/${line}"; then
+					echo -e "${opt_color}$(echo "${line}" | sed 's/^/  /')${reset} ${green}${data_info}${reset} ${cyan}$(ls ${this_script_path}/tmp/${line} 2>/dev/null)${reset}"
+				fi
+			else
+				echo -e "${opt_color}$(echo "${line}" | sed 's/^/  /')${reset} ${green}${data_info}${reset} ${cyan}$(ls ${this_script_path}/tmp/${line} 2>/dev/null)${reset}"
+			fi
 		done < <(grep "wc.proc.en\|aras.proc.en\|main_" <<< $(ls -p "${this_script_path}/tmp" | grep -v /) |
 								 sort -t_ -k2 | grep "${1}" |
 								 awk '{print;} NR % 3 == 0 { print "================================"; }')
@@ -2257,10 +2288,10 @@ while :; do
 	-d|--uninstall        ) un_install
 				exit
 				;;
-	-g|--debug-shipped    ) debug_shipped "${2}"
+	-g|--debug-shipped    ) debug_shipped "${2}" "${3}"
 				exit
 				;;
-	-z|--debug-delivered  ) debug_delivered "${2}"
+	-z|--debug-delivered  ) debug_delivered "${2}" "${3}"
 				exit
 				;;
 	*                     ) break;;
