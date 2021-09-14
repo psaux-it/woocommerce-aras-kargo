@@ -1136,7 +1136,8 @@ pre_check () {
 
 	for i in "${quit_now[@]}"
 	do
-		if [[ "${i}" ]]; then
+		read var <<< "${i}"
+		if [[ "${var}" ]]; then
 			exit 1
 		fi
 	done
