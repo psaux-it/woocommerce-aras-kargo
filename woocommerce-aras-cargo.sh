@@ -2175,12 +2175,14 @@ upgrade () {
 debug_delivered () {
 	if [[ "$(ls -A "${this_script_path}/tmp" 2>/dev/null | wc -l)" -ne 0 ]]; then
 		local data_info
-		if [[ "${2}" ]]; then
-			if [[ ! "${2}" =~ ^[+-]?[[:digit:]]+$ ]]; then
-				echo -e "\n${m_tab}${cyan}USAGE: ${magenta}${cron_script_full_path} --debug-delivered|-z [date] ['ORDER_ID\|TRACKING_NUMBER']${reset}"
-				echo -e "${m_tab}${cyan}EXAMPLE: ${magenta}./${cron_script_full_path} -z 14-09-2021 '13241\|108324345362'${reset}\n"
-			fi
+		# Show usage
+		if [[ ! "${1}" ]]; then
+			echo -e "\n${m_tab}${cyan}USAGE: ${magenta}./${cron_script_full_path} --debug-delivered|-z [date] ['ORDER_ID\|TRACKING_NUMBER'] or [ORDER_ID] or [TRACKING_NUMBER]${reset}"
+			echo "${m_tab}${cyan}EXAMPLE MULTI SEARCH: ${magenta}./${cron_script_full_path} -z '14-09-2021' '13241\|108324345362'${reset}"
+			echo -e "${m_tab}${cyan}EXAMPLE SINGLE SEARCH: ${magenta}./${cron_script_full_path} -z 14-09-2021 108324345362${reset}\n"
+			sleep 5
 		fi
+
 		echo -e "\n${m_tab}${cyan}# WOOCOMMERCE - ARAS CARGO INTEGRATION DELIVERED DATA DEBUGGING${reset}"
 		echo "${m_tab}${magenta}# ---------------------------------------------------------------------${reset}"
 		echo -e "${m_tab}${cyan}# These are the related logs that match with your search criteria${reset}\n"
@@ -2201,7 +2203,7 @@ debug_delivered () {
 			fi
 
 			if [[ "${2}" ]]; then
-				if grep -q "${2}" "${this_script_path}/tmp/${line}"; then
+				if grep -q "${2}" "${this_script_path}/tmp/${line}" 2>/dev/null; then
 					echo -e "${opt_color}$(echo "${line}" | sed 's/^/  /')${reset} ${green}${data_info}${reset} ${cyan}$(ls ${this_script_path}/tmp/${line} 2>/dev/null)${reset}"
 				fi
 			else
@@ -2220,13 +2222,14 @@ debug_delivered () {
 debug_shipped () {
 	if [[ "$(ls -A "${this_script_path}/tmp" 2>/dev/null | wc -l)" -ne 0 ]]; then
 		local data_info
-		# Accept second argument only numbers ORDER_ID or TRACKING_NUMBER
-		if [[ "${2}" ]]; then
-			if [[ ! "${2}" =~ ^[+-]?[[:digit:]]+$ ]]; then
-				echo -e "\n${m_tab}${cyan}USAGE: ${magenta}${cron_script_full_path} --debug-shipped|-g [date] ['ORDER_ID\|TRACKING_NUMBER']${reset}"
-				echo -e "${m_tab}${cyan}EXAMPLE: ${magenta}./${cron_script_full_path} -g 14-09-2021 '13241\|108324345362'${reset}\n"
-			fi
+		# Show usage
+		if [[ ! "${1}" ]]; then
+			echo -e "\n${m_tab}${cyan}USAGE: ${magenta}./${cron_script_full_path} --debug-shipped|-g [date] ['ORDER_ID\|TRACKING_NUMBER'] or [ORDER_ID] or [TRACKING_NUMBER]${reset}"
+			echo "${m_tab}${cyan}EXAMPLE MULTI SEARCH: ${magenta}./${cron_script_full_path} -g '14-09-2021' '13241\|108324345362'${reset}"
+			echo -e "${m_tab}${cyan}EXAMPLE SINGLE SEARCH: ${magenta}./${cron_script_full_path} -g 14-09-2021 108324345362${reset}\n"
+			sleep 5
 		fi
+
 		echo -e "\n${m_tab}${cyan}# WOOCOMMERCE - ARAS CARGO INTEGRATION SHIPPED DATA DEBUGGING${reset}"
 		echo "${m_tab}${magenta}# ---------------------------------------------------------------------${reset}"
 		echo -e "${m_tab}${cyan}# These are the related logs that match with your search criteria${reset}\n"
@@ -2247,7 +2250,7 @@ debug_shipped () {
 			fi
 
 			if [[ "${2}" ]]; then
-				if grep -q "${2}" "${this_script_path}/tmp/${line}"; then
+				if grep -q "${2}" "${this_script_path}/tmp/${line}" 2>/dev/null; then
 					echo -e "${opt_color}$(echo "${line}" | sed 's/^/  /')${reset} ${green}${data_info}${reset} ${cyan}$(ls ${this_script_path}/tmp/${line} 2>/dev/null)${reset}"
 				fi
 			else
