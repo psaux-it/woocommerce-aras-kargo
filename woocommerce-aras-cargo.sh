@@ -321,21 +321,27 @@ done
 
 # Check smtp ports are listening to determine mail server running
 if command -v lsof >/dev/null 2>&1; then
-	if lsof -i -P -n | grep -q "25\|587\|465\|2525"; then
+	if lsof -Pi :587 -sTCP:LISTEN -t >/dev/null; then
+		check_mail_server=0
+	elif lsof -Pi :465 -sTCP:LISTEN -t >/dev/null; then
+		check_mail_server=0
+	elif lsof -Pi :2525 -sTCP:LISTEN -t >/dev/null; then
+		check_mail_server=0
+	elif lsof -Pi :25 -sTCP:LISTEN -t >/dev/null; then
 		check_mail_server=0
 	else
 		send_mail_err=0
 		check_mail_server=1
-	fi
+        fi
 elif command -v netstat >/dev/null 2>&1; then
-	if netstat -tulpn | grep -q "25\|587\|465\|2525"; then
+	if netstat -tulpn | grep -q ":25\|:587\|:465\|:2525"; then
 		check_mail_server=0
 	else
 		send_mail_err=0
 		check_mail_server=1
 	fi
 elif command -v ss >/dev/null 2>&1; then
-	if ss -tulpn | grep -q "25\|587\|465\|2525"; then
+	if ss -tulpn | grep -q ":25\|:587\|:465\|:2525"; then
 		check_mail_server=0
 	else
 		send_mail_err=0
@@ -988,6 +994,7 @@ pre_check () {
 
 	# jq version
 	jq_ver=$($m_jq --help | grep "version" | tr -d [] | $m_awk '{print $7}')
+	jq_ver="${jq_ver%%-*}"
 
 	# Bug: https://bugs.gentoo.org/808471
 	if [[ "${o_s}" == "gentoo" ]]; then
@@ -1120,9 +1127,6 @@ pre_check () {
 	echo "${green}Dependencies: Ok ✓${reset}"
 
 	} | column -t -s ' ' | $m_sed 's/^/  /'
-
-	#> "${this_script_path}/.msg.proc" # End redirection to file
-	#column -t -s ' ' <<< "$(< "${this_script_path}/.msg.proc")" | $m_sed 's/^/  /'
 
 	# Quit
 	declare -a quit_now=("${awk_not_gnu}" "${sed_not_gnu}" "${find_not_gnu}" "${awk_old}"
