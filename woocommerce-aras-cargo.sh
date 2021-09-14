@@ -2694,7 +2694,7 @@ encrypt_aras_auth () {
 			echo "${my_aras_api_pass}" | openssl enc -base64 -e -aes-256-cbc -nosalt  -pass pass:garbageKey  2>/dev/null > "${this_script_lck_path}/.key.aras.lck"
 			depriv "${this_script_lck_path}/.key.aras.lck"
 		else
-			encrypt_ops_exit "${this_script_lck_path}/.end.wc.lck"
+			encrypt_ops_exit "${this_script_lck_path}/.key.aras.lck"
 		fi
 	fi
 	if [[ ! -s "${this_script_lck_path}/.usr.aras.lck" ]]; then
@@ -2705,7 +2705,7 @@ encrypt_aras_auth () {
 			if [[ "${my_aras_api_usr}" == "q" || "${my_aras_api_usr}" == "quit" ]]; then exit 1; fi
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			echo "${my_aras_api_usr}" | openssl enc -base64 -e -aes-256-cbc -nosalt  -pass pass:garbageKey  2>/dev/null > "${this_script_lck_path}/.usr.aras.lck"
-			depriv "${this_script_lck_path}/.key.aras.lck"
+			depriv "${this_script_lck_path}/.usr.aras.lck"
 		else
 			encrypt_ops_exit "${this_script_lck_path}/.usr.aras.lck"
 		fi
