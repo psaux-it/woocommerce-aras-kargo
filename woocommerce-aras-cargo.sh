@@ -2177,8 +2177,8 @@ debug_delivered () {
 		local data_info
 		# Show usage
 		if [[ ! "${1}" ]]; then
-			echo -e "\n${m_tab}${cyan}USAGE: ${magenta}./${cron_script_full_path} --debug-delivered|-z [date] ['ORDER_ID\|TRACKING_NUMBER'] or [ORDER_ID] or [TRACKING_NUMBER]${reset}"
-			echo "${m_tab}${cyan}EXAMPLE MULTI SEARCH: ${magenta}./${cron_script_full_path} -z '14-09-2021' '13241\|108324345362'${reset}"
+			echo -e "\n${m_tab}${cyan}USAGE: ${magenta}./${cron_script_full_path} --debug-delivered|-z [range]-date 'ORDER_ID\|TRACKING_NUMBER' or ORDER_ID or TRACKING_NUMBER${reset}"
+			echo "${m_tab}${cyan}EXAMPLE MULTI SEARCH: ${magenta}./${cron_script_full_path} -z '[14-25]-09-2021' '13241\|108324345362'${reset}"
 			echo -e "${m_tab}${cyan}EXAMPLE SINGLE SEARCH: ${magenta}./${cron_script_full_path} -z 14-09-2021 108324345362${reset}\n"
 			sleep 5
 		fi
@@ -2210,8 +2210,8 @@ debug_delivered () {
 				echo -e "${opt_color}$(echo "${line}" | sed 's/^/  /')${reset} ${green}${data_info}${reset} ${cyan}$(ls ${this_script_path}/tmp/${line} 2>/dev/null)${reset}"
 			fi
 		done < <(grep "wc.proc.del\|aras.proc.del\|main.del" <<< $(ls -p "${this_script_path}/tmp" | grep -v /) |
-									 sort -t_ -k2 | grep "${1}" |
-									 awk '{print;} NR % 3 == 0 { print "================================"; }')
+									 sort -t_ -k2 | grep -E ^"${1}" |
+									 $m_awk '{print;} NR % 3 == 0 { print "================================"; }')
 		echo ""
         else
                 echo "There is no data for debug"
@@ -2224,8 +2224,8 @@ debug_shipped () {
 		local data_info
 		# Show usage
 		if [[ ! "${1}" ]]; then
-			echo -e "\n${m_tab}${cyan}USAGE: ${magenta}./${cron_script_full_path} --debug-shipped|-g [date] ['ORDER_ID\|TRACKING_NUMBER'] or [ORDER_ID] or [TRACKING_NUMBER]${reset}"
-			echo "${m_tab}${cyan}EXAMPLE MULTI SEARCH: ${magenta}./${cron_script_full_path} -g '14-09-2021' '13241\|108324345362'${reset}"
+			echo -e "\n${m_tab}${cyan}USAGE: ${magenta}./${cron_script_full_path} --debug-shipped|-g [range]-date 'ORDER_ID\|TRACKING_NUMBER' or ORDER_ID or TRACKING_NUMBER${reset}"
+			echo "${m_tab}${cyan}EXAMPLE MULTI SEARCH: ${magenta}./${cron_script_full_path} -g '[14-25]-09-2021' '13241\|108324345362'${reset}"
 			echo -e "${m_tab}${cyan}EXAMPLE SINGLE SEARCH: ${magenta}./${cron_script_full_path} -g 14-09-2021 108324345362${reset}\n"
 			sleep 5
 		fi
@@ -2257,7 +2257,7 @@ debug_shipped () {
 				echo -e "${opt_color}$(echo "${line}" | sed 's/^/  /')${reset} ${green}${data_info}${reset} ${cyan}$(ls ${this_script_path}/tmp/${line} 2>/dev/null)${reset}"
 			fi
 		done < <(grep "wc.proc.en\|aras.proc.en\|main_" <<< $(ls -p "${this_script_path}/tmp" | grep -v /) |
-								 sort -t_ -k2 | grep "${1}" |
+								 sort -t_ -k2 | grep -E ^"${1}" |
 								 awk '{print;} NR % 3 == 0 { print "================================"; }')
 		echo ""
 	else
