@@ -2258,7 +2258,7 @@ debug_shipped () {
 			fi
 		done < <(grep "wc.proc.en\|aras.proc.en\|main_" <<< $(ls -p "${this_script_path}/tmp" | grep -v /) |
 								 sort -t_ -k2 | grep -E ^"${1}" |
-								 awk '{print;} NR % 3 == 0 { print "================================"; }')
+								 $m_awk '{print;} NR % 3 == 0 { print "================================"; }')
 		echo ""
 	else
 		echo "There is no data for debug"
