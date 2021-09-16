@@ -148,9 +148,9 @@ called_by
 
 if [[ "${RUNNING_FROM_CRON}" -eq 0 && "${RUNNING_FROM_SYSTEMD}" -eq 0 ]]; then
 	# My code my style
-	{ green=$(tput setaf 2); red=$(tput setaf 1); reset=$(tput sgr0); cyan=$(tput setaf 6); }
-	{ magenta=$(tput setaf 5); yellow=$(tput setaf 3); BC=$'\e[32m'; EC=$'\e[0m'; }
-	{ m_tab='  '; m_tab_3=' '; }
+	green=$(tput setaf 2); red=$(tput setaf 1); reset=$(tput sgr0); cyan=$(tput setaf 6)
+	magenta=$(tput setaf 5); yellow=$(tput setaf 3); BC=$'\e[32m'; EC=$'\e[0m'
+	m_tab='  '; m_tab_3=' '; m_tab_4='    '
 fi
 
 # Display usage instruction
@@ -2182,14 +2182,14 @@ debug_delivered () {
 		local data_info
 		# Show usage
 		if [[ ! "${1}" ]]; then
-			echo -e "\n${m_tab}${cyan}USAGE: ${magenta}./${cron_script_full_path} --debug-delivered|-z [range]-date 'ORDER_ID\|TRACKING_NUMBER' or ORDER_ID or TRACKING_NUMBER${reset}"
-			echo "${m_tab}${cyan}EXAMPLE MULTI SEARCH: ${magenta}./${cron_script_full_path} -z '[14-25]-09-2021' '13241\|108324345362'${reset}"
-			echo -e "${m_tab}${cyan}EXAMPLE SINGLE SEARCH: ${magenta}./${cron_script_full_path} -z 14-09-2021 108324345362${reset}\n"
+			echo -e "\n${m_tab}${cyan}USAGE: ${m_tab_4}${magenta}${cron_script_full_path} --debug-delivered|-z x[range]-month-year 'ORDER_ID\|TRACKING_NUMBER' or ORDER_ID or TRACKING_NUMBER${reset}"
+			echo "${m_tab}${cyan}EXAMPLE 1: ${magenta}${cron_script_full_path} -z '1[1-9]-09-2021' '13241\|108324345362'${reset}"
+			echo "${m_tab}${cyan}EXAMPLE 2: ${magenta}${cron_script_full_path} -z 14-09-2021 108324345362${reset}"
 			sleep 5
 		fi
 
 		echo -e "\n${m_tab}${cyan}# WOOCOMMERCE - ARAS CARGO INTEGRATION DELIVERED DATA DEBUGGING${reset}"
-		echo "${m_tab}${magenta}# ---------------------------------------------------------------------${reset}"
+		echo "${m_tab}${cyan}# ---------------------------------------------------------------------${reset}"
 		echo -e "${m_tab}${cyan}# These are the related logs that match with your search criteria${reset}\n"
 		while read -r line
 		do
@@ -2229,14 +2229,14 @@ debug_shipped () {
 		local data_info
 		# Show usage
 		if [[ ! "${1}" ]]; then
-			echo -e "\n${m_tab}${cyan}USAGE: ${magenta}./${cron_script_full_path} --debug-shipped|-g [range]-date 'ORDER_ID\|TRACKING_NUMBER' or ORDER_ID or TRACKING_NUMBER${reset}"
-			echo "${m_tab}${cyan}EXAMPLE MULTI SEARCH: ${magenta}./${cron_script_full_path} -g '[14-25]-09-2021' '13241\|108324345362'${reset}"
-			echo -e "${m_tab}${cyan}EXAMPLE SINGLE SEARCH: ${magenta}./${cron_script_full_path} -g 14-09-2021 108324345362${reset}\n"
+			echo -e "\n${m_tab}${cyan}USAGE: ${m_tab_4}${magenta}${cron_script_full_path} --debug-shipped|-g x[range]-month-year 'ORDER_ID\|TRACKING_NUMBER' or ORDER_ID or TRACKING_NUMBER${reset}"
+			echo "${m_tab}${cyan}EXAMPLE 1: ${magenta}${cron_script_full_path} -g '1[1-9]-09-2021' '13241\|108324345362'${reset}"
+			echo -e "${m_tab}${cyan}EXAMPLE 2: ${magenta}${cron_script_full_path} -g 14-09-2021 108324345362${reset}\n"
 			sleep 5
 		fi
 
 		echo -e "\n${m_tab}${cyan}# WOOCOMMERCE - ARAS CARGO INTEGRATION SHIPPED DATA DEBUGGING${reset}"
-		echo "${m_tab}${magenta}# ---------------------------------------------------------------------${reset}"
+		echo "${m_tab}${cyan}# ---------------------------------------------------------------------${reset}"
 		echo -e "${m_tab}${cyan}# These are the related logs that match with your search criteria${reset}\n"
 		while read -r line
 		do
