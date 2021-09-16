@@ -221,11 +221,11 @@ If you encountered any errors such as long pending order which automation missed
 ```--debug-delivered |-z```
 
 ### Usage
-```./woocommerce-aras-cargo.sh --debug-shipped|--debug-delivered|-g|-z [range]-date 'ORDER_ID\|TRACKING_NUMBER' or (ORDER_ID || TRACKING_NUMBER)```
+```./woocommerce-aras-cargo.sh --debug-shipped|--debug-delivered|-g|-z 'x[range]-month-year' 'ORDER_ID\|TRACKING_NUMBER' or (ORDER_ID || TRACKING_NUMBER)```
 
 ### Example 1:
-> filters 14th-25th of September dated shipped data for both suspicious  order_id and tracking number  
-```./woocommerce-aras-cargo.sh -g '[14-25]-09-2021' '13241\|108324345362'```
+> filters 11th-19th of September dated shipped data for both suspicious order_id and tracking number  
+```./woocommerce-aras-cargo.sh -g '1[1-9]-09-2021' '13241\|108324345362'```
 
 ### Example 2:
 > filters September 14 dated delivered data for suspicious tracking number  
