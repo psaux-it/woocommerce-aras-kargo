@@ -210,3 +210,22 @@ If you use mutt, ssmtp, sendmail etc. please edit mail function as you wish. You
 - Start setup as sudo user ```sudo ./woocommerce-aras-cargo.sh --setup```
 
 ![woocommerce_aras_help](https://user-images.githubusercontent.com/25556606/130948094-c6b52e24-bd84-4ad0-8a5e-c38ff4babab9.png)
+
+## Debugging
+
+If you encountered any errors such as long pending order which automation missed or orders updated with the wrong tracking code, you can easily use debugging parameters to display related log files.
+
+### Debugging Parameters:
+
+```--debug-shipped   |-g```
+```--debug-delivered |-z```
+
+### Usage
+./woocommerce-aras-cargo.sh --debug-shipped|-g [range]-date 'ORDER_ID\|TRACKING_NUMBER' or (ORDER_ID || TRACKING_NUMBER)
+./woocommerce-aras-cargo.sh --debug-delivered|-z [range]-date 'ORDER_ID\|TRACKING_NUMBER' or (ORDER_ID || TRACKING_NUMBER)
+
+EXAMPLE 1: filters 14th-25th of September dated shipped data for both order_id and tracking number
+```./woocommerce-aras-cargo.sh -g '[14-25]-09-2021' '13241\|108324345362'```
+
+EXAMPLE 2: filters September 14 dated delivered data for tracking number 
+```./woocommerce-aras-cargo.sh -z 14-09-2021 108324345362```
