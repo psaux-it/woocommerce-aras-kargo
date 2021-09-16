@@ -209,7 +209,7 @@ If you use mutt, ssmtp, sendmail etc. please edit mail function as you wish. You
 - Clone repo (as non-root user) ```git clone https://github.com/hsntgm/woocommerce-aras-kargo.git``` (Never manually copy/paste script)
 - Start setup as sudo user ```sudo ./woocommerce-aras-cargo.sh --setup```
 
-![woocommerce_aras_help](https://user-images.githubusercontent.com/25556606/130948094-c6b52e24-bd84-4ad0-8a5e-c38ff4babab9.png)
+![woocommerce-aras-help](https://user-images.githubusercontent.com/25556606/133630683-02ecacdd-fb24-4e6c-aacb-98cecf5de715.png)
 
 ## Debugging
 
@@ -224,9 +224,9 @@ If you encountered any errors such as long pending order which automation missed
 ```./woocommerce-aras-cargo.sh --debug-shipped|--debug-delivered|-g|-z [range]-date 'ORDER_ID\|TRACKING_NUMBER' or (ORDER_ID || TRACKING_NUMBER)```
 
 ### Example 1:
-> filters 14th-25th of September dated shipped data for both order_id and tracking number  
+> filters 14th-25th of September dated shipped data for both suspicious  order_id and tracking number  
 ```./woocommerce-aras-cargo.sh -g '[14-25]-09-2021' '13241\|108324345362'```
 
 ### Example 2:
-> filters September 14 dated delivered data for tracking number  
+> filters September 14 dated delivered data for suspicious tracking number  
 ```./woocommerce-aras-cargo.sh -z 14-09-2021 108324345362```
