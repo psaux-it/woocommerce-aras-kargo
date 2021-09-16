@@ -221,9 +221,7 @@ If you encountered any errors such as long pending order which automation missed
 ```--debug-delivered |-z```
 
 ### Usage
-```./woocommerce-aras-cargo.sh --debug-shipped|-g [range]-date 'ORDER_ID\|TRACKING_NUMBER' or (ORDER_ID || TRACKING_NUMBER)```
-
-```./woocommerce-aras-cargo.sh --debug-delivered|-z [range]-date 'ORDER_ID\|TRACKING_NUMBER' or (ORDER_ID || TRACKING_NUMBER)```
+```./woocommerce-aras-cargo.sh --debug-shipped|--debug-delivered|-g|-z [range]-date 'ORDER_ID\|TRACKING_NUMBER' or (ORDER_ID || TRACKING_NUMBER)```
 
 ### Example 1:
 > filters 14th-25th of September dated shipped data for both order_id and tracking number  
