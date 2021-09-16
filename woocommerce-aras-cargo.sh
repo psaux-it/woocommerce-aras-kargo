@@ -82,7 +82,7 @@ l_maxsize="35k"
 
 # Set how many days you want to keep debug data
 # Default 14 days
-keep_debug="14"
+keep_debug="30"
 
 # Logging paths
 wooaras_log="/var/log/woo-aras/woocommerce_aras.log"
@@ -618,7 +618,7 @@ dynamic_vars () {
 }
 
 # Check dependencies
-declare -a dependencies=("curl" "iconv" "openssl" "jq" "php" "perl" "awk" "sed" "pstree" "stat" "${send_mail_command}" "whiptail" "logrotate" "paste" "column" "mapfile" "readarray" "locale" "systemctl" "find" "sort")
+declare -a dependencies=("curl" "iconv" "openssl" "jq" "php" "perl" "awk" "sed" "pstree" "stat" "${send_mail_command}" "whiptail" "logrotate" "paste" "column" "mapfile" "readarray" "locale" "systemctl" "find" "sort" "true" "false")
 for i in "${dependencies[@]}"
 do
 	if ! command -v "${i}" > /dev/null 2>&1; then
@@ -1007,11 +1007,11 @@ pre_check () {
 
 	if [[ "${woo_ver}" ]]; then
 		if [[ "${woo_ver%%.*}" -ge 5 ]]; then
-			echo "${green}WooCommerce_Version: $woo_ver ✓${reset}"
+			echo "${green}WooCommerce_Version: ${woo_ver} ✓${reset}"
 		elif [[ "${woo_ver%%.*}" -ge 4 ]]; then
-			echo "${yellow}WooCommerce_Version: $woo_ver x${reset}"
+			echo "${yellow}WooCommerce_Version: ${woo_ver} ?${reset}"
 		else
-			echo "${red}WooCommerce_Version: $woo_ver x${reset}"
+			echo "${red}WooCommerce_Version: ${woo_ver} x${reset}"
 			woo_old=1
 		fi
 	else
@@ -1021,9 +1021,9 @@ pre_check () {
 
 	if [[ "${jq_ver}" ]]; then
 		if [[ "${jq_ver//./}" -ge 16 ]]; then
-			echo "${green}jq_Version: $jq_ver ✓${reset}"
+			echo "${green}jq_Version: ${jq_ver} ✓${reset}"
 		else
-			echo "${red}jq_Version: $jq_ver x${reset}"
+			echo "${red}jq_Version: ${jq_ver} x${reset}"
 			jq_old=1
 		fi
 	else
@@ -1034,9 +1034,9 @@ pre_check () {
 	if [[ "${gnu_find}" ]]; then
 		if [[ "${find_ver}" ]]; then
 			if [[ "${find_ver//.}" -ge 48 ]]; then
-				echo "${green}find_Version: $find_ver ✓${reset}"
+				echo "${green}find_Version: ${find_ver} ✓${reset}"
 			else
-				echo "${red}find_Version: $find_ver x${reset}"
+				echo "${red}find_Version: ${find_ver} x${reset}"
 				find_old=1
 			fi
 		else
@@ -1050,9 +1050,9 @@ pre_check () {
 
 	if [[ "${w_ver}" ]]; then
 		if [[ "${w_ver%%.*}" -ge 5 ]]; then
-			echo "${green}Wordpress_Version: $w_ver ✓${reset}"
+			echo "${green}Wordpress_Version: ${w_ver} ✓${reset}"
 		else
-			echo "${red}Wordpress_Version: $w_ver x${reset}"
+			echo "${red}Wordpress_Version: ${w_ver} x${reset}"
 			word_old=1
 		fi
 	else
@@ -1062,25 +1062,25 @@ pre_check () {
 
 	if [[ "${ast_ver}" != "false" ]]; then
 		echo "${green}AST_Plugin: ACTIVE ✓${reset}"
-		echo "${green}AST_Plugin_Version: $ast_ver ✓${reset}"
+		echo "${green}AST_Plugin_Version: ${ast_ver} ✓${reset}"
 	else
 		echo "${red}AST_Plugin: NOT_FOUND x${reset}"
 		echo "${red}AST_Plugin_Version: NOT_FOUND x${reset}"
 	fi
 
 	if [[ "${bash_ver}" -ge 5 ]]; then
-		echo "${green}Bash_Version: $bash_ver ✓${reset}"
+		echo "${green}Bash_Version: ${bash_ver} ✓${reset}"
 	else
-		echo "${red}Bash_Version: $bash_ver x${reset}"
+		echo "${red}Bash_Version: ${bash_ver} x${reset}"
 		bash_old=1
 	fi
 
 	if [[ "${gnu_awk}" ]]; then
 		if [[ "${gnu_awk_v}" ]]; then
 			if [[ "${gnu_awk_v%%.*}" -ge 5 ]]; then
-				echo "${green}GNU_Awk_Version: $gnu_awk_v ✓${reset}"
+				echo "${green}GNU_Awk_Version: ${gnu_awk_v} ✓${reset}"
 			else
-				echo "${red}GNU_Awk_Version: $gnu_awk_v x${reset}"
+				echo "${red}GNU_Awk_Version: ${gnu_awk_v} x${reset}"
 				awk_old=1
 			fi
 		else
@@ -1095,9 +1095,9 @@ pre_check () {
 	if [[ "${gnu_sed}" ]]; then
 		if [[ "${gnu_sed_v}" ]]; then
 			if [[ "${gnu_sed_v%%.*}" -ge 4 ]]; then
-				echo "${green}GNU_Sed_Version: $gnu_sed_v ✓${reset}"
+				echo "${green}GNU_Sed_Version: ${gnu_sed_v} ✓${reset}"
 			else
-				echo "${red}GNU_Sed_Version: $gnu_sed_v x${reset}"
+				echo "${red}GNU_Sed_Version: ${gnu_sed_v} x${reset}"
 				sed_old=1
 			fi
 		else
@@ -1109,7 +1109,12 @@ pre_check () {
 		sed_not_gnu=1
 	fi
 
-	echo "${green}Operating_System: $o_s ✓${reset}"
+	if [[ "${o_s,,}" == "gentoo" || "${o_s,,}" == "debian" || "${o_s,,}" == "ubuntu" ]]; then
+		echo "${green}Operating_System: ${o_s} ✓${reset}"
+	else
+		echo "${yellow}Operating_System: ${o_s}_not_tested ?${reset}"
+	fi
+
 	echo "${green}Dependencies: Ok ✓${reset}"
 
 	} > "${this_script_path}/.msg.proc" # NOTE: End redirection to file
