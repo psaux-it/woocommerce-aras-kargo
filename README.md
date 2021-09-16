@@ -224,8 +224,10 @@ If you encountered any errors such as long pending order which automation missed
 ./woocommerce-aras-cargo.sh --debug-shipped|-g [range]-date 'ORDER_ID\|TRACKING_NUMBER' or (ORDER_ID || TRACKING_NUMBER)
 ./woocommerce-aras-cargo.sh --debug-delivered|-z [range]-date 'ORDER_ID\|TRACKING_NUMBER' or (ORDER_ID || TRACKING_NUMBER)
 
-EXAMPLE 1: filters 14th-25th of September dated shipped data for both order_id and tracking number
+### Example 1:
+filters 14th-25th of September dated shipped data for both order_id and tracking number  
 ```./woocommerce-aras-cargo.sh -g '[14-25]-09-2021' '13241\|108324345362'```
 
-EXAMPLE 2: filters September 14 dated delivered data for tracking number 
+### Example 2:
+filters September 14 dated delivered data for tracking number  
 ```./woocommerce-aras-cargo.sh -z 14-09-2021 108324345362```
