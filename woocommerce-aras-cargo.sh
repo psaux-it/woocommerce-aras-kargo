@@ -677,6 +677,7 @@ done
 m_ctype=$(locale | grep LC_CTYPE | cut -d= -f2 | cut -d_ -f1 | tr -d '"')
 if [[ "${m_ctype}" != "en" ]]; then
 	if locale -a | grep -iq "en_US.utf8"; then
+		export LANG=en_US.UTF-8
 		export LC_ALL=en_US.UTF-8
 		lang_setted=1
 	else
@@ -711,6 +712,7 @@ clean_up () {
 
 	# Unset locale if setted before
 	if [[ "${lang_setted}" ]]; then
+		unset LANG
 		unset LC_ALL
 	fi
 }
@@ -2176,6 +2178,22 @@ upgrade () {
 	fi
 }
 
+# Handy progress bar as spinner
+spinner () {
+	sleep 5 &
+	sleep_pid=$!
+	spin='-\|/'
+
+	i=0
+	while kill -0 $sleep_pid 2>/dev/null
+	do
+		i=$(( (i+1) %4 ))
+		printf "\r${m_tab}${green}${spin:$i:1}${reset}"
+		sleep .1
+	done
+	echo ""
+}
+
 # Debug shipped data
 debug_delivered () {
 	if [[ "$(ls -A "${this_script_path}/tmp" 2>/dev/null | wc -l)" -ne 0 ]]; then
@@ -2185,7 +2203,7 @@ debug_delivered () {
 			echo -e "\n${m_tab}${cyan}USAGE: ${m_tab_4}${magenta}${cron_script_full_path} --debug-delivered|-z x[range]-month-year 'ORDER_ID\|TRACKING_NUMBER' or ORDER_ID or TRACKING_NUMBER${reset}"
 			echo "${m_tab}${cyan}EXAMPLE 1: ${magenta}${cron_script_full_path} -z '1[1-9]-09-2021' '13241\|108324345362'${reset}"
 			echo "${m_tab}${cyan}EXAMPLE 2: ${magenta}${cron_script_full_path} -z 14-09-2021 108324345362${reset}"
-			sleep 5
+			spinner
 		fi
 
 		echo -e "\n${m_tab}${cyan}# WOOCOMMERCE - ARAS CARGO INTEGRATION DELIVERED DATA DEBUGGING${reset}"
@@ -2212,14 +2230,15 @@ debug_delivered () {
 					echo -e "${opt_color}$(echo "${line}" | sed 's/^/  /')${reset} ${green}${data_info}${reset} ${cyan}$(ls ${this_script_path}/tmp/${line} 2>/dev/null)${reset}"
 				fi
 			else
-				echo -e "${opt_color}$(echo "${line}" | sed 's/^/  /')${reset} ${green}${data_info}${reset} ${cyan}$(ls ${this_script_path}/tmp/${line} 2>/dev/null)${reset}"
+				echo -e "${opt_color}$(echo "${line}" | $m_sed 's/^/  /')${reset} ${green}${data_info}${reset} ${cyan}$(ls ${this_script_path}/tmp/${line} 2>/dev/null)${reset}"
 			fi
 		done < <(grep "wc.proc.del\|aras.proc.del\|main.del" <<< $(ls -p "${this_script_path}/tmp" | grep -v /) |
 									 sort -t_ -k2 | grep -E ^"${1}" |
 									 $m_awk '{print;} NR % 3 == 0 { print "================================"; }')
 		echo ""
         else
-                echo "There is no data for debug"
+		echo "${red}*${reset} ${red}Couldn't find any logs for debugging${reset}"
+		echo -e "${m_tab}${cyan}# ---------------------------------------------------------------------${reset}\n"
         fi
 }
 
@@ -2232,7 +2251,7 @@ debug_shipped () {
 			echo -e "\n${m_tab}${cyan}USAGE: ${m_tab_4}${magenta}${cron_script_full_path} --debug-shipped|-g x[range]-month-year 'ORDER_ID\|TRACKING_NUMBER' or ORDER_ID or TRACKING_NUMBER${reset}"
 			echo "${m_tab}${cyan}EXAMPLE 1: ${magenta}${cron_script_full_path} -g '1[1-9]-09-2021' '13241\|108324345362'${reset}"
 			echo -e "${m_tab}${cyan}EXAMPLE 2: ${magenta}${cron_script_full_path} -g 14-09-2021 108324345362${reset}\n"
-			sleep 5
+			spinner
 		fi
 
 		echo -e "\n${m_tab}${cyan}# WOOCOMMERCE - ARAS CARGO INTEGRATION SHIPPED DATA DEBUGGING${reset}"
@@ -2256,7 +2275,7 @@ debug_shipped () {
 
 			if [[ "${2}" ]]; then
 				if grep -q "${2}" "${this_script_path}/tmp/${line}" 2>/dev/null; then
-					echo -e "${opt_color}$(echo "${line}" | sed 's/^/  /')${reset} ${green}${data_info}${reset} ${cyan}$(ls ${this_script_path}/tmp/${line} 2>/dev/null)${reset}"
+					echo -e "${opt_color}$(echo "${line}" | $m_sed 's/^/  /')${reset} ${green}${data_info}${reset} ${cyan}$(ls ${this_script_path}/tmp/${line} 2>/dev/null)${reset}"
 				fi
 			else
 				echo -e "${opt_color}$(echo "${line}" | sed 's/^/  /')${reset} ${green}${data_info}${reset} ${cyan}$(ls ${this_script_path}/tmp/${line} 2>/dev/null)${reset}"
@@ -2266,7 +2285,8 @@ debug_shipped () {
 								 $m_awk '{print;} NR % 3 == 0 { print "================================"; }')
 		echo ""
 	else
-		echo "There is no data for debug"
+		echo "${red}*${reset} ${red}Couldn't find any logs for debugging${reset}"
+		echo -e "${m_tab}${cyan}# ---------------------------------------------------------------------${reset}\n"
 	fi
 }
 
