@@ -2208,38 +2208,64 @@ debug_delivered () {
 
 		echo -e "\n${m_tab}${cyan}# WOOCOMMERCE - ARAS CARGO INTEGRATION DELIVERED DATA DEBUGGING${reset}"
 		echo "${m_tab}${cyan}# ---------------------------------------------------------------------${reset}"
-		echo -e "${m_tab}${cyan}# These are the related logs that match with your search criteria${reset}\n"
-		while read -r line
-		do
-			[[ "$line" =~ ^=.* ]] && opt_color="${cyan}" || opt_color="${magenta}"
-			if grep -q "wc" <<< "${line}"; then
-				data_info="--> WooC Data PATH:"
-				data_info="${data_info/#/   }"
-			elif grep -q "aras" <<< "${line}"; then
-				data_info="--> Aras Data PATH:"
-				data_info="${data_info/#/ }"
-			elif grep -q "=" <<< "${line}"; then
-				data_info=""
-			else
-				data_info="--> Main Data PATH:"
-				data_info="${data_info/#/      }"
+		echo -e "${m_tab}${cyan}# Related logs that match with your search criteria${reset}\n"
+
+		if ! grep -q "wc.proc.del\|aras.proc.del\|main.del" <<< "$(ls -p "${this_script_path}/tmp" | grep -v /)"; then
+			echo "${red}*${reset} ${red}Couldn't find any delivered order log${reset}"
+			echo -e "${cyan}${m_tab}#####################################################${reset}\n"
+			echo "$(timestamp): Couldn't find any delivered order log" >> "${wooaras_log}"
+			exit 1
+		elif grep -q "wc.proc.del\|aras.proc.del\|main.del" <<< "$(ls -p "${this_script_path}/tmp" | grep -v / | grep -E ^"${1}")"; then
+			if [[ "${2}" ]]; then
+				if ! find "${this_script_path}/tmp" -type f \( -name "*main.del*" -o -name "*wc.proc.del*" -o -name "*aras.proc.del*" \) -print0 | xargs -r0 grep -q "${2}"; then
+					echo "${yellow}*${reset} ${yellow}Couldn't find any log that matches search criteria${reset}"
+					echo "${cyan}${m_tab}#####################################################${reset}"
+					echo -e "${yellow}${m_tab}Search Criteria: ${magenta}ID=${2}${reset}\n"
+					echo "$(timestamp): Couldn't find any log that matches search criteria: ID=${2}" >> "${wooaras_log}"
+					exit 1
+				fi
 			fi
 
-			if [[ "${2}" ]]; then
-				if grep -q "${2}" "${this_script_path}/tmp/${line}" 2>/dev/null; then
-					echo -e "${opt_color}$(echo "${line}" | sed 's/^/  /')${reset} ${green}${data_info}${reset} ${cyan}$(ls ${this_script_path}/tmp/${line} 2>/dev/null)${reset}"
+			while read -r line
+			do
+				[[ "$line" =~ ^=.* ]] && opt_color="${cyan}" || opt_color="${magenta}"
+				if grep -q "wc" <<< "${line}"; then
+					data_info="--> WooC Data PATH:"
+					data_info="${data_info/#/   }"
+				elif grep -q "aras" <<< "${line}"; then
+					data_info="--> Aras Data PATH:"
+					data_info="${data_info/#/ }"
+				elif grep -q "=" <<< "${line}"; then
+					data_info=""
+				else
+					data_info="--> Main Data PATH:"
+					data_info="${data_info/#/      }"
 				fi
-			else
-				echo -e "${opt_color}$(echo "${line}" | $m_sed 's/^/  /')${reset} ${green}${data_info}${reset} ${cyan}$(ls ${this_script_path}/tmp/${line} 2>/dev/null)${reset}"
-			fi
-		done < <(grep "wc.proc.del\|aras.proc.del\|main.del" <<< $(ls -p "${this_script_path}/tmp" | grep -v /) |
-									 sort -t_ -k2 | grep -E ^"${1}" |
-									 $m_awk '{print;} NR % 3 == 0 { print "================================"; }')
-		echo ""
-        else
-		echo "${red}*${reset} ${red}Couldn't find any logs for debugging${reset}"
-		echo -e "${m_tab}${cyan}# ---------------------------------------------------------------------${reset}\n"
-        fi
+
+				if [[ "${2}" ]]; then
+					if grep -q "${2}" "${this_script_path}/tmp/${line}" 2>/dev/null; then
+						echo -e "${opt_color}$(echo "${line}" | sed 's/^/  /')${reset} ${green}${data_info}${reset} ${cyan}$(ls ${this_script_path}/tmp/${line} 2>/dev/null)${reset}"
+					fi
+				else
+					echo -e "${opt_color}$(echo "${line}" | $m_sed 's/^/  /')${reset} ${green}${data_info}${reset} ${cyan}$(ls ${this_script_path}/tmp/${line} 2>/dev/null)${reset}"
+				fi
+			done < <(grep "wc.proc.del\|aras.proc.del\|main.del" <<< $(ls -p "${this_script_path}/tmp" | grep -v /) |
+										 sort -t_ -k2 | grep -E ^"${1}" |
+										 $m_awk '{print;} NR % 3 == 0 { print "================================"; }')
+			echo ""
+		else
+			echo "${yellow}*${reset} ${yellow}Couldn't find any log that matches search criteria${reset}"
+			echo "${cyan}${m_tab}#####################################################${reset}"
+			echo -e "${yellow}${m_tab}Search Criteria: ${magenta}Date=${1}${reset}\n"
+			echo "$(timestamp): Couldn't find any log that matches search criteria: Date=${1}" >> "${wooaras_log}"
+			exit 1
+		fi
+	else
+		echo "${red}*${reset} ${red}Couldn't find any log for debugging${reset}"
+		echo "${cyan}${m_tab}#####################################################${reset}"
+		echo "$(timestamp): Couldn't find any log for debugging" >> "${wooaras_log}"
+		exit 1
+	fi
 }
 
 # Debug shipped data
@@ -2249,44 +2275,70 @@ debug_shipped () {
 		# Show usage
 		if [[ ! "${1}" ]]; then
 			echo -e "\n${m_tab}${cyan}USAGE: ${m_tab_4}${magenta}${cron_script_full_path} --debug-shipped|-g x[range]-month-year 'ORDER_ID\|TRACKING_NUMBER' or ORDER_ID or TRACKING_NUMBER${reset}"
-			echo "${m_tab}${cyan}EXAMPLE 1: ${magenta}${cron_script_full_path} -g '1[1-9]-09-2021' '13241\|108324345362'${reset}"
-			echo -e "${m_tab}${cyan}EXAMPLE 2: ${magenta}${cron_script_full_path} -g 14-09-2021 108324345362${reset}\n"
+			echo "${m_tab}${cyan}EXAMPLE 1: ${magenta}${cron_script_full_path} -z '1[1-9]-09-2021' '13241\|108324345362'${reset}"
+			echo "${m_tab}${cyan}EXAMPLE 2: ${magenta}${cron_script_full_path} -z 14-09-2021 108324345362${reset}"
 			spinner
 		fi
 
 		echo -e "\n${m_tab}${cyan}# WOOCOMMERCE - ARAS CARGO INTEGRATION SHIPPED DATA DEBUGGING${reset}"
 		echo "${m_tab}${cyan}# ---------------------------------------------------------------------${reset}"
-		echo -e "${m_tab}${cyan}# These are the related logs that match with your search criteria${reset}\n"
-		while read -r line
-		do
-			[[ "$line" =~ ^=.* ]] && opt_color="${cyan}" || opt_color="${magenta}"
-			if grep -q "wc" <<< "${line}"; then
-				data_info="--> WooC Data PATH:"
-				data_info="${data_info/#/   }"
-			elif grep -q "aras" <<< "${line}"; then
-				data_info="--> Aras Data PATH:"
-				data_info="${data_info/#/ }"
-			elif grep -q "=" <<< "${line}"; then
-				data_info=""
-			else
-				data_info="--> Main Data PATH:"
-				data_info="${data_info/#/         }"
+		echo -e "${m_tab}${cyan}# Related logs that match with your search criteria${reset}\n"
+
+		if ! grep -q "wc.proc.en\|aras.proc.en\|main_" <<< "$(ls -p "${this_script_path}/tmp" | grep -v /)"; then
+			echo "${red}*${reset} ${red}Couldn't find any shipped order log${reset}"
+			echo -e "${cyan}${m_tab}#####################################################${reset}\n"
+			echo "$(timestamp): Couldn't find any shipped order log" >> "${wooaras_log}"
+			exit 1
+		elif grep -q "wc.proc.en\|aras.proc.en\|main_" <<< "$(ls -p "${this_script_path}/tmp" | grep -v / | grep -E ^"${1}")"; then
+			if [[ "${2}" ]]; then
+				if ! find "${this_script_path}/tmp" -type f \( -name "*main_*" -o -name "*wc.proc.en*" -o -name "*aras.proc.en*" \) -print0 | xargs -r0 grep -q "${2}"; then
+					echo "${yellow}*${reset} ${yellow}Couldn't find any log that matches search criteria${reset}"
+					echo "${cyan}${m_tab}#####################################################${reset}"
+					echo -e "${yellow}${m_tab}Search Criteria: ${magenta}ID=${2}${reset}\n"
+					echo "$(timestamp): Couldn't find any log that matches search criteria: ID=${2}" >> "${wooaras_log}"
+					exit 1
+				fi
 			fi
 
-			if [[ "${2}" ]]; then
-				if grep -q "${2}" "${this_script_path}/tmp/${line}" 2>/dev/null; then
+			while read -r line
+			do
+				[[ "$line" =~ ^=.* ]] && opt_color="${cyan}" || opt_color="${magenta}"
+				if grep -q "wc" <<< "${line}"; then
+					data_info="--> WooC Data PATH:"
+					data_info="${data_info/#/   }"
+				elif grep -q "aras" <<< "${line}"; then
+					data_info="--> Aras Data PATH:"
+					data_info="${data_info/#/ }"
+				elif grep -q "=" <<< "${line}"; then
+					data_info=""
+				else
+					data_info="--> Main Data PATH:"
+					data_info="${data_info/#/      }"
+				fi
+
+				if [[ "${2}" ]]; then
+					if grep -q "${2}" "${this_script_path}/tmp/${line}" 2>/dev/null; then
+						echo -e "${opt_color}$(echo "${line}" | sed 's/^/  /')${reset} ${green}${data_info}${reset} ${cyan}$(ls ${this_script_path}/tmp/${line} 2>/dev/null)${reset}"
+					fi
+				else
 					echo -e "${opt_color}$(echo "${line}" | $m_sed 's/^/  /')${reset} ${green}${data_info}${reset} ${cyan}$(ls ${this_script_path}/tmp/${line} 2>/dev/null)${reset}"
 				fi
-			else
-				echo -e "${opt_color}$(echo "${line}" | sed 's/^/  /')${reset} ${green}${data_info}${reset} ${cyan}$(ls ${this_script_path}/tmp/${line} 2>/dev/null)${reset}"
-			fi
-		done < <(grep "wc.proc.en\|aras.proc.en\|main_" <<< $(ls -p "${this_script_path}/tmp" | grep -v /) |
-								 sort -t_ -k2 | grep -E ^"${1}" |
-								 $m_awk '{print;} NR % 3 == 0 { print "================================"; }')
-		echo ""
+			done < <(grep "wc.proc.en\|aras.proc.en\|main_" <<< $(ls -p "${this_script_path}/tmp" | grep -v /) |
+										     sort -t_ -k2 | grep -E ^"${1}" |
+										     $m_awk '{print;} NR % 3 == 0 { print "================================"; }')
+			echo ""
+		else
+			echo "${yellow}*${reset} ${yellow}Couldn't find any log that matches search criteria${reset}"
+			echo "${cyan}${m_tab}#####################################################${reset}"
+			echo -e "${yellow}${m_tab}Search Criteria: ${magenta}Date=${1}${reset}\n"
+			echo "$(timestamp): Couldn't find any log that matches search criteria: Date=${1}" >> "${wooaras_log}"
+			exit 1
+		fi
 	else
-		echo "${red}*${reset} ${red}Couldn't find any logs for debugging${reset}"
-		echo -e "${m_tab}${cyan}# ---------------------------------------------------------------------${reset}\n"
+		echo "${red}*${reset} ${red}Couldn't find any log for debugging${reset}"
+		echo "${cyan}${m_tab}#####################################################${reset}"
+		echo "$(timestamp): Couldn't find any log for debugging" >> "${wooaras_log}"
+		exit 1
 	fi
 }
 
