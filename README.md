@@ -230,3 +230,5 @@ If you encountered any errors such as long pending order which automation missed
 ### Example 2:
 > filters September 14 dated delivered data for suspicious tracking number  
 ```./woocommerce-aras-cargo.sh -z 14-09-2021 108324345362```
+
+![debug_integration](https://user-images.githubusercontent.com/25556606/134054537-b1f3fc44-fa3f-42ac-bd94-62a08c4025fe.png)
