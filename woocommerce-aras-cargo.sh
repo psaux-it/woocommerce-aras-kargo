@@ -769,9 +769,12 @@ hide_me () {
 # Display automation status
 my_status () {
 	# NOTE: Variables in this function not visible by rest of script (subshell caused by pipe)
-	# So no need to set them locally
+	# So no! need to set them locally
 	echo -e "\n${m_tab}${cyan}# WOOCOMMERCE - ARAS CARGO INTEGRATION STATUS${reset}"
 	echo "${m_tab}${cyan}# ---------------------------------------------------------------------${reset}"
+
+	# Call pre check
+	pre_check --status
 
 	{ # Start redirection
 
@@ -851,10 +854,10 @@ my_status () {
 							$m_awk 'BEGIN {cnt=0;FS=":"}; {cnt+=$2;}; END {print cnt;}')
 			fi
 			echo "${cyan}#STATISTICS_VIA_AUTOMATION_DATA${reset}"
-			echo "${green}Shipped: ${magenta}${total_processed}${reset}"
+			echo "${green}Total_Shipped: ${magenta}${total_processed}${reset}"
 			echo "${green}Awaiting_Shipment: ${magenta}${w_processing}${reset}"
 			if [[ "${ts_status}" == "Completed" ]]; then
-				echo "${green}Delivered: ${magenta}${total_processed_del}${reset}"
+				echo "${green}Total_Delivered: ${magenta}${total_processed_del}${reset}"
 				echo "${green}Awaiting_Delivery: ${magenta}$((total_processed-total_processed_del))${reset}"
 			fi
 		fi
@@ -931,7 +934,18 @@ pre_check () {
 	local bash_old; local awk_old; local find_not_gnu; local awk_not_gnu
 	local sed_old; local sed_not_gnu; local woo_unknown; local jq_unknown
 	local word_unknown; local find_unknown; local gnu_awk_v_unknown
-	local gnu_sed_v_unknown
+	local gnu_sed_v_unknown; local bridge="$1"
+
+	# Coming from --setup or --status ?
+	if [[ "${bridge}" == "--status" ]]; then
+		hide_me --enable
+		if [[ ! "${api_key}" || ! "${api_secret}" || ! "${api_endpoint}" ]]; then
+			api_key=$(< "${this_script_lck_path}/.key.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
+			api_secret=$(< "${this_script_lck_path}/.secret.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
+			api_endpoint=$(< "${this_script_lck_path}/.end.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
+		fi
+		hide_me --disable
+	fi
 
 	# Find distro
 	echo -e "\n${green}*${reset} ${green}Checking system requirements.${reset}"
@@ -1129,15 +1143,19 @@ pre_check () {
 			     "${word_old}" "${gnu_sed_v_unknown}" "${gnu_awk_v_unknown}"
 			     "${jq_unknown}" "${word_unknown}" "${find_unknown}" "${woo_unknown}")
 
-	for i in "${quit_now[@]}"
-	do
-		if [[ "${i}" ]]; then
-			exit 1
-		fi
-	done
+	if [[ "${bridge}" != "--status" ]]; then
+		for i in "${quit_now[@]}"
+		do
+			if [[ "${i}" ]]; then
+				exit 1
+			fi
+		done
 
-	if [[ "${ast_ver}" == "false" ]]; then
-		exit  1
+		if [[ "${ast_ver}" == "false" ]]; then
+			exit  1
+		fi
+	else
+		echo ""
 	fi
 }
 
