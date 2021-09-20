@@ -214,11 +214,13 @@ If you use mutt, ssmtp, sendmail etc. please edit mail function as you wish. You
 ## Debugging
 
 If you encountered any errors such as long pending order which automation missed or orders updated with the wrong tracking code, you can easily use debugging parameters to display related log files.
+Also use status argument to check statistics and other useful informations about automation.
 
 ### Debugging Parameters:
 
 ```--debug-shipped   |-g```
 ```--debug-delivered |-z```
+```--status | -S```
 
 ### Usage
 ```./woocommerce-aras-cargo.sh --debug-shipped|--debug-delivered|-g|-z 'x[range]-month-year' 'ORDER_ID\|TRACKING_NUMBER' or (ORDER_ID || TRACKING_NUMBER)```
