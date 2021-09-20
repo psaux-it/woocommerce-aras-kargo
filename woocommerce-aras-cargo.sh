@@ -766,115 +766,6 @@ hide_me () {
 	fi
 }
 
-# Display automation status
-my_status () {
-	# NOTE: Variables in this function not visible by rest of script (subshell caused by pipe)
-	# So no! need to set them locally
-	echo -e "\n${m_tab}${cyan}# WOOCOMMERCE - ARAS CARGO INTEGRATION STATUS${reset}"
-	echo "${m_tab}${cyan}# ---------------------------------------------------------------------${reset}"
-
-	# Call pre check
-	pre_check --status
-
-	{ # Start redirection
-
-	# Setup status
-	if [[ -e "${this_script_path}/.woo.aras.set" ]]; then
-		s_status="Completed"
-		echo "${green}Default-Setup: $s_status${reset}"
-
-		hide_me --enable
-		if [[ ! "${api_key}" || ! "${api_secret}" || ! "${api_endpoint}" ]]; then
-			api_key=$(< "${this_script_lck_path}/.key.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
-			api_secret=$(< "${this_script_lck_path}/.secret.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
-			api_endpoint=$(< "${this_script_lck_path}/.end.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
-		fi
-		hide_me --disable
-
-		w_delivered=$($m_curl -s -X GET -K- <<< "-u ${api_key}:${api_secret}" -H "Content-Type: application/json" "https://$api_endpoint/wp-json/wc/v3/orders?status=delivered")
-		w_processing=$($m_curl -s -X GET -K- <<< "-u ${api_key}:${api_secret}" -H "Content-Type: application/json" "https://$api_endpoint/wp-json/wc/v3/orders?status=processing&per_page=100" | $m_jq -r '.[]|[.id]|join(" ")' | wc -l)
-		if ! grep -q "rest_invalid_param" <<< "${w_delivered}"; then
-			ts_status="Completed"
-			echo "${green}Two-way_Workflow-Setup: $ts_status${reset}"
-		else
-			ts_status="Not_Completed"
-			echo "${green}Two-way_Workflow-Setup: ${yellow}$ts_status${reset}"
-		fi
-
-	else
-		ts_status="Null"
-		s_status="Not_Completed"
-		echo "${green}Default-Setup: ${red}$s_status${reset}"
-		echo "${green}Two-way_Workflow-Setup: ${yellow}$ts_status${reset}"
-	fi
-
-	# Automation status
-	if [[ -e "${this_script_path}/.woo.aras.enb" ]]; then
-		echo "${green}Automation-Status: Enabled${reset}"
-	else
-		echo "${green}Automation-Status: ${red}Disabled${reset}"
-	fi
-
-	# Two-way status
-	if [[ -e "${this_script_path}/.two.way.enb" ]]; then
-		echo "${green}Two-Way-Status: Enabled${reset}"
-	else
-		echo "${green}Two-Way-Status: ${red}Disabled${reset}"
-	fi
-
-	# Installation status
-	if [[ -s "${cron_dir}/${cron_filename}" ]]; then
-		echo "${green}Installation: Cron${reset}"
-	elif [[ -s "${systemd_dir}/${service_filename}" && -s "${systemd_dir}/${timer_filename}" ]]; then
-		if systemctl -t timer | grep "${timer_filename}" | grep -q "active"; then
-			echo "${green}Installation: Systemd${reset}"
-		else
-			echo "${green}Installation: ${red}Broken${reset}"
-		fi
-	else
-		echo "${green}Installation: ${red}Failed${reset}"
-	fi
-
-	# Auto-update status
-	if [[ -s "${cron_dir}/${cron_filename_update}" ]]; then
-		echo "${green}Auto-Update: Enabled${reset}"
-	else
-		echo "${green}Auto-Update: ${yellow}Disabled${reset}"
-	fi
-
-	# Get total processed orders via automation (include rotated logs)
-	if command -v zgrep >/dev/null 2>&1; then
-		if [[ "${s_status}" == "Completed" && -s "${wooaras_log}" ]]; then
-			total_processed=$(find "${wooaras_log%/*}/" -name \*.log* -print0 2>/dev/null |
-						xargs -0 zgrep -ci "SHIPPED" |
-						$m_awk 'BEGIN {cnt=0;FS=":"}; {cnt+=$2;}; END {print cnt;}')
-			if [[ "${ts_status}" == "Completed" ]]; then
-				total_processed_del=$(find "${wooaras_log%/*}/" -name \*.log* -print0 2>/dev/null |
-							xargs -0 zgrep -ci "DELIVERED" |
-							$m_awk 'BEGIN {cnt=0;FS=":"}; {cnt+=$2;}; END {print cnt;}')
-			fi
-			echo "${cyan}#STATISTICS_VIA_AUTOMATION_DATA${reset}"
-			echo "${green}Total_Shipped: ${magenta}${total_processed}${reset}"
-			echo "${green}Awaiting_Shipment: ${magenta}${w_processing}${reset}"
-			if [[ "${ts_status}" == "Completed" ]]; then
-				echo "${green}Total_Delivered: ${magenta}${total_processed_del}${reset}"
-				echo "${green}Awaiting_Delivery: ${magenta}$((total_processed-total_processed_del))${reset}"
-			fi
-		fi
-	fi
-
-	} | column -t -s ' ' | $m_sed 's/^/  /' # NOTE: End redirection { Piping created subshell and we lost all variables in command grouping }
-						# But we don't need these variables within the following code block
-	echo "${m_tab}${cyan}# ---------------------------------------------------------------------${reset}"
-
-	if ! command -v zgrep >/dev/null 2>&1; then
-		echo -e "\n${red}*${reset} ${red}zgrep not found!${reset}"
-		echo "${cyan}${m_tab}#######################################################################${reset}"
-		echo -e "${m_tab}${red}Install 'zgrep' to see statistics via automation${reset}\n"
-		echo "$(timestamp): zgrep not found, install 'zgrep' to see statistics via automation" >> "${wooaras_log}"
-	fi
-}
-
 # Twoway pretty error
 twoway_pretty_error () {
 	echo -e "\n${red}*${reset} ${red}Two way fulfillment workflow installation aborted:${reset}"
@@ -1159,6 +1050,116 @@ pre_check () {
 	fi
 }
 
+# Display automation status
+my_status () {
+	# NOTE: Variables in this function not visible by rest of script (subshell caused by pipe)
+	# So no! need to set them locally
+	echo -e "\n${m_tab}${cyan}# WOOCOMMERCE - ARAS CARGO INTEGRATION STATUS${reset}"
+	echo "${m_tab}${cyan}# ---------------------------------------------------------------------${reset}"
+
+	# Call pre check
+	pre_check --status
+
+	{ # Start redirection
+
+	# Setup status
+	if [[ -e "${this_script_path}/.woo.aras.set" ]]; then
+		s_status="Completed"
+		echo "${green}Default-Setup: $s_status${reset}"
+
+		hide_me --enable
+		if [[ ! "${api_key}" || ! "${api_secret}" || ! "${api_endpoint}" ]]; then
+			api_key=$(< "${this_script_lck_path}/.key.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
+			api_secret=$(< "${this_script_lck_path}/.secret.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
+			api_endpoint=$(< "${this_script_lck_path}/.end.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
+		fi
+		hide_me --disable
+
+		w_delivered=$($m_curl -s -X GET -K- <<< "-u ${api_key}:${api_secret}" -H "Content-Type: application/json" "https://$api_endpoint/wp-json/wc/v3/orders?status=delivered")
+		w_processing=$($m_curl -s -X GET -K- <<< "-u ${api_key}:${api_secret}" -H "Content-Type: application/json" "https://$api_endpoint/wp-json/wc/v3/orders?status=processing&per_page=100" | $m_jq -r '.[]|[.id]|join(" ")' | wc -l)
+		if ! grep -q "rest_invalid_param" <<< "${w_delivered}"; then
+			ts_status="Completed"
+			echo "${green}Two-way_Workflow-Setup: $ts_status${reset}"
+		else
+			ts_status="Not_Completed"
+			echo "${green}Two-way_Workflow-Setup: ${yellow}$ts_status${reset}"
+		fi
+
+	else
+		ts_status="Null"
+		s_status="Not_Completed"
+		echo "${green}Default-Setup: ${red}$s_status${reset}"
+		echo "${green}Two-way_Workflow-Setup: ${yellow}$ts_status${reset}"
+	fi
+
+	# Automation status
+	if [[ -e "${this_script_path}/.woo.aras.enb" ]]; then
+		echo "${green}Automation-Status: Enabled${reset}"
+	else
+		echo "${green}Automation-Status: ${red}Disabled${reset}"
+	fi
+
+	# Two-way status
+	if [[ -e "${this_script_path}/.two.way.enb" ]]; then
+		echo "${green}Two-Way-Status: Enabled${reset}"
+	else
+		echo "${green}Two-Way-Status: ${red}Disabled${reset}"
+	fi
+
+	# Installation status
+	if [[ -s "${cron_dir}/${cron_filename}" ]]; then
+		echo "${green}Installation: Cron${reset}"
+	elif [[ -s "${systemd_dir}/${service_filename}" && -s "${systemd_dir}/${timer_filename}" ]]; then
+		if systemctl -t timer | grep "${timer_filename}" | grep -q "active"; then
+			echo "${green}Installation: Systemd${reset}"
+		else
+			echo "${green}Installation: ${red}Broken${reset}"
+		fi
+	else
+		echo "${green}Installation: ${red}Failed${reset}"
+	fi
+
+	# Auto-update status
+	if [[ -s "${cron_dir}/${cron_filename_update}" ]]; then
+		echo "${green}Auto-Update: Enabled${reset}"
+	else
+		echo "${green}Auto-Update: ${yellow}Disabled${reset}"
+	fi
+
+	# Get total processed orders via automation (include rotated logs)
+	if command -v zgrep >/dev/null 2>&1; then
+		if [[ "${s_status}" == "Completed" && -s "${wooaras_log}" ]]; then
+			total_processed=$(find "${wooaras_log%/*}/" -name \*.log* -print0 2>/dev/null |
+						xargs -0 zgrep -ci "SHIPPED" |
+						$m_awk 'BEGIN {cnt=0;FS=":"}; {cnt+=$2;}; END {print cnt;}')
+			if [[ "${ts_status}" == "Completed" ]]; then
+				total_processed_del=$(find "${wooaras_log%/*}/" -name \*.log* -print0 2>/dev/null |
+							xargs -0 zgrep -ci "DELIVERED" |
+							$m_awk 'BEGIN {cnt=0;FS=":"}; {cnt+=$2;}; END {print cnt;}')
+			fi
+			echo "${cyan}#STATISTICS_VIA_AUTOMATION_DATA${reset}"
+			echo "${green}Total_Shipped: ${magenta}${total_processed}${reset}"
+			echo "${green}Awaiting_Shipment: ${magenta}${w_processing}${reset}"
+			if [[ "${ts_status}" == "Completed" ]]; then
+				echo "${green}Total_Delivered: ${magenta}${total_processed_del}${reset}"
+				echo "${green}Awaiting_Delivery: ${magenta}$((total_processed-total_processed_del))${reset}"
+			fi
+		fi
+	fi
+
+	} | column -t -s ' ' | $m_sed 's/^/  /' # NOTE: End redirection { Piping created subshell and we lost all variables in command grouping }
+						# But we don't need these variables within the following code block
+	echo "${m_tab}${cyan}# ---------------------------------------------------------------------${reset}"
+
+	if ! command -v zgrep >/dev/null 2>&1; then
+		echo -e "\n${red}*${reset} ${red}zgrep not found!${reset}"
+		echo "${cyan}${m_tab}#######################################################################${reset}"
+		echo -e "${m_tab}${red}Install 'zgrep' to see statistics via automation${reset}\n"
+		echo "$(timestamp): zgrep not found, install 'zgrep' to see statistics via automation" >> "${wooaras_log}"
+	fi
+}
+
+# Continue if two-way fails
 continue_setup () {
 	while true; do
 		echo -e "\n${yellow}*${reset}${yellow} Two-way fulfillment workflow installation skipped.${reset}"
