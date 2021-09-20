@@ -220,7 +220,7 @@ Also use status argument to check statistics and other useful informations about
 
 ```--debug-shipped   |-g```
 ```--debug-delivered |-z```
-```--status | -S```
+```--status |-S```
 
 ### Usage
 ```./woocommerce-aras-cargo.sh --debug-shipped|--debug-delivered|-g|-z 'x[range]-month-year' 'ORDER_ID\|TRACKING_NUMBER' or (ORDER_ID || TRACKING_NUMBER)```
