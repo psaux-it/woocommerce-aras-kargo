@@ -816,6 +816,42 @@ check_delivered () {
 	fi
 }
 
+# Get total processed orders via automation (include rotated logs)
+# Variables in this function not visible by rest of script (caused by pipe) So no! need to set variables locally
+statistics () {
+	echo -e "\n${green}*${reset} ${magenta}Automation Statistics:${reset}"
+	echo "${cyan}${m_tab}#####################################################${reset}"
+
+	{ # Start redirection
+	if command -v zgrep >/dev/null 2>&1; then
+		if [[ -s "${wooaras_log}" ]]; then
+			total_processed=$(find "${wooaras_log%/*}/" -name \*.log* -print0 2>/dev/null |
+						xargs -0 zgrep -ci "SHIPPED" |
+						$m_awk 'BEGIN {cnt=0;FS=":"}; {cnt+=$2;}; END {print cnt;}')
+			if [[ "${ts_status}" == "Completed" ]]; then
+				total_processed_del=$(find "${wooaras_log%/*}/" -name \*.log* -print0 2>/dev/null |
+							xargs -0 zgrep -ci "DELIVERED" |
+							$m_awk 'BEGIN {cnt=0;FS=":"}; {cnt+=$2;}; END {print cnt;}')
+			fi
+			echo "${green}Total_Shipped: ${magenta}${total_processed}${reset}"
+			echo "${green}Awaiting_Shipment: ${magenta}${w_processing}${reset}"
+			if [[ "${ts_status}" == "Completed" ]]; then
+				echo "${green}Total_Delivered: ${magenta}${total_processed_del}${reset}"
+				echo "${green}Awaiting_Delivery: ${magenta}$((total_processed-total_processed_del))${reset}"
+			fi
+		fi
+	fi
+
+	} | column -t -s ' ' | $m_sed 's/^/  /' # End redirection { Piping created subshell and we lost all variables in command grouping }
+
+	if ! command -v zgrep >/dev/null 2>&1; then
+		echo -e "\n${red}*${reset} ${red}zgrep not found!${reset}"
+		echo "${cyan}${m_tab}#######################################################################${reset}"
+		echo -e "${m_tab}${red}Install 'zgrep' to see statistics via automation${reset}\n"
+		echo "$(timestamp): zgrep not found, install 'zgrep' to see statistics via automation" >> "${wooaras_log}"
+	fi
+}
+
 # Check dependency version
 pre_check () {
 	local running_os; local ast_ver; local woo_ver; local bash_ver
@@ -825,22 +861,31 @@ pre_check () {
 	local bash_old; local awk_old; local find_not_gnu; local awk_not_gnu
 	local sed_old; local sed_not_gnu; local woo_unknown; local jq_unknown
 	local word_unknown; local find_unknown; local gnu_awk_v_unknown
-	local gnu_sed_v_unknown; local bridge="$1"
+	local gnu_sed_v_unknown; local bridge="$1"; local ast_unknown
+	local delimeter
 
-	# Coming from --setup or --status ?
-	if [[ "${bridge}" == "--status" ]]; then
-		hide_me --enable
-		if [[ ! "${api_key}" || ! "${api_secret}" || ! "${api_endpoint}" ]]; then
-			api_key=$(< "${this_script_lck_path}/.key.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
-			api_secret=$(< "${this_script_lck_path}/.secret.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
-			api_endpoint=$(< "${this_script_lck_path}/.end.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
+	if [[ "${bridge}" == "--status" ]]; then # Coming from --setup or --status?
+		if [[ -e "${this_script_path}/.woo.aras.set" ]]; then
+			hide_me --enable
+			if [[ ! "${api_key}" || ! "${api_secret}" || ! "${api_endpoint}" ]]; then
+				api_key=$(< "${this_script_lck_path}/.key.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
+				api_secret=$(< "${this_script_lck_path}/.secret.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
+				api_endpoint=$(< "${this_script_lck_path}/.end.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
+			fi
+			hide_me --disable
+		else
+			delimeter=1
 		fi
-		hide_me --disable
+	fi
+
+	if [[ "${bridge}" == "--status" ]]; then
+		echo -e "\n${green}*${reset} ${green}Checking status.${reset}"
+	else
+		echo -e "\n${green}*${reset} ${green}Checking system requirements.${reset}"
 	fi
 
 	# Find distro
-	echo -e "\n${green}*${reset} ${green}Checking system requirements.${reset}"
-	running_os="$(grep '^ID=' /etc/os-release | cut -d'=' -f2 | $m_sed -e 's/"//g')"
+	running_os=$(grep '^ID=' /etc/os-release | cut -d'=' -f2 | $m_sed -e 's/"//g')
 	case "${running_os}" in
 		"centos"|"fedora"|"CentOS") o_s=CentOS;;
 		"debian"|"ubuntu") o_s=Debian;;
@@ -851,29 +896,31 @@ pre_check () {
 	esac
 	echo -ne "${cyan}${m_tab}########                                             [20%]\r${reset}"
 
-	# AST Plugin version
-	$m_curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/system_status" -K- <<< "-u ${api_key}:${api_secret}" -H "Content-Type: application/json" | $m_jq -r '[.active_plugins[].plugin]' | tr -d '[],"' | $m_awk -F/ '{print $2}' | $m_awk -F. '{print $1}' | $m_sed '/^[[:space:]]*$/d' > "${this_script_path}"/.plg.proc
-	$m_curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/system_status" -K- <<< "-u ${api_key}:${api_secret}" -H "Content-Type: application/json" | $m_jq -r '[.active_plugins[].version]' | tr -d '[],"' | $m_sed '/^[[:space:]]*$/d' | $m_awk '{$1=$1};1' > "${this_script_path}"/.plg.ver.proc
-
-	paste "${this_script_path}/.plg.proc" "${this_script_path}/.plg.ver.proc" > "${this_script_path}/.plg.act.proc"
-	echo -ne "${cyan}${m_tab}##################                                   [40%]\r${reset}"
-
-	if grep -q "woocommerce-advanced-shipment-tracking" "${this_script_path}/.plg.act.proc"; then
+	if [[ ! "${delimeter}" ]]; then
 		# AST Plugin version
-		ast_ver=$(< "${this_script_path}/.plg.act.proc" grep "woocommerce-advanced-shipment-tracking" | $m_awk '{print $2}')
-	else
-		ast_ver=false
-	fi
+		$m_curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/system_status" -K- <<< "-u ${api_key}:${api_secret}" -H "Content-Type: application/json" | $m_jq -r '[.active_plugins[].plugin]' | tr -d '[],"' | $m_awk -F/ '{print $2}' | $m_awk -F. '{print $1}' | $m_sed '/^[[:space:]]*$/d' > "${this_script_path}"/.plg.proc
+		$m_curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/system_status" -K- <<< "-u ${api_key}:${api_secret}" -H "Content-Type: application/json" | $m_jq -r '[.active_plugins[].version]' | tr -d '[],"' | $m_sed '/^[[:space:]]*$/d' | $m_awk '{$1=$1};1' > "${this_script_path}"/.plg.ver.proc
 
-	# WooCommerce version
-	woo_ver=$($m_curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/system_status" -K- <<< "-u ${api_key}:${api_secret}" -H "Content-Type: application/json" | $m_jq -r '[.environment.version]|join(" ")')
-	echo -ne "${cyan}${m_tab}##########################################           [85%]\r${reset}"
+		paste "${this_script_path}/.plg.proc" "${this_script_path}/.plg.ver.proc" > "${this_script_path}/.plg.act.proc"
+		echo -ne "${cyan}${m_tab}##################                                   [40%]\r${reset}"
+
+		if grep -q "woocommerce-advanced-shipment-tracking" "${this_script_path}/.plg.act.proc"; then
+			# AST Plugin version
+			ast_ver=$(< "${this_script_path}/.plg.act.proc" grep "woocommerce-advanced-shipment-tracking" | $m_awk '{print $2}')
+		else
+			ast_ver=false
+		fi
+
+		# WooCommerce version
+		woo_ver=$($m_curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/system_status" -K- <<< "-u ${api_key}:${api_secret}" -H "Content-Type: application/json" | $m_jq -r '[.environment.version]|join(" ")')
+		echo -ne "${cyan}${m_tab}##########################################           [85%]\r${reset}"
+
+		# Wordpress Version
+		w_ver=$(grep "generator" < <($m_curl -s -X GET -H "Content-Type:text/xml;charset=UTF-8" "https://$api_endpoint/feed/") | $m_perl -pe '($_)=/([0-9]+([.][0-9]+)+)/')
+	fi
 
 	# Bash Version
 	bash_ver="${BASH_VERSINFO:-0}"
-
-	# Wordpress Version
-	w_ver=$(grep "generator" < <($m_curl -s -X GET -H "Content-Type:text/xml;charset=UTF-8" "https://$api_endpoint/feed/") | $m_perl -pe '($_)=/([0-9]+([.][0-9]+)+)/')
 
 	# awk Version
 	if grep -q "GNU Awk" <<< "$($m_awk -Wv 2>&1)"; then
@@ -967,12 +1014,17 @@ pre_check () {
 		word_unknown=1
 	fi
 
-	if [[ "${ast_ver}" != "false" ]]; then
-		echo "${green}AST_Plugin: ACTIVE ✓${reset}"
-		echo "${green}AST_Plugin_Version: ${ast_ver} ✓${reset}"
+	if [[ "${ast_ver}" ]]; then
+		if [[ "${ast_ver}" != "false" ]]; then
+			echo "${green}AST_Plugin: ACTIVE ✓${reset}"
+			echo "${green}AST_Plugin_Version: ${ast_ver} ✓${reset}"
+		else
+			echo "${red}AST_Plugin: NOT_FOUND x${reset}"
+			echo "${red}AST_Plugin_Version: NOT_FOUND x${reset}"
+		fi
 	else
-		echo "${red}AST_Plugin: NOT_FOUND x${reset}"
-		echo "${red}AST_Plugin_Version: NOT_FOUND x${reset}"
+		echo "${red}AST_Plugin: Unknown x${reset}"
+		ast_unknown=1
 	fi
 
 	if [[ "${bash_ver}" -ge 5 ]]; then
@@ -1025,14 +1077,15 @@ pre_check () {
 	echo "${green}Dependencies: Ok ✓${reset}"
 
 	} > "${this_script_path}/.msg.proc" # NOTE: End redirection to file
-					    # Cannot directly pipe to column here that creates subshell and we lose variables
+					    # Cannot directly pipe to column here that creates subshell and we lose variables we need
 	column -t -s ' ' <<< "$(< "${this_script_path}/.msg.proc")" | $m_sed 's/^/  /'
 
 	# Quit
 	declare -a quit_now=("${awk_not_gnu}" "${sed_not_gnu}" "${find_not_gnu}" "${awk_old}"
 			     "${find_old}" "${sed_old}" "${woo_old}" "${jq_old}" "${bash_old}"
 			     "${word_old}" "${gnu_sed_v_unknown}" "${gnu_awk_v_unknown}"
-			     "${jq_unknown}" "${word_unknown}" "${find_unknown}" "${woo_unknown}")
+			     "${jq_unknown}" "${word_unknown}" "${find_unknown}" "${woo_unknown}"
+			     "${ast_unknown}")
 
 	if [[ "${bridge}" != "--status" ]]; then
 		for i in "${quit_now[@]}"
@@ -1052,13 +1105,26 @@ pre_check () {
 
 # Display automation status
 my_status () {
-	# NOTE: Variables in this function not visible by rest of script (subshell caused by pipe)
-	# So no! need to set them locally
+	local w_delivered; local s_status
+
 	echo -e "\n${m_tab}${cyan}# WOOCOMMERCE - ARAS CARGO INTEGRATION STATUS${reset}"
 	echo "${m_tab}${cyan}# ---------------------------------------------------------------------${reset}"
 
 	# Call pre check
 	pre_check --status
+
+	echo "${green}*${reset} ${magenta}Automation Status:${reset}"
+	echo "${cyan}${m_tab}#####################################################${reset}"
+
+	# Early exit if setup not completed
+	if ! [[ -e "${this_script_path}/.woo.aras.set" ]]; then
+		{
+		echo "${green}Default-Setup: ${red}Not_Completed${reset}"
+		echo "${green}Two-way_Workflow-Setup: ${yellow}Null${reset}"
+		} | column -t -s ' ' | $m_sed 's/^/  /'
+		echo -e "\n${m_tab}${cyan}# ---------------------------------------------------------------------${reset}"
+                exit 1
+        fi
 
 	{ # Start redirection
 
@@ -1067,16 +1133,9 @@ my_status () {
 		s_status="Completed"
 		echo "${green}Default-Setup: $s_status${reset}"
 
-		hide_me --enable
-		if [[ ! "${api_key}" || ! "${api_secret}" || ! "${api_endpoint}" ]]; then
-			api_key=$(< "${this_script_lck_path}/.key.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
-			api_secret=$(< "${this_script_lck_path}/.secret.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
-			api_endpoint=$(< "${this_script_lck_path}/.end.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
-		fi
-		hide_me --disable
-
 		w_delivered=$($m_curl -s -X GET -K- <<< "-u ${api_key}:${api_secret}" -H "Content-Type: application/json" "https://$api_endpoint/wp-json/wc/v3/orders?status=delivered")
 		w_processing=$($m_curl -s -X GET -K- <<< "-u ${api_key}:${api_secret}" -H "Content-Type: application/json" "https://$api_endpoint/wp-json/wc/v3/orders?status=processing&per_page=100" | $m_jq -r '.[]|[.id]|join(" ")' | wc -l)
+
 		if ! grep -q "rest_invalid_param" <<< "${w_delivered}"; then
 			ts_status="Completed"
 			echo "${green}Two-way_Workflow-Setup: $ts_status${reset}"
@@ -1084,12 +1143,6 @@ my_status () {
 			ts_status="Not_Completed"
 			echo "${green}Two-way_Workflow-Setup: ${yellow}$ts_status${reset}"
 		fi
-
-	else
-		ts_status="Null"
-		s_status="Not_Completed"
-		echo "${green}Default-Setup: ${red}$s_status${reset}"
-		echo "${green}Two-way_Workflow-Setup: ${yellow}$ts_status${reset}"
 	fi
 
 	# Automation status
@@ -1126,37 +1179,12 @@ my_status () {
 		echo "${green}Auto-Update: ${yellow}Disabled${reset}"
 	fi
 
-	# Get total processed orders via automation (include rotated logs)
-	if command -v zgrep >/dev/null 2>&1; then
-		if [[ "${s_status}" == "Completed" && -s "${wooaras_log}" ]]; then
-			total_processed=$(find "${wooaras_log%/*}/" -name \*.log* -print0 2>/dev/null |
-						xargs -0 zgrep -ci "SHIPPED" |
-						$m_awk 'BEGIN {cnt=0;FS=":"}; {cnt+=$2;}; END {print cnt;}')
-			if [[ "${ts_status}" == "Completed" ]]; then
-				total_processed_del=$(find "${wooaras_log%/*}/" -name \*.log* -print0 2>/dev/null |
-							xargs -0 zgrep -ci "DELIVERED" |
-							$m_awk 'BEGIN {cnt=0;FS=":"}; {cnt+=$2;}; END {print cnt;}')
-			fi
-			echo "${cyan}#STATISTICS_VIA_AUTOMATION_DATA${reset}"
-			echo "${green}Total_Shipped: ${magenta}${total_processed}${reset}"
-			echo "${green}Awaiting_Shipment: ${magenta}${w_processing}${reset}"
-			if [[ "${ts_status}" == "Completed" ]]; then
-				echo "${green}Total_Delivered: ${magenta}${total_processed_del}${reset}"
-				echo "${green}Awaiting_Delivery: ${magenta}$((total_processed-total_processed_del))${reset}"
-			fi
-		fi
-	fi
+	} > "${this_script_path}/.pre.proc" # End redirection to file
+	column -t -s ' ' <<< "$(< "${this_script_path}/.pre.proc")" | $m_sed 's/^/  /'
 
-	} | column -t -s ' ' | $m_sed 's/^/  /' # NOTE: End redirection { Piping created subshell and we lost all variables in command grouping }
-						# But we don't need these variables within the following code block
-	echo "${m_tab}${cyan}# ---------------------------------------------------------------------${reset}"
-
-	if ! command -v zgrep >/dev/null 2>&1; then
-		echo -e "\n${red}*${reset} ${red}zgrep not found!${reset}"
-		echo "${cyan}${m_tab}#######################################################################${reset}"
-		echo -e "${m_tab}${red}Install 'zgrep' to see statistics via automation${reset}\n"
-		echo "$(timestamp): zgrep not found, install 'zgrep' to see statistics via automation" >> "${wooaras_log}"
-	fi
+	# Call statistic function
+	statistics
+	echo -e "\n${m_tab}${cyan}# ---------------------------------------------------------------------${reset}"
 }
 
 # Continue if two-way fails
