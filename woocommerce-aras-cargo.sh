@@ -2247,9 +2247,9 @@ debug_delivered () {
 		local data_info
 		# Show usage
 		if [[ ! "${1}" ]]; then
-			echo -e "\n${m_tab}${cyan}USAGE: ${m_tab_4}${magenta}${cron_script_full_path} --debug-delivered|-z x[range]-month-year 'ORDER_ID\|TRACKING_NUMBER' or ORDER_ID or TRACKING_NUMBER${reset}"
-			echo "${m_tab}${cyan}EXAMPLE 1: ${magenta}${cron_script_full_path} -z '1[1-9]-09-2021' '13241\|108324345362'${reset}"
-			echo -e "${m_tab}${cyan}EXAMPLE 2: ${magenta}${cron_script_full_path} -z 14-09-2021 108324345362${reset}\n"
+			echo -e "\n${m_tab}${cyan}USAGE: ${m_tab_4}${magenta}${this_script_name} --debug-delivered|-z x[range]-month-year 'ORDER_ID\|TRACKING_NUMBER' or ORDER_ID or TRACKING_NUMBER${reset}"
+			echo "${m_tab}${cyan}EXAMPLE 1: ${magenta}${this_script_name} -z '1[1-9]-09-2021' '13241\|108324345362'${reset}"
+			echo -e "${m_tab}${cyan}EXAMPLE 2: ${magenta}${this_script_name} -z 14-09-2021 108324345362${reset}\n"
 			spinner
 		fi
 
@@ -2321,9 +2321,9 @@ debug_shipped () {
 		local data_info
 		# Show usage
 		if [[ ! "${1}" ]]; then
-			echo -e "\n${m_tab}${cyan}USAGE: ${m_tab_4}${magenta}${cron_script_full_path} --debug-shipped|-g x[range]-month-year 'ORDER_ID\|TRACKING_NUMBER' or ORDER_ID or TRACKING_NUMBER${reset}"
-			echo "${m_tab}${cyan}EXAMPLE 1: ${magenta}${cron_script_full_path} -z '1[1-9]-09-2021' '13241\|108324345362'${reset}"
-			echo -e "${m_tab}${cyan}EXAMPLE 2: ${magenta}${cron_script_full_path} -z 14-09-2021 108324345362${reset}\n"
+			echo -e "\n${m_tab}${cyan}USAGE: ${m_tab_4}${magenta}${this_script_name} --debug-shipped|-g x[range]-month-year 'ORDER_ID\|TRACKING_NUMBER' or ORDER_ID or TRACKING_NUMBER${reset}"
+			echo "${m_tab}${cyan}EXAMPLE 1: ${magenta}${this_script_name} -g '1[1-9]-09-2021' '13241\|108324345362'${reset}"
+			echo -e "${m_tab}${cyan}EXAMPLE 2: ${magenta}${this_script_name} -g 14-09-2021 108324345362${reset}\n"
 			spinner
 		fi
 
