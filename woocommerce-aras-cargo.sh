@@ -852,7 +852,7 @@ statistics () {
 		fi
 	fi
 
-	} | column -t -s ' ' | $m_sed 's/^/  /' # End redirection { Piping created subshell and we lost all variables in command grouping }
+	} | column -o '       ' -t -s ' ' | $m_sed 's/^/  /' # End redirection { Piping created subshell and we lost all variables in command grouping }
 
 	if ! command -v zgrep >/dev/null 2>&1; then
 		echo -e "\n${red}*${reset} ${red}zgrep not found!${reset}"
@@ -1082,7 +1082,7 @@ pre_check () {
 
 	} > "${this_script_path}/.msg.proc" # NOTE: End redirection to file
 					    # Cannot directly pipe to column here that creates subshell and we lose variables we need
-	column -t -s ' ' <<< "$(< "${this_script_path}/.msg.proc")" | $m_sed 's/^/  /'
+	column -o '     ' -t -s ' ' <<< "$(< "${this_script_path}/.msg.proc")" | $m_sed 's/^/  /'
 
 	# Quit
 	declare -a quit_now=("${awk_not_gnu}" "${sed_not_gnu}" "${find_not_gnu}" "${awk_old}"
