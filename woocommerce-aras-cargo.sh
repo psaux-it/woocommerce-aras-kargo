@@ -443,12 +443,11 @@ path_pretty_error () {
 # Verify installation & make immutable calling script without argument till setup completed
 if [[ $# -eq 0 ]]; then
 	if [[ ! -e "${this_script_path}/.woo.aras.set" ]]; then
-		echo -e "\n${red}*${reset} ${red}Broken installation:${reset}"
+		echo -e "\n${red}*${reset} ${red}Broken/Uncompleted installation:${reset}"
 		echo "${cyan}${m_tab}#####################################################${reset}"
-		echo -e "${m_tab}${red}Or you are running the script first time${reset}"
 		echo -e "${m_tab}${red}Check below instructions for basic usage${reset}\n"
 		usage
-		broken_installation "Broken installation, please re-start setup"
+		broken_installation "Broken/Uncompleted installation, please re-start setup"
 		exit 1
 	fi
 fi
@@ -816,6 +815,17 @@ check_delivered () {
 	fi
 }
 
+# Use in static functions which needs REST ops
+curl_helper () {
+	hide_me --enable
+	if [[ ! "${api_key}" || ! "${api_secret}" || ! "${api_endpoint}" ]]; then
+		api_key=$(< "${this_script_lck_path}/.key.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
+		api_secret=$(< "${this_script_lck_path}/.secret.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
+		api_endpoint=$(< "${this_script_lck_path}/.end.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
+	fi
+	hide_me --disable
+}
+
 # Get total processed orders via automation (include rotated logs)
 # Variables in this function not visible by rest of script (caused by pipe) So no! need to set variables locally
 statistics () {
@@ -866,13 +876,7 @@ pre_check () {
 
 	if [[ "${bridge}" == "--status" ]]; then # Coming from --setup or --status?
 		if [[ -e "${this_script_path}/.woo.aras.set" ]]; then
-			hide_me --enable
-			if [[ ! "${api_key}" || ! "${api_secret}" || ! "${api_endpoint}" ]]; then
-				api_key=$(< "${this_script_lck_path}/.key.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
-				api_secret=$(< "${this_script_lck_path}/.secret.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
-				api_endpoint=$(< "${this_script_lck_path}/.end.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
-			fi
-			hide_me --disable
+			curl_helper
 		else
 			delimeter=1
 		fi
@@ -1206,16 +1210,12 @@ continue_setup () {
 }
 
 find_child_path () {
-	local bridge="$1"
+	local bridge
 	local theme_child
+	bridge="$1"
 
-	hide_me --enable
-	if [[ ! "${api_key}" || ! "${api_secret}" || ! "${api_endpoint}" ]]; then
-		api_key=$(< "${this_script_lck_path}/.key.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
-		api_secret=$(< "${this_script_lck_path}/.secret.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
-		api_endpoint=$(< "${this_script_lck_path}/.end.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
-	fi
-	hide_me --disable
+	# Call curl helper
+	curl_helper
 
 	# Get active child theme info
 	theme_child=$($m_curl -s -X GET -K- <<< "-u ${api_key}:${api_secret}" -H "Content-Type: application/json" "https://$api_endpoint/wp-json/wc/v3/system_status" | $m_jq -r '[.theme.is_child_theme]|join(" ")')
