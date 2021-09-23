@@ -222,6 +222,8 @@ Also use status argument to check statistics and other useful informations about
 ```--debug-delivered |-z```
 ```--status |-S```
 
+![woocommerce-aras-istatistik](https://user-images.githubusercontent.com/25556606/134528100-8113adcb-c4bd-4414-a6dc-fc9e7574b585.png)
+
 ### Usage
 ```./woocommerce-aras-cargo.sh --debug-shipped|--debug-delivered|-g|-z 'x[range]-month-year' 'ORDER_ID\|TRACKING_NUMBER' or (ORDER_ID || TRACKING_NUMBER)```
 
