@@ -617,7 +617,10 @@ dynamic_vars () {
 }
 
 # Check dependencies
-declare -a dependencies=("curl" "iconv" "openssl" "jq" "php" "perl" "awk" "sed" "pstree" "stat" "${send_mail_command}" "whiptail" "logrotate" "paste" "column" "mapfile" "readarray" "locale" "systemctl" "find" "sort" "true" "false")
+declare -a dependencies=("curl" "iconv" "openssl" "jq" "php" "perl" "awk" "sed" "pstree" "stat" "${send_mail_command}"
+			 "whiptail" "logrotate" "paste" "column" "mapfile" "readarray" "locale" "systemctl" "find"
+			 "sort" "true" "false" "join")
+
 for i in "${dependencies[@]}"
 do
 	if ! command -v "${i}" > /dev/null 2>&1; then
