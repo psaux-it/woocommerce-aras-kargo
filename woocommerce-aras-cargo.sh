@@ -711,12 +711,14 @@ clean_up () {
 
 	# Removes debug data that keeped in /tmp, older than user defined setting --> keep_debug
 	if ! [[ -e "${this_script_path}/.woo.aras.set" ]]; then
+		# Setup not completed so we need to check find version here
 		find_ver="$(find --version | grep GNU | $m_perl -pe '($_)=/([0-9]+([.][0-9]+)+)/')"
 		find_ver="${find_ver%.*}"
 		if [[ "${find_ver//.}" -ge 45 ]]; then
 			find "${this_script_path:?}/tmp" -maxdepth 1 -type f -mtime +"${keep_debug}" -print0 2>/dev/null | xargs -r0 rm --
 		fi
 	else
+		# Already passed pre check controls as setup completed
 		find "${this_script_path:?}/tmp" -maxdepth 1 -type f -mtime +"${keep_debug}" -print0 2>/dev/null | xargs -r0 rm --
 	fi
 
