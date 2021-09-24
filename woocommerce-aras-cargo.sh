@@ -21,7 +21,7 @@
 # WOOCOMMERCE - ARAS CARGO INTEGRATION
 # ---------------------------------------------------------------------
 # Written by  : (hsntgm) Hasan ÇALIŞIR - hasan.calisir@psauxit.com
-# Version     : 2.0.1
+# Version     : 2.1.1
 # --------------------------------------------------------------------
 # Bash        : 5.1.8
 # WooCommerce : 5.5.1
@@ -48,7 +48,7 @@
 
 # Need for upgrade - DON'T EDIT MANUALLY
 # =====================================================================
-script_version="2.0.1"
+script_version="2.1.1"
 # =====================================================================
 
 # USER DEFINED-EDITABLE VARIABLES & OPTIONS
@@ -235,7 +235,7 @@ version () {
 	echo -e "\n${m_tab}${cyan}# WOOCOMMERCE - ARAS CARGO INTEGRATION VERSION"
 	echo -e "${m_tab}# ---------------------------------------------------------------------"
 	echo -e "${m_tab}# Written by : Hasan ÇALIŞIR - hasan.calisir@psauxit.com"
-	echo -e "${m_tab}# Version    : 2.0.1"
+	echo -e "${m_tab}# Version    : 2.1.1"
 	echo -e "${m_tab}# Bash       : 5.1.8"
 	echo -e "${m_tab}# ---------------------------------------------------------------------\n"
 }
