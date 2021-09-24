@@ -119,11 +119,13 @@ Critical part such as success mails, fronted&admin side custom order status labe
 - Auto two-way fulfillment workflow implementation with custom order status package
 - Encryped sensetive data (REST,SOAP credentials) hardened as much as possible (credentials always headache in bash scripting)
 - Powerful error handling for various checks like SOAP and REST API connections
+- Easy debugging with useful parameters
+- Statistics via automation
 - Support installation methods via cron, systemd
 - Logrotate support
 - HTML notify mails for shop manager
 - Easily auto upgrade to latest version (also via cron job)
-- Strong string matching logic via levenshtein distance function
+- Strong string matching logic (perl) via levenshtein distance function
 
 ![setup](https://user-images.githubusercontent.com/25556606/124499928-7e2c6080-ddc7-11eb-9df2-672a0f5ab2d1.png)
 
