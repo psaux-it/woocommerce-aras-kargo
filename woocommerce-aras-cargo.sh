@@ -698,7 +698,7 @@ fi
 my_tmp=$(mktemp)
 my_tmp_del=$(mktemp)
 
-# Listen exit signals to destroy temporary files
+# Listen exit signals to destroy temporary runtime files
 trap clean_up 0 1 2 3 6 15
 clean_up () {
 	# Remove temporary runtime files
@@ -707,10 +707,18 @@ clean_up () {
 	rm -rf "${this_script_path:?}"/{*proc*,.*proc} >/dev/null 2>&1
 	rm -rf "${this_script_path:?}"/{*json*,.*json} >/dev/null 2>&1
 	rm -rf "${this_script_path:?}"/.lvn* >/dev/null 2>&1
+	rm -rf ${my_tmp:?} ${my_tmp_del:?} ${PIDFILE:?} >/dev/null 2>&1
+
 	# Removes debug data that keeped in /tmp, older than user defined setting --> keep_debug
-	find "${this_script_path:?}/tmp" -maxdepth 1 -type f -mtime +"${keep_debug}" -print0 | xargs -r0 rm --
-	# Revome other files
-	rm -rf ${my_tmp:?} ${my_tmp_del:?} ${PIDFILE:?}
+	if ! [[ -e "${this_script_path}/.woo.aras.set" ]]; then
+		find_ver="$(find --version | grep GNU | $m_perl -pe '($_)=/([0-9]+([.][0-9]+)+)/')"
+		find_ver="${find_ver%.*}"
+		if [[ "${find_ver//.}" -ge 45 ]]; then
+			find "${this_script_path:?}/tmp" -maxdepth 1 -type f -mtime +"${keep_debug}" -print0 2>/dev/null | xargs -r0 rm --
+		fi
+	else
+		find "${this_script_path:?}/tmp" -maxdepth 1 -type f -mtime +"${keep_debug}" -print0 2>/dev/null | xargs -r0 rm --
+	fi
 
 	# Unset locale if setted before
 	if [[ "${lang_setted}" ]]; then
@@ -994,7 +1002,7 @@ pre_check () {
 
 	if [[ "${gnu_find}" ]]; then
 		if [[ "${find_ver}" ]]; then
-			if [[ "${find_ver//.}" -ge 48 ]]; then
+			if [[ "${find_ver//.}" -ge 45 ]]; then
 				echo "${green}find_Version: ${find_ver} ✓${reset}"
 			else
 				echo "${red}find_Version: ${find_ver} x${reset}"
