@@ -216,25 +216,29 @@ If you use mutt, ssmtp, sendmail etc. please edit mail function as you wish. You
 ## Debugging
 
 If you encountered any errors such as long pending order which automation missed or orders updated with the wrong tracking code, you can easily use debugging parameters to display related log files.
-Also use status argument to check statistics and other useful informations about automation.
+Also use --status argument to check statistics and other useful informations about automation.
+
+In some cases, the orders in the status of processing are not marked as shipped on time, but these orders are in the status of delivered on the Aras Cargo side.
+This breaks the two-way workflow. In short, these orders are never marked as shipped. If this is the case use the --force-shipped|-f argument to tailor the two-way workflow.
 
 ### Debugging Parameters:
 
-```--debug-shipped   |-g```
+```--force-shipped |-f```
+```--debug-shipped |-g```
 ```--debug-delivered |-z```
 ```--status |-S```
 
 ![woocommerce-aras-istatistik](https://user-images.githubusercontent.com/25556606/134528100-8113adcb-c4bd-4414-a6dc-fc9e7574b585.png)
 
-### Usage
+#### Usage
 ```./woocommerce-aras-cargo.sh --debug-shipped|--debug-delivered|-g|-z 'x[range]-month-year' 'ORDER_ID\|TRACKING_NUMBER' or (ORDER_ID || TRACKING_NUMBER)```
 
-### Example 1:
+#### Example 1:
 > filters 11th-19th of September dated shipped data for both suspicious order_id and tracking number  
 ```./woocommerce-aras-cargo.sh -g '1[1-9]-09-2021' '13241\|108324345362'```
 
-### Example 2:
-> filters September 14 dated delivered data for suspicious tracking number  
-```./woocommerce-aras-cargo.sh -z 14-09-2021 108324345362```
+#### Example 2:
+> filters September 15 dated delivered data for suspicious tracking number  
+```./woocommerce-aras-cargo.sh -z 15-09-2021 108324345362```
 
 ![debug_integration](https://user-images.githubusercontent.com/25556606/134054537-b1f3fc44-fa3f-42ac-bd94-62a08c4025fe.png)
