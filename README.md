@@ -229,7 +229,6 @@ This breaks the two-way workflow. In short, these orders are never marked as shi
 ```--debug-delivered |-z```
 ```--status |-S```
 
-
 ![woocommerce-aras-istatistik](https://user-images.githubusercontent.com/25556606/134528100-8113adcb-c4bd-4414-a6dc-fc9e7574b585.png)
 
 #### Usage
