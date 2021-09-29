@@ -218,6 +218,7 @@ If you use mutt, ssmtp, sendmail etc. please edit mail function as you wish. You
 If you encountered any errors such as long pending order which automation missed or orders updated with the wrong tracking code, you can easily use debugging parameters to display related log files.
 Also use --status argument to check statistics and other useful informations about automation.
 
+#### --force-shipped
 In some cases, the orders in the status of processing are not marked as shipped on time, but these orders are in the status of delivered on the Aras Cargo side.
 This breaks the two-way workflow. In short, these orders are never marked as shipped. If this is the case use the --force-shipped|-f argument to tailor the two-way workflow.
 
@@ -227,6 +228,7 @@ This breaks the two-way workflow. In short, these orders are never marked as shi
 ```--debug-shipped |-g```
 ```--debug-delivered |-z```
 ```--status |-S```
+
 
 ![woocommerce-aras-istatistik](https://user-images.githubusercontent.com/25556606/134528100-8113adcb-c4bd-4414-a6dc-fc9e7574b585.png)
 
