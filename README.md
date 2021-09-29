@@ -211,7 +211,7 @@ If you use mutt, ssmtp, sendmail etc. please edit mail function as you wish. You
 - Clone repo (as non-root user) ```git clone https://github.com/hsntgm/woocommerce-aras-kargo.git``` (Never manually copy/paste script)
 - Start setup as sudo user ```sudo ./woocommerce-aras-cargo.sh --setup```
 
-![woocommerce-aras-help](https://user-images.githubusercontent.com/25556606/133630683-02ecacdd-fb24-4e6c-aacb-98cecf5de715.png)
+![woocommerce-aras-help](https://user-images.githubusercontent.com/25556606/135243353-2151f4c6-d916-466c-9ab6-5b6e5a5086fd.png)
 
 ## Debugging
 
