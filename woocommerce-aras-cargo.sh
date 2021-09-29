@@ -185,6 +185,7 @@ help () {
 	echo -e "${m_tab}#${m_tab}--usage            |-U      display basic usage of this script"
 	echo -e "${m_tab}#${m_tab}--status           |-S      display automation status"
 	echo -e "${m_tab}#${m_tab}--dependencies     |-p      display prerequisites & dependencies"
+	echo -e "${m_tab}#${m_tab}--force-shipped    |-f      forces orders mark as shipped first, useful If there are orders in the processing status although they have been delivered by Aras"
 	echo -e "${m_tab}#${m_tab}--debug-shipped    |-g      search logs in shipped data via search criteria [date] [ORDER_ID\|TRACKING_NUMBER]"
 	echo -e "${m_tab}#${m_tab}--debug-delivered  |-z      search logs in delivered data via search criteria [date] [ORDER_ID\|TRACKING_NUMBER]"
 	echo -e "${m_tab}#${m_tab}--version          |-v      display script info"
@@ -3464,21 +3465,25 @@ fi
 
 # Parse ARAS JSON data with jq to get necessary data --> status, recipient{name,surname}, tracking number(undelivered yet)
 if [[ -s "${this_script_path}/aras.json.mod" ]]; then
-	< "${this_script_path}/aras.json.mod" $m_jq -r '.[]|[.DURUM_KODU,.KARGO_TAKIP_NO,.ALICI]|join(" ")' | $m_sed '/^6/d' | cut -f2- -d ' ' > "${this_script_path}/aras.proc"
+	if [[ "${1}" == "-f" || "${1}" == "--force-shipped" ]]; then
+		< "${this_script_path}/aras.json.mod" $m_jq -r '.[]|[.DURUM_KODU,.KARGO_TAKIP_NO,.ALICI]|join(" ")' | cut -f2- -d ' ' > "${this_script_path}/aras.proc"
+	else
+		< "${this_script_path}/aras.json.mod" $m_jq -r '.[]|[.DURUM_KODU,.KARGO_TAKIP_NO,.ALICI]|join(" ")' | $m_sed '/^6/d' | cut -f2- -d ' ' > "${this_script_path}/aras.proc"
+	fi
 fi
 
 # Two-way workflow, Parse ARAS JSON data with jq to get necessary data --> status, recipient{name,surname}, tracking number(delivered)
 if [[ -e "${this_script_path}/.two.way.enb" ]]; then
 	if [ -s "${this_script_path}/aras.json.mod" ]; then
-		< "${this_script_path}/aras.json.mod" $m_jq -r '.[]|[.DURUM_KODU,.KARGO_TAKIP_NO,.ALICI]|join(" ")' | $m_sed '/^6/!d' | cut -f2- -d ' ' | $m_awk '{print $1}' > "${this_script_path}/aras.proc.del"
+		< "${this_script_path}/aras.json.mod" $m_jq -r '.[]|[.DURUM_KODU,.KARGO_TAKIP_NO,.ALICI]|join(" ")' | $m_sed '/^6/!d' | cut -f2- -d ' ' | $m_awk '{print $1}' | $m_awk '{if(NF>0) {print $0}}' > "${this_script_path}/aras.proc.del"
 	fi
 fi
 
-# For perfect matching with order id and tracking number we are normalizing the data.
-# Translate customer info to 'en' & transform text to lowercase & remove whitespaces
+# For perfect matching  we are normalizing the data.
+# Translate customer info to 'en' & transform text to lowercase & remove whitespaces & remove special characters & remove empty/blank lines
 if [[ -s "${this_script_path}/aras.proc" && -s "${this_script_path}/wc.proc" ]]; then
-	iconv -f utf8 -t ascii//TRANSLIT < "${this_script_path}/aras.proc" | tr '[:upper:]' '[:lower:]' | $m_awk '{s=$1;gsub($1 FS,x);$1=$1;print s FS $0}' OFS= | $m_awk '{gsub("[.=_:,-?]*","",$2)}1' > "${this_script_path}/aras.proc.en"
-	iconv -f utf8 -t ascii//TRANSLIT < "${this_script_path}/wc.proc" | tr '[:upper:]' '[:lower:]' | $m_awk '{s=$1;gsub($1 FS,x);$1=$1;print s FS $0}' OFS= | $m_awk '{gsub("[.=_:,-?]*","",$2)}1' > "${this_script_path}/wc.proc.en"
+	iconv -f utf8 -t ascii//TRANSLIT < "${this_script_path}/aras.proc" | tr '[:upper:]' '[:lower:]' | $m_awk '{s=$1;gsub($1 FS,x);$1=$1;print s FS $0}' OFS= | $m_awk '{gsub("[^A-Za-z0-9]*","",$2)}1' | $m_awk '{if(NF>0) {print $0}}' > "${this_script_path}/aras.proc.en"
+	iconv -f utf8 -t ascii//TRANSLIT < "${this_script_path}/wc.proc" | tr '[:upper:]' '[:lower:]' | $m_awk '{s=$1;gsub($1 FS,x);$1=$1;print s FS $0}' OFS= | $m_awk '{gsub("[^A-Za-z0-9]*","",$2)}1' | $m_awk '{if(NF>0) {print $0}}' > "${this_script_path}/wc.proc.en"
 fi
 
 # Two-way workflow
