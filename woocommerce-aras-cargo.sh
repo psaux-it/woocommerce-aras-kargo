@@ -1862,17 +1862,16 @@ on_fly_disable () {
 on_fly_enable () {
 		# Remove lock files (hard-reset) to re-start fresh setup
 		rm -rf "${this_script_lck_path:?}"/.*lck >/dev/null 2>&1
-
 		rm -f "${this_script_path:?}/.woo.aras.set" >/dev/null 2>&1
 		rm -f "${this_script_path:?}/.woo.aras.enb" >/dev/null 2>&1
 
 		# Check absolute files from previous setup
-		if [[ -e "${cron_dir}/${cron_filename}" ||
+		if [[ ( -e "${cron_dir}/${cron_filename}" ||
 			-e "${systemd_dir}/${service_filename}" ||
 			-e "${logrotate_dir}/${logrotate_filename}" ||
 			-e "${systemd_dir}/${timer_filename}" ||
 			-e "${tmpfiles_d}/${tmpfiles_f}" ||
-			-e "${cron_dir}/${cron_filename_update}" ]]; then
+			-e "${cron_dir}/${cron_filename_update}" ) || ( grep -q "ARAS Cargo" "${logrotate_conf}" || grep -q "woo-aras" "/etc/rc.local" ) ]]; then
 
 			while true
 			do
