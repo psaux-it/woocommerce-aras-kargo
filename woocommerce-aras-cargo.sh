@@ -65,7 +65,7 @@ max_distance=3
 
 # Main cron job schedule timer
 # At every 24th minute past every hour from 9 through 19 on every day-of-week from Monday through Saturday.
-cron_minute="*/24 9-19 * * 1-6"
+cron_minute="*/30 9-19 * * 1-6"
 
 # Updater cron job schedule timer
 # At 09:19 on Sunday.
@@ -105,6 +105,7 @@ send_mail_command="mail"
 # Properly configure your mail server and send mail command before enable
 # Set 0 to disable
 send_mail_err="1"
+send_mail_suc="1"
 
 # Set notify mail info
 mail_to="order_info@${company_domain}"
@@ -332,6 +333,7 @@ if command -v lsof >/dev/null 2>&1; then
 		check_mail_server=0
 	else
 		send_mail_err=0
+		send_mail_suc=0
 		check_mail_server=1
         fi
 elif command -v netstat >/dev/null 2>&1; then
@@ -339,6 +341,7 @@ elif command -v netstat >/dev/null 2>&1; then
 		check_mail_server=0
 	else
 		send_mail_err=0
+		send_mail_suc=0
 		check_mail_server=1
 	fi
 elif command -v ss >/dev/null 2>&1; then
@@ -346,6 +349,7 @@ elif command -v ss >/dev/null 2>&1; then
 		check_mail_server=0
 	else
 		send_mail_err=0
+		send_mail_suc=0
 		check_mail_server=1
 	fi
 fi
@@ -849,17 +853,24 @@ statistics () {
 	{ # Start redirection
 	if command -v zgrep >/dev/null 2>&1; then
 		if [[ -s "${wooaras_log}" ]]; then
+			currentime_d=$(date +"%T,%d-%b-%Y" | awk -F, '{print $2}')
+			today_new_order=$(grep -c $(date +%Y-%m-%d) < <(echo "${date_created[@]}"))
+			today_processed=$(grep -c "SHIPPED" < <(grep "${currentime_d}" "${wooaras_log"))
 			total_processed=$(find "${wooaras_log%/*}/" -name \*.log* -print0 2>/dev/null |
 						xargs -0 zgrep -ci "SHIPPED" |
 						$m_awk 'BEGIN {cnt=0;FS=":"}; {cnt+=$2;}; END {print cnt;}')
 			if [[ "${ts_status}" == "Completed" ]]; then
+				today_processed_del=$(grep -c "DELIVERED" < <(grep "${currentime_d}" "${wooaras_log"))
 				total_processed_del=$(find "${wooaras_log%/*}/" -name \*.log* -print0 2>/dev/null |
 							xargs -0 zgrep -ci "DELIVERED" |
 							$m_awk 'BEGIN {cnt=0;FS=":"}; {cnt+=$2;}; END {print cnt;}')
 			fi
+			echo "${green}Today_New_Order: ${magenta}${today_new_order}${reset}"
+			echo "${green}Today_Shipped: ${magenta}${today_processed}${reset}"
 			echo "${green}Total_Shipped: ${magenta}${total_processed}${reset}"
 			echo "${green}Awaiting_Shipment: ${magenta}${w_processing}${reset}"
 			if [[ "${ts_status}" == "Completed" ]]; then
+				echo "${green}Today_Delivered: ${magenta}${today_processed_del}${reset}"
 				echo "${green}Total_Delivered: ${magenta}${total_processed_del}${reset}"
 				echo "${green}Awaiting_Delivery: ${magenta}$((total_processed-total_processed_del))${reset}"
 			fi
@@ -1153,6 +1164,7 @@ my_status () {
 
 		w_delivered=$($m_curl -s -X GET -K- <<< "-u ${api_key}:${api_secret}" -H "Content-Type: application/json" "https://$api_endpoint/wp-json/wc/v3/orders?status=delivered")
 		w_processing=$($m_curl -s -X GET -K- <<< "-u ${api_key}:${api_secret}" -H "Content-Type: application/json" "https://$api_endpoint/wp-json/wc/v3/orders?status=processing&per_page=100" | $m_jq -r '.[]|[.id]|join(" ")' | wc -l)
+		readarray -t date_created < <($m_curl -s -X GET -K- <<< "-u ${api_key}:${api_secret}" -H "Content-Type: application/json" "https://$api_endpoint/wp-json/wc/v3/orders?status=processing&per_page=100" | $m_jq -r '.[]|[.date_created]|join(" ")')
 
 		if ! grep -q "rest_invalid_param" <<< "${w_delivered}"; then
 			ts_status="Completed"
@@ -2078,7 +2090,7 @@ download () {
 			   "t_date" "s_date" "e_date" "wooaras_log" "send_mail_err"
 			   "company_name" "company_domain" "cron_minute" "cron_minute_update"
 			   "on_calendar" "delivery_time" "max_distance" "send_mail_command"
-			   "maxsize" "l_maxsize" "keep_debug")
+			   "maxsize" "l_maxsize" "keep_debug" "send_mail_suc")
 
 	for i in "${getold[@]}"
 	do
@@ -3640,13 +3652,15 @@ if [[ -e "${this_script_path}/.woo.aras.enb" ]]; then
 				# If you use 'sequential order number' plugins
 				order_number=$($m_curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/orders/$id" -K- <<< "-u ${api_key}:${api_secret}" -H "Content-Type: application/json" | $m_jq -r '[.meta_data]' | $m_awk '/_order_number/{getline; print}' | $m_awk -F: '{print $2}' | tr -d '"' | $m_sed -r 's/\s+//g' | tr " " "*" | tr "\t" "&")
 				# Notify shop manager -- HTML mail
-				send_mail_suc < <($m_sed \
-							-e 's|$track|'"${track}"'|g' \
-							-e 's|$company_name|'"${company_name}"'|g' \
-							-e 's|$id|'"${id}"'|g' \
-							-e 's|$c_name|'"${c_name}"'|g' \
-							-e 's|$order_number|'"${order_number}"'|g' \
-							-e 's|$t_date|'"${t_date}"'|g' "${this_script_path}/emails/shipped.min.html") >/dev/null 2>&1
+				if [[ "${send_mail_suc}" -eq 1 ]]; then
+					send_mail_suc < <($m_sed \
+								-e 's|$track|'"${track}"'|g' \
+								-e 's|$company_name|'"${company_name}"'|g' \
+								-e 's|$id|'"${id}"'|g' \
+								-e 's|$c_name|'"${c_name}"'|g' \
+								-e 's|$order_number|'"${order_number}"'|g' \
+								-e 's|$t_date|'"${t_date}"'|g' "${this_script_path}/emails/shipped.min.html") >/dev/null 2>&1
+				fi
 				echo "$(date +"%T,%d-%b-%Y"): ORDER MARKED AS SHIPPED: Order_Id=$id Order_Number=$order_number Aras_Tracking_Number=$track Customer_Info=$c_name" >> "${wooaras_log}"
 				echo "${green}*${reset} ${green}ORDER UPDATED AS COMPLETED: Order_Id=$id Order_Number=$order_number Aras_Tracking_Number=$track Customer_Info=$c_name${reset}"
 				sleep 10
@@ -3679,13 +3693,15 @@ if [[ -e "${this_script_path}/.woo.aras.enb" ]]; then
 					# Get order number if you use 'sequential order number' plugin
 					order_number=$($m_curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/orders/$id" -K- <<< "-u ${api_key}:${api_secret}" -H "Content-Type: application/json" | $m_jq -r '[.meta_data]' | $m_awk '/_order_number/{getline; print}' | $m_awk -F: '{print $2}' | tr -d '"' | $m_sed -r 's/\s+//g' | tr " " "*" | tr "\t" "&")
 					# Notify shop manager -- HTML mail
-					send_mail_suc < <($m_sed \
-								-e 's|$track|'"${track}"'|g' \
-								-e 's|$company_name|'"${company_name}"'|g' \
-								-e 's|$id|'"${id}"'|g' \
-								-e 's|$c_name|'"${c_name}"'|g' \
-								-e 's|$order_number|'"${order_number}"'|g' \
-								-e 's|$t_date|'"${t_date}"'|g' "${this_script_path}/emails/delivered.min.html") >/dev/null 2>&1
+					if [[ "${send_mail_suc}" -eq 1 ]]; then
+						send_mail_suc < <($m_sed \
+									-e 's|$track|'"${track}"'|g' \
+									-e 's|$company_name|'"${company_name}"'|g' \
+									-e 's|$id|'"${id}"'|g' \
+									-e 's|$c_name|'"${c_name}"'|g' \
+									-e 's|$order_number|'"${order_number}"'|g' \
+									-e 's|$t_date|'"${t_date}"'|g' "${this_script_path}/emails/delivered.min.html") >/dev/null 2>&1
+					fi
 					echo "$(date +"%T,%d-%b-%Y"): ORDER MARKED AS DELIVERED: Order_Id=$id Order_Number=$order_number Customer_Info=$c_name" >> "${wooaras_log}"
 					echo "${green}*${reset} ${green}ORDER UPDATED AS DELIVERED: Order_Id=$id Order_Number=$order_number Customer_Info=$c_name${reset}"
 					sleep 10
