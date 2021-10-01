@@ -1825,28 +1825,28 @@ un_install () {
 	fi
 
 	# Removes install bundles aka cron jobs, systemd services, logrotate, systemd_tmpfiles
-	if [[ -e "${cron_dir}/${cron_filename}" ||
+	if [[ ( -e "${cron_dir}/${cron_filename}" ||
 		-e "${systemd_dir}/${service_filename}" ||
 		-e "${logrotate_dir}/${logrotate_filename}" ||
 		-e "${systemd_dir}/${timer_filename}" ||
 		-e "${tmpfiles_d}/${tmpfiles_f}" ||
-		-e "${cron_dir}/${cron_filename_update}" ]]; then
+		-e "${cron_dir}/${cron_filename_update}" ) || ( grep -q "ARAS Cargo" "${logrotate_conf}" || grep -q "woo-aras" "/etc/rc.local" ) ]]; then
 		hard_reset
 	fi
 
 	# Remove logs
-	if [[ -e "${wooaras_log}" ]]; then
-		rm -f "${wooaras_log:?}" >/dev/null 2>&1
-		echo -e "\n${yellow}*${reset} ${yellow}Logs removed:${reset}"
+	if [[ -e "${wooaras_log}" && -d "${wooaras_log%/*}" ]]; then
+		rm -rf "${wooaras_log%/*}/*" >/dev/null 2>&1
+		echo -e "\n${yellow}*${reset} ${yellow}Logs (also rotated) removed:${reset}"
 		echo "${cyan}${m_tab}#####################################################${reset}"
 		echo -e "${yellow}${m_tab}${wooaras_log}${reset}\n"
 	fi
 
-	rm -rf "${this_script_lck_path:?}"/.*lck >/dev/null 2>&1
-
+	# Remove runtime files & debug data
+	rm -rf "${this_script_lck_path:?}/*" >/dev/null 2>&1
 	rm -f "${this_script_path:?}/.woo.aras.set" >/dev/null 2>&1
 	rm -f "${this_script_path:?}/.woo.aras.enb" >/dev/null 2>&1
-	rm -rf "${this_script_path:?}/tmp" >/dev/null 2>&1
+	rm -rf "${my_tmp_folder:?}/*" >/dev/null 2>&1
 
 	echo "${green}*${reset} ${green}Uninstallation completed${reset}"
 	echo -e "${cyan}${m_tab}#####################################################${reset}\n"
