@@ -134,7 +134,7 @@ Critical part such as success mails, fronted&admin side custom order status labe
     .
     ├── CHANGELOG                                         # Documentation file
     ├── custom-order-status-package                       # Holds build-time dependencies (twoway)
-    │   ├── action-unhook-email.php                         # Two-way installation file
+    │   ├── fallback-order-status-sql.php                   # Two-way uninstallation file
     │   ├── aras-woo-delivered.php                          # Two-way installation file
     │   ├── class-wc-delivered-status-order.php             # Two-way installation file
     │   ├── functions.php                                   # Two-way installation file
