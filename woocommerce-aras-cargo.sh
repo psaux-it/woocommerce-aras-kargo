@@ -1321,8 +1321,8 @@ simple_uninstall_twoway () {
 		else
 			echo -e "\n${red}*${reset} ${red}Two way fulfillment unistallation aborted: ${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
-			echo -e "${m_tab}${red}Expected string not found in function.php. Did you manually modified file after installation?${reset}\n"
-			echo "$(timestamp): Expected string not found in function.php. Did you manually modified functions.php after installation? ${absolute_child_path}/functions.php" >> "${wooaras_log}"
+			echo -e "${m_tab}${red}Expected string not found in functions.php. Did you manually modified file after installation?${reset}\n"
+			echo "$(timestamp): Expected string not found in functions.php. Did you manually modified functions.php after installation? ${absolute_child_path}/functions.php" >> "${wooaras_log}"
 			exit 1
 		fi
 	else
@@ -1391,7 +1391,7 @@ uninstall_twoway () {
 					if grep -q "${my_string}" "${absolute_child_path}/functions.php"; then # Lastly, check the file is not modified
 						# Unhook woocommerce order status completed notification temporarly
 						$m_sed -i -e '/\'"$my_string"'/{ r '"${this_script_path}/custom-order-status-package/action-unhook-email.php"'' -e 'b R' -e '}' -e 'b' -e ':R {n ; b R' -e '}' "${absolute_child_path}/woocommerce/aras-woo-delivered.php" >/dev/null 2>&1 &&
-						# Call page to take effects function.php modifications
+						# Call page to take effects functions.php modifications
 						$m_curl -s -X GET "https://$api_endpoint/" >/dev/null 2>&1 ||
 						{
 						echo -e "\n${red}*${reset} ${red}Two way fulfillment unistallation aborted: ${reset}";
@@ -1423,13 +1423,13 @@ uninstall_twoway () {
 							fi
 						done
 
-						# Lastly remove files and function.php modifications
+						# Lastly remove files and functions.php modifications
 						simple_uninstall_twoway
 					else
 						echo -e "\n${red}*${reset} ${red}Two way fulfillment unistallation aborted: ${reset}"
 						echo "${cyan}${m_tab}#####################################################${reset}"
-						echo -e "${m_tab}${red}Expected string not found in function.php. Did you manually modified file after installation?${reset}\n"
-						echo "$(timestamp): Expected string not found in function.php. Did you manually modified functions.php after installation? $absolute_child_path/functions.php" >> "${wooaras_log}"
+						echo -e "${m_tab}${red}Expected string not found in functions.php. Did you manually modified file after installation?${reset}\n"
+						echo "$(timestamp): Expected string not found in functions.php. Did you manually modified functions.php after installation? $absolute_child_path/functions.php" >> "${wooaras_log}"
 						exit 1
 					fi
 
@@ -1458,9 +1458,9 @@ uninstall_twoway () {
 install_twoway () {
 	check_delivered
 	find_child_path --install
-	local GROUP_OWNER
-	local USER_OWNER
 	if [[ "${twoway}" == "true" ]]; then
+		local GROUP_OWNER
+		local USER_OWNER
 		# Get ownership operations
 		if [[ -f "${absolute_child_path}/functions.php" ]]; then
 			if [[ -r "${absolute_child_path}/functions.php" ]]; then
@@ -1488,7 +1488,7 @@ install_twoway () {
 
 		# Copy, create apply operations
 		if [[ $GROUP_OWNER && $USER_OWNER ]]; then
-			# Function.php operations
+			# Functions.php operations
 			if [[ ! -f "${absolute_child_path}/functions.php" ]]; then
 				if ! grep -q 'Permission denied' <<< "$(touch "${absolute_child_path}/functions.php" 2>&1)"; then
 					cat "${this_script_path}/custom-order-status-package/functions.php" > "${absolute_child_path}/functions.php" &&
@@ -1527,9 +1527,9 @@ install_twoway () {
 						else
 							echo -e "\n${red}*${reset} ${red}Two way fulfillment workflow installation aborted: ${reset}"
 							echo "${cyan}${m_tab}#####################################################${reset}"
-							echo "${m_tab}${red}Couldn't recognise your child theme function.php, expected php shebang at line 1${reset}"
+							echo "${m_tab}${red}Couldn't recognise your child theme functions.php, expected php shebang at line 1${reset}"
 							echo -e "${magenta}$absolute_child_path/functions.php${reset}\n"
-							echo "$(timestamp): Couldn't recognise your child theme function.php, expected php shebang at line 1 $absolute_child_path/functions.php" >> "${wooaras_log}"
+							echo "$(timestamp): Couldn't recognise your child theme functions.php, expected php shebang at line 1 $absolute_child_path/functions.php" >> "${wooaras_log}"
 							exit 1
 						fi
 					fi
@@ -1601,9 +1601,9 @@ install_twoway () {
 		if ! validate_twoway; then
 			echo -e "\n${red}*${reset} ${red}Two way fulfillment workflow installation aborted: ${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
-			echo -e "${m_tab}${red}Missing file(s) ${missing_files[*]}${reset}\n"
+			echo "${m_tab}${red}Missing file(s) ${missing_files[*]}${reset}"
 			echo "$(timestamp): Installation aborted, missing file(s) ${missing_files[*]}" >> "${wooaras_log}"
-			exit 1
+			continue_setup
 		else
 			# Time to enable functions.php modifications
 			$m_sed -i '/aras_woo_include/c include( get_stylesheet_directory() .'"'/woocommerce/aras-woo-delivered.php'"'); //aras_woo_enabled' "${absolute_child_path}/functions.php" ||
@@ -1612,7 +1612,7 @@ install_twoway () {
 			echo -e "\n${green}*${reset} ${green}Two way fulfillment workflow is now enabled.${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			echo "${m_tab}${yellow}Please check your website working correctly and able to login admin panel.${reset}"
-			echo "${m_tab}${yellow}Check 'delivered' order status registered and 'delivered' email template exist under woo commerce emails tab${reset}"
+			echo "${m_tab}${yellow}Check 'delivered' order status registered and 'delivered' email template exist under woocommerce emails tab${reset}"
 			echo "${m_tab}${yellow}If your website or admin panel is broken:${reset}"
 			echo "${m_tab}${yellow}First try to restart your web server apache,nginx or php-fpm in an other session${reset}"
 			echo "${m_tab}${yellow}If still not working please select r for starting recovery process${reset}"
@@ -1628,16 +1628,18 @@ install_twoway () {
 					[Rr]* ) $m_sed -i '/aras_woo_enabled/c \/\/aras_woo_include( get_stylesheet_directory() .'"'/woocommerce/aras-woo-delivered.php'"');' "${absolute_child_path}/functions.php";
 						echo -e "\n${yellow}Two way fulfillment workflow installation aborted, recovery process completed.${reset}";
 						echo "$(timestamp): Two way fulfillment workflow installation aborted, recovery process completed." >> "${wooaras_log}";
-						exit 1;;
+						twoway=false; continue_setup; break;;
 					[Cc]* ) depriv "${this_script_path}/.two.way.enb";  break;;
 					* ) echo -e "\n${m_tab}${magenta}Please answer r or c${reset}"; echo "${cyan}${m_tab}#####################################################${reset}";;
 				esac
 			done
 
-			echo -e "\n${green}*${reset} ${green}Two way fulfillment workflow installation: ${reset}"
-			echo "${cyan}${m_tab}#####################################################${reset}"
-			echo "${m_tab}${green}Completed${reset}"
-			echo "$(timestamp): Two way fulfillment workflow installation completed" >> "${wooaras_log}"
+			if [[ "${twoway}" == "true" ]]; then
+				echo -e "\n${green}*${reset} ${green}Two way fulfillment workflow installation: ${reset}"
+				echo "${cyan}${m_tab}#####################################################${reset}"
+				echo "${m_tab}${green}Completed${reset}"
+				echo "$(timestamp): Two way fulfillment workflow installation completed" >> "${wooaras_log}"
+			fi
 		fi
 	fi
 }
@@ -1841,7 +1843,7 @@ un_install () {
 	# Remove logs
 	if [[ -e "${wooaras_log}" && -d "${wooaras_log%/*}" ]]; then
 		rm -rf "${wooaras_log%/*}"/*log* >/dev/null 2>&1
-		echo -e "\n${yellow}*${reset} ${yellow}Logs (also rotated) removed:${reset}"
+		echo -e "\n${yellow}*${reset} ${yellow}Logs  removed:${reset}"
 		echo "${cyan}${m_tab}#####################################################${reset}"
 		echo -e "${yellow}${m_tab}${wooaras_log}${reset}\n"
 	fi
@@ -1851,6 +1853,8 @@ un_install () {
 	rm -f "${this_script_path:?}/.woo.aras.set" >/dev/null 2>&1
 	rm -f "${this_script_path:?}/.woo.aras.enb" >/dev/null 2>&1
 	rm -rf "${my_tmp_folder:?}"/{*aras*,*wc*,*main*} >/dev/null 2>&1
+	echo "${yellow}*${reset} ${yellow}Runtime files & debug data removed:${reset}"
+	echo -e "${cyan}${m_tab}#####################################################${reset}\n"
 
 	echo "${green}*${reset} ${green}Uninstallation completed${reset}"
 	echo -e "${cyan}${m_tab}#####################################################${reset}\n"
@@ -1976,7 +1980,7 @@ twoway_enable () {
 		exit 1
 	fi
 
-	# Check function.php modifications completed
+	# Check functions.php modifications completed
 	if grep -q "${my_string}" "${absolute_child_path}/functions.php"; then
 		if grep -qw "include( get_stylesheet_directory() .'/woocommerce/aras-woo-delivered.php'); //aras_woo_enabled" "${absolute_child_path}/functions.php"; then
 			functions_mod="applied"
