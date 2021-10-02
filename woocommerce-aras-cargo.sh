@@ -1301,7 +1301,8 @@ find_child_path () {
 			my_files=("${absolute_child_path}/woocommerce/emails/class-wc-delivered-status-order.php"
 				  "${absolute_child_path}/woocommerce/templates/emails/wc-customer-delivered-status-order.php"
 				  "${absolute_child_path}/woocommerce/templates/emails/plain/wc-customer-delivered-status-order.php"
-				  "${absolute_child_path}/woocommerce/aras-woo-delivered.php")
+				  "${absolute_child_path}/woocommerce/aras-woo-delivered.php"
+				  "${absolute_child_path}/woocommerce/fallback-order-status-sql.php")
 		fi
 	else
 		echo -e "\n${red}*${reset} ${red}You have no activated child theme${reset}"
@@ -1521,7 +1522,7 @@ install_twoway () {
 					}
 
 					if ! grep -q "${my_string}" "${absolute_child_path}/functions.php"; then
-						if [ $(< "${absolute_child_path}/functions.php" $m_sed '1q') == "<?php" ]; then
+						if [[ $(< "${absolute_child_path}/functions.php" $m_sed '1q') == "<?php" ]]; then
 							< "${this_script_path}/custom-order-status-package/functions.php" $m_sed "1 s/.*/ /" >> "${absolute_child_path}/functions.php"
 						else
 							echo -e "\n${red}*${reset} ${red}Two way fulfillment workflow installation aborted: ${reset}"
@@ -1571,6 +1572,9 @@ install_twoway () {
 						elif grep -qw "aras-woo-delivered.php" <<< "${i}"; then
 							cp "${this_script_path}/custom-order-status-package/aras-woo-delivered.php" "${i%/*}/" &&
 							chown -R "${USER_OWNER}":"${GROUP_OWNER}" "${i%/*}/" || twoway_pretty_error
+						elif grep -qw "fallback-order-status-sql.php" <<< "${i}"; then
+							cp "${this_script_path}/custom-order-status-package/fallback-order-status-sql.php" "${i%/*}/" &&
+							chown -R "${USER_OWNER}":"${GROUP_OWNER}" "${i%/*}/" || twoway_pretty_error
 						else
 							cp "${this_script_path}/custom-order-status-package/wc-customer-delivered-status-order.php" "${i%/*}/" &&
 							chown -R "${USER_OWNER}":"${GROUP_OWNER}" "${i%/*}/" || twoway_pretty_error
@@ -1614,7 +1618,7 @@ install_twoway () {
 			echo "${m_tab}${yellow}If still not working please select r for starting recovery process${reset}"
 			echo "${m_tab}${yellow}If everything on the way CONGRATS select c for continue the setup${reset}"
 
-			# Anything broken? Let check website healt and if encountered any errors revert modifications
+			# Anything broken? Lets check website healt and if encountered any errors revert modifications
 			while true
 			do
 				echo "${m_tab}${cyan}#####################################################${reset}"
