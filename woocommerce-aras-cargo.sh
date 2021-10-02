@@ -1371,6 +1371,7 @@ simple_uninstall_twoway () {
 		fi
 	done
 
+	# Remove runtime file
 	rm -f "${this_script_path:?}/.two.way.enb" >/dev/null 2>&1
 
 	echo -e "\n${yellow}*${reset} ${yellow}Two way fulfillment unistallation: ${reset}"
@@ -1389,38 +1390,49 @@ uninstall_twoway () {
 			if [[ "${get_delivered}" ]]; then # Any data
 				if [[ "${get_delivered}" != "[]" ]]; then # Check for null data
 					if grep -q "${my_string}" "${absolute_child_path}/functions.php"; then # Lastly, check the file is not modified
-						# Unhook woocommerce order status completed notification temporarly
-						$m_sed -i -e '/\'"$my_string"'/{ r '"${this_script_path}/custom-order-status-package/action-unhook-email.php"'' -e 'b R' -e '}' -e 'b' -e ':R {n ; b R' -e '}' "${absolute_child_path}/woocommerce/aras-woo-delivered.php" >/dev/null 2>&1 &&
-						# Call page to take effects functions.php modifications
-						$m_curl -s -X GET "https://$api_endpoint/" >/dev/null 2>&1 ||
-						{
-						echo -e "\n${red}*${reset} ${red}Two way fulfillment unistallation aborted: ${reset}";
-						echo "${cyan}${m_tab}#####################################################${reset}";
-						echo -e "${m_tab}${red}Could not unhook woocommerce order status completed notification${reset}\n";
-						echo "$(timestamp): Could not unhook woocommerce order status completed notification" >> "${wooaras_log}";
-						exit 1;
-						}
+						# Warn user about db ops
+						while true; do
+							echo -e "\n${yellow}*${reset}${red}ATTENTION: ${yellow}You are about to remove twoway fulfillment workflow${reset}"
+							echo "${cyan}${m_tab}#####################################################${reset}"
+							echo "${m_tab}${yellow}This operation will update the orders in the 'delivered' status,${reset}"
+							echo "${m_tab}${yellow}as 'completed' (fallback-status) with the help of sql query.${reset}"
+							echo "${m_tab}${red}!!${yellow}TAKING DATABASE BACKUP IS HIGHLY RECOMMENDED BEFORE THE OPERATION${reset}"
+							read -r -n 1 -p "${m_tab}${BC}Do you want to continue uninstallation? --> (Y)es | (N)o${EC} " yn < /dev/tty
+							echo ""
+							case "${yn}" in
+								[Yy]* ) break;;
+								[Nn]* ) exit 1;;
+								* ) echo -e "\n${m_tab}${magenta}Please answer yes or no.${reset}";;
+							esac
+						done
 
-						# Get ids to array --> need bash_ver => 4
-						readarray -t delivered_ids < <($m_curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/orders?status=delivered&per_page=100" -K- <<< "-u ${api_key}:${api_secret}" -H "Content-Type: application/json" | $m_jq -r '.[]|[.id]|join(" ")')
+						# Enable sql query function for db update (fallback-order-status)
+						$m_sed -i '/woo_aras_include_once/c include_once( get_stylesheet_directory() .'"'/woocommerce/fallback-order-status-sql.php'"');  //woo_aras_sql_query_enabled' "${absolute_child_path}/functions.php" ||
+						{ echo "Uninstallation failed, as sed failed"; exit 1; }
 
-						# Update orders status to completed
-						for id in "${delivered_ids[@]}"
+						# Check db updated successfully
+						echo -e "\n${green}*${reset} ${green}SQL query function now enabled.${reset}"
+						echo "${cyan}${m_tab}#####################################################${reset}"
+						echo "${m_tab}${yellow}Please login wordpress admin panel.${reset}"
+						echo "${m_tab}${yellow}Check orders previously in 'Delivered' status updated as 'Completed',${reset}"
+						echo "${m_tab}${yellow}via WooCommerce orders dashboard.${reset}"
+						echo "${m_tab}${yellow}If order statuses not replaced with fallback order status,${reset}"
+						echo "${m_tab}${yellow}sql update is failed, press r for starting recovery process.${reset}"
+						echo "${m_tab}${yellow}If everything on the way select c for continue the uninstallation.${reset}"
+
+						while true
 						do
-							if ! $m_curl -s -o /dev/null -X PUT "https://$api_endpoint/wp-json/wc/v3/orders/${id}" --fail \
-								-K- <<< "-u ${api_key}:${api_secret}" \
-								-H "Content-Type: application/json" \
-								-d '{
-								"status": "completed"
-								}'; then
-
-								echo -e "\n${red}*${reset} ${red}Two way fulfillment unistallation aborted: ${reset}"
-								echo "${m_tab}${cyan}#####################################################${reset}"
-								echo "${red}*${reset} ${red}Couldn't update order:${id} status 'delivered --> completed'${reset}"
-								echo -e "${red}*${reset} ${red}Wrong Order ID or wocommerce endpoint error${reset}\n"
-								echo "$(timestamp): Couldn't update order:${id} status 'delivered --> completed' --> Wrong Order ID or WooCommerce endpoint error" >> "${wooaras_log}"
-								exit 1
-							fi
+							echo "${m_tab}${cyan}#####################################################${reset}"
+							read -r -n 1 -p "${m_tab}${BC}r for recovery and quit uninstall, c for continue${EC} " cs < /dev/tty
+							echo ""
+							case "${cs}" in
+								[Rr]* ) $m_sed -i '/woo_aras_sql_query_enabled/c \/\/woo_aras_include_once( get_stylesheet_directory() .'"'/woocommerce/fallback-order-status-sql.php'"');' "${absolute_child_path}/functions.php";
+									echo -e "\n${m_tab}${yellow}Two way fulfillment workflow uninstallation aborted, recovery process completed.${reset}";
+									echo "$(timestamp): Two way fulfillment workflow uninstallation aborted, recovery process completed." >> "${wooaras_log}";
+									exit 1;;
+								[Cc]* ) break;;
+								* ) echo -e "\n${m_tab}${magenta}Please answer r or c${reset}"; echo "${cyan}${m_tab}#####################################################${reset}";;
+							esac
 						done
 
 						# Lastly remove files and functions.php modifications
@@ -1614,7 +1626,7 @@ install_twoway () {
 			echo "${m_tab}${yellow}Please check your website working correctly and able to login admin panel.${reset}"
 			echo "${m_tab}${yellow}Check 'delivered' order status registered and 'delivered' email template exist under woocommerce emails tab${reset}"
 			echo "${m_tab}${yellow}If your website or admin panel is broken:${reset}"
-			echo "${m_tab}${yellow}First try to restart your web server apache,nginx or php-fpm in an other session${reset}"
+			echo "${m_tab}${yellow}First try to restart your web server apache, nginx or php-fpm in an other session${reset}"
 			echo "${m_tab}${yellow}If still not working please select r for starting recovery process${reset}"
 			echo "${m_tab}${yellow}If everything on the way CONGRATS select c for continue the setup${reset}"
 
@@ -1626,7 +1638,7 @@ install_twoway () {
 				echo ""
 				case "${cs}" in
 					[Rr]* ) $m_sed -i '/aras_woo_enabled/c \/\/aras_woo_include( get_stylesheet_directory() .'"'/woocommerce/aras-woo-delivered.php'"');' "${absolute_child_path}/functions.php";
-						echo -e "\n${yellow}Two way fulfillment workflow installation aborted, recovery process completed.${reset}";
+						echo -e "\n${m_tab}${yellow}Two way fulfillment workflow installation aborted, recovery process completed.${reset}";
 						echo "$(timestamp): Two way fulfillment workflow installation aborted, recovery process completed." >> "${wooaras_log}";
 						twoway=false; continue_setup; break;;
 					[Cc]* ) depriv "${this_script_path}/.two.way.enb";  break;;
