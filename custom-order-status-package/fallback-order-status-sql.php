@@ -9,4 +9,3 @@ add_action('init', 'process_query');
 			$wpdb->prepare( "UPDATE $table_name SET post_status = 'wc-completed' WHERE post_type = 'shop_order' AND post_status = 'wc-delivered'" )
 		);
 	}
-/** * woocommerce-aras-cargo-integration */
