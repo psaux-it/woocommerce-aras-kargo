@@ -1840,17 +1840,17 @@ un_install () {
 
 	# Remove logs
 	if [[ -e "${wooaras_log}" && -d "${wooaras_log%/*}" ]]; then
-		rm -rf "${wooaras_log%/*}/*" >/dev/null 2>&1
+		rm -rf "${wooaras_log%/*}"/*log* >/dev/null 2>&1
 		echo -e "\n${yellow}*${reset} ${yellow}Logs (also rotated) removed:${reset}"
 		echo "${cyan}${m_tab}#####################################################${reset}"
 		echo -e "${yellow}${m_tab}${wooaras_log}${reset}\n"
 	fi
 
 	# Remove runtime files & debug data
-	rm -rf "${this_script_lck_path:?}/*" >/dev/null 2>&1
+	rm -rf "${this_script_lck_path:?}"/.*lck >/dev/null 2>&1
 	rm -f "${this_script_path:?}/.woo.aras.set" >/dev/null 2>&1
 	rm -f "${this_script_path:?}/.woo.aras.enb" >/dev/null 2>&1
-	rm -rf "${my_tmp_folder:?}/*" >/dev/null 2>&1
+	rm -rf "${my_tmp_folder:?}"/{*aras*,*wc*,*main*} >/dev/null 2>&1
 
 	echo "${green}*${reset} ${green}Uninstallation completed${reset}"
 	echo -e "${cyan}${m_tab}#####################################################${reset}\n"
@@ -3051,7 +3051,7 @@ if [[ "${RUNNING_FROM_CRON}" -eq 0 && "${RUNNING_FROM_SYSTEMD}" -eq 0 ]]; then
 			read -r -n 1 -p "${m_tab}${BC}Do you want to reset your Wordpress domain now? --> (Y)es | (N)o${EC} " yn < /dev/tty
 			echo ""
 			case "${yn}" in
-				[Yy]* ) rm -rf "${this_script_lck_path:?}/.end.wc.lck";
+				[Yy]* ) rm -f "${this_script_lck_path:?}/.end.wc.lck";
 					encrypt_wc_end;
 					decrypt_wc_end;
 					w_curl_a; break;;
