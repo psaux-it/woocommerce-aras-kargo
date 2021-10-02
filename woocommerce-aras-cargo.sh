@@ -807,7 +807,7 @@ validate_twoway () {
 		missing_files+=("${absolute_child_path}/functions.php")
 	fi
 
-	[[ "${missing_files}" ]] && return 1
+	[[ "${#missing_files[@]}" -eq 0 ]] && return 0 || return 1
 }
 
 check_delivered () {
