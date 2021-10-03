@@ -544,7 +544,7 @@ my_rotate () {
 	fi
 
 	# Not logrotate until all shipped orders flagged as delivered otherwise data loss
-	if [[ -f "${this_script_path}/.two.way.enb" ]]; then
+	if [[ -f "${this_script_path}/.two.way.set" ]]; then
 		if [[ "$(grep -c "SHIPPED" "${wooaras_log}")" -ne "$(grep -c "DELIVERED" "${wooaras_log}")" ]]; then
 			exit 1
 		fi
@@ -1371,7 +1371,7 @@ simple_uninstall_twoway () {
 	done
 
 	# Remove runtime file
-	rm -f "${this_script_path:?}/.two.way.enb" >/dev/null 2>&1
+	rm -rf "${this_script_path:?}/.two.way.enb" "${this_script_path:?}/.two.way.set" >/dev/null 2>&1
 
 	echo -e "\n${yellow}*${reset} ${yellow}Two way fulfillment unistallation: ${reset}"
 	echo "${cyan}${m_tab}#####################################################${reset}"
@@ -1383,7 +1383,7 @@ simple_uninstall_twoway () {
 uninstall_twoway () {
 	if [[ -e "${this_script_path}/.woo.aras.set" ]]; then # Check default installation is completed
 		find_child_path
-		if [[ -e "${this_script_path}/.two.way.enb" ]]; then # Check twoway installation
+		if [[ -e "${this_script_path}/.two.way.set" ]]; then # Check twoway installation
 			local get_delivered
 			get_delivered=$($m_curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/orders?status=delivered" -K- <<< "-u ${api_key}:${api_secret}" -H "Content-Type: application/json") # Get data
 			if [[ "${get_delivered}" ]]; then # Any data
@@ -1837,7 +1837,7 @@ enable () {
 
 un_install () {
 	# Remove twoway fulfillment workflow
-	if [[ -e "${this_script_path}/.two.way.enb" ]]; then
+	if [[ -e "${this_script_path}/.two.way.set" ]]; then
 		uninstall_twoway
 	fi
 
@@ -1864,6 +1864,7 @@ un_install () {
 	rm -f "${this_script_path:?}/.woo.aras.set" >/dev/null 2>&1
 	rm -f "${this_script_path:?}/.woo.aras.enb" >/dev/null 2>&1
 	rm -rf "${my_tmp_folder:?}"/{*aras*,*wc*,*main*} >/dev/null 2>&1
+
 	echo "${yellow}*${reset} ${yellow}Runtime files & debug data removed:${reset}"
 	echo -e "${cyan}${m_tab}#####################################################${reset}\n"
 
@@ -1967,11 +1968,12 @@ on_fly_enable () {
 		if [ "$reply" == "q" ]; then
 			echo
 			exit 0
-		elif [ ! -f "${this_script_path}/.two.way.enb" ]; then
+		elif [ ! -f "${this_script_path}/.two.way.set" ]; then
 			my_whip_tail
 		else
 			echo -e "\n${yellow}*${reset} ${yellow}Two way fulfillment workflow already installed: ${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
+			sleep 3
 		fi
 }
 
@@ -2010,10 +2012,10 @@ twoway_enable () {
 		fi
 	done
 
-	if [[ ! "${missing_t}" ]]; then
-		if [[ ! -e "${this_script_path}/.two.way.enb" ]]; then
+	if [[ "${#missing_t[@]}" -eq 0 ]]; then
+		if [[ ! -e "${this_script_path}/.two.way.set" ]]; then
 			if [[ "${functions_mod}" == "applied" ]]; then
-				depriv "${this_script_path}/.two.way.enb"
+				depriv "${this_script_path}/.two.way.enb" "${this_script_path}/.two.way.set"
 				echo -e "\n${green}*${reset} ${green}Two way fulfillment workflow enabled successfully: ${reset}"
 				echo -e "${cyan}${m_tab}#####################################################${reset}\n"
 				echo "$(timestamp): Two way fulfillment workflow manually enabled successfully" >> "${wooaras_log}"
@@ -2036,9 +2038,9 @@ twoway_enable () {
 		echo -e "\n${red}*${reset} ${red}Couldn't enabled two way fulfillment workflow: ${reset}"
 		echo "${cyan}${m_tab}#####################################################${reset}"
 		echo "${m_tab}${red}Couldn't find necessary files, please check your setup${reset}"
-		echo "${m_tab}${magenta}${missing_t}${reset}"
+		echo "${m_tab}${magenta}${missing_t[*]}${reset}"
 		echo -e "${m_tab}${red}Follow the guideline 'Two Way Fulfillment Manual Setup' on github${reset}\n"
-		echo "$(timestamp): Couldn't enabled two way fulfillment workflow: couldn't find necessary files $missing_t, please check your setup" >> "${wooaras_log}"
+		echo "$(timestamp): Couldn't enabled two way fulfillment workflow: couldn't find necessary file(s) ${missing_t[*]}, please check your setup" >> "${wooaras_log}"
 		exit 1
 	fi
 }
