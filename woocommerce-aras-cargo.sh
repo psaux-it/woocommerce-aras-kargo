@@ -440,7 +440,7 @@ broken_installation () {
 path_pretty_error () {
 	echo -e "\n${red}*${reset} ${red}Path not writable: ${1}${reset}"
 	echo "${cyan}${m_tab}#####################################################${reset}"
-	echo -e "${red}${m_tab}Run once as root or with sudo user to create path${reset}\n"
+	echo -e "${red}${m_tab}Run once with sudo privileges to create path${reset}\n"
 	broken_installation "Broken installation, path not writable: ${1}, please re-start setup"
 	exit 1
 }
@@ -483,44 +483,54 @@ if [[ $SUDO_USER ]]; then user="${SUDO_USER}"; else user="$(whoami)"; fi
 # @FILE OPS
 # Drop file privileges back to non-root user if we got here with sudo
 depriv () {
-	if [[ $SUDO_USER ]]; then
-		if [[ ! -f "${1}" ]]; then
-			touch "${1}" || { echo "Could not create file ${1}"; exit 1; }
+	for file in "${@}"
+	do
+		if [[ $SUDO_USER ]]; then
+			if [[ ! -f "${file}" ]]; then
+				touch "${file}"
+			fi
+			chown "${user}":"${user}" "${file}"
+		elif [[ ! -f "${file}" ]]; then
+			touch "${file}" || { echo "Could not create file ${file}"; exit 1; }
 		fi
-		chown "$user":"$user" "${1}"
-	elif [[ ! -f "${1}" ]]; then
-		touch "${1}" || { echo "Could not create file ${1}"; exit 1; }
-	fi
+	done
 }
 
 # @FOLDER OPS
 # Drop folder privileges back to non-root user if we got here with sudo
 depriv_f () {
-	if [[ ! -d "${1}" ]]; then
-		mkdir "${1}" ||
-		{
-		  echo "Could not create folder ${1}"
-		  broken_installation "Broken installation, could not find ${1}, please re-start setup"
-		  exit 1
-		}
-		[[ $SUDO_USER ]] && chown "${user}":"${user}" "${1}"
-	fi
+	local my_path
+	local m_path
+
+	for m_path in "${@}"
+	do
+		# Determine the path type
+		[[ "${m_path}" =~ ^/run.* || "${m_path}" =~ ^/var.* ]] && my_path="system_path" || my_path="local_path"
+
+		# Start the operations
+		if [[ "${my_path}" == "system_path" ]]; then # Operations always need root privileges
+			if [[ ! -d "${m_path}" ]]; then
+				if [[ $SUDO_USER || $EUID -eq 0 ]]; then
+					mkdir "${m_path}"
+					[[ $SUDO_USER ]] && chown "${user}":"${user}" "${m_path}"
+				else
+					path_pretty_error "${m_path}"
+				fi
+			fi
+		elif [[ ! -d "${m_path}" ]]; then # Operations not always need root privileges
+			mkdir "${m_path}" >/dev/null 2>&1 || path_pretty_error "${m_path}"
+			[[ $SUDO_USER ]] && chown "${user}":"${user}" "${m_path}"
+		fi
+	done
 }
 
-# Check runtime path (before logrotation prerotate rules called)
+# Check, create runtime path (before logrotation prerotate rules called)
 # Later, For @REBOOTS:
 #  -- We will create runtime folder via --> /etc/tmpfiles.d/ || rc.local for cron installation
 #  -- For systemd installation we will use 'RuntimeDirectory' so no need tmpfiles installation
 runtime_path="${PIDFILE#/var}"
-if [[ ! -d "${runtime_path%/*}" ]]; then
-	if [[ $SUDO_USER || $EUID -eq 0 ]]; then
-		mkdir "${runtime_path%/*}" || { echo "Could not create runtime folder ${runtime_path%/*}"; exit 1; }
-		[[ $SUDO_USER ]] && chown "${user}":"${user}" "${runtime_path%/*}"
-		depriv "${PIDFILE}"
-	else
-		path_pretty_error "/run"
-	fi
-fi
+depriv_f "${runtime_path%/*}"
+depriv "${PIDFILE}"
 
 # Logrotation prerotate rules
 my_rotate () {
@@ -562,20 +572,9 @@ my_rotate () {
 # Reply the logrotate call
 if [[ "${1}" == "--rotate" ]]; then my_rotate; fi
 
-# Check & create lock and tmp paths
-depriv_f "${this_script_path}/tmp"
-depriv_f "${this_script_path}/.lck"
-
-# Check & create log path
-if [[ ! -d "${wooaras_log%/*}" ]]; then
-	if [[ $SUDO_USER || $EUID -eq 0 ]]; then
-		mkdir -p "${wooaras_log%/*}" || { echo "Couldn't create log path"; exit 1; }
-		[[ $SUDO_USER ]] && chown "$user":"$user" "${wooaras_log%/*}"
-		depriv "${wooaras_log}" && echo "$(timestamp): Log path created: Logging started.." >> "${wooaras_log}"
-	else
-		path_pretty_error "/var/log"
-	fi
-fi
+# Check & create lock,tmp (local) & log (system) path
+depriv_f "${wooaras_log%/*}" "${this_script_path}/tmp" "${this_script_path}/.lck"
+depriv "${wooaras_log}" && echo "$(timestamp): Log path created: Logging started.." >> "${wooaras_log}"
 
 # Pid pretty error
 pid_pretty_error () {
@@ -1329,7 +1328,7 @@ simple_uninstall_twoway () {
 		echo -e "\n${red}*${reset} ${red}Twoway fulfillment uninstallation aborted, as file not writeable: ${reset}"
 		echo "${cyan}${m_tab}#####################################################${reset}"
 		echo "${m_tab}${red}${absolute_child_path}/functions.php${reset}"
-		echo -e "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}\n"
+		echo -e "${m_tab}${red}Try to run script with sudo privileges.${reset}\n"
 		echo "$(timestamp): Twoway fulfillment uninstallation aborted, as file not writeable: ${absolute_child_path}/functions.php" >> "${wooaras_log}"
 		exit 1
 	fi
@@ -1352,7 +1351,7 @@ simple_uninstall_twoway () {
 			echo -e "\n${red}*${reset} ${red}Twoway fulfillment uninstallation aborted, as file not writeable: ${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			echo "${m_tab}${red}$i${reset}"
-			echo -e "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}\n"
+			echo -e "${m_tab}${red}Try to run script with sudo privileges.${reset}\n"
 			echo "$(timestamp): Twoway fulfillment uninstallation aborted, as file not writeable: $i" >> "${wooaras_log}"
 			exit 1
 		fi
@@ -1482,7 +1481,7 @@ install_twoway () {
 				echo -e "\n${red}*${reset} ${red}Installation aborted, as file not readable: ${reset}"
 				echo "${cyan}${m_tab}#####################################################${reset}"
 				echo "${m_tab}${red}$absolute_child_path/functions.php${reset}"
-				echo -e "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}\n"
+				echo -e "${m_tab}${red}Try to run script with sudo privileges.${reset}\n"
 				echo "$(timestamp): Installation aborted, as file not readable: $absolute_child_path/functions.php" >> "${wooaras_log}"
 				exit 1
 			fi
@@ -1493,7 +1492,7 @@ install_twoway () {
 			echo -e "\n${red}*${reset} ${red}Installation aborted, as file not readable: ${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			echo "${m_tab}${red}$theme_path/index.php${reset}"
-			echo -e "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}\n"
+			echo -e "${m_tab}${red}Try to run script with sudo privileges.${reset}\n"
 			echo "$(timestamp): Installation aborted, as file not readable: $theme_path/index.php" >> "${wooaras_log}"
 			exit 1
 		fi
@@ -1516,7 +1515,7 @@ install_twoway () {
 					echo -e "\n${red}*${reset} ${red}Installation aborted, as file not writeable: ${reset}"
 					echo "${cyan}${m_tab}#####################################################${reset}"
 					echo "${m_tab}${red}$absolute_child_path/functions.php${reset}"
-					echo -e "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}\n"
+					echo -e "${m_tab}${red}Try to run script with sudo privileges.${reset}\n"
 					echo "$(timestamp): Installation aborted, as file not writeable: $absolute_child_path/functions.php" >> "${wooaras_log}"
 					exit 1
 				fi
@@ -1550,7 +1549,7 @@ install_twoway () {
 				echo -e "\n${red}*${reset} ${red}Installation aborted, as file not writeable: ${reset}"
 				echo "${cyan}${m_tab}#####################################################${reset}"
 				echo "${m_tab}${red}${absolute_child_path}/functions.php${reset}"
-				echo -e "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}\n"
+				echo -e "${m_tab}${red}Try to run script with sudo privileges.${reset}\n"
 				echo "$(timestamp): Installation aborted, as file not writeable: ${absolute_child_path}/functions.php" >> "${wooaras_log}"
 				exit 1
 			fi
@@ -1597,14 +1596,14 @@ install_twoway () {
 				echo -e "\n${red}*${reset} ${red}Installation aborted, as file not writeable: ${reset}"
 				echo "${cyan}${m_tab}#####################################################${reset}"
 				echo "${m_tab}${red}$absolute_child_path/functions.php${reset}"
-				echo -e "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}\n"
+				echo -e "${m_tab}${red}Try to run script with sudo privileges.${reset}\n"
 				echo "$(timestamp): Installation aborted, as file not writeable: $absolute_child_path/functions.php" >> "${wooaras_log}"
 				exit 1
 			fi
 		else
 			echo -e "\n${red}*${reset} ${red}Installation aborted, could not read file permissions: ${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
-			echo -e "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}\n"
+			echo -e "${m_tab}${red}Try to run script with sudo privileges.${reset}\n"
 			echo "$(timestamp): Installation aborted, could not read file permissions" >> "${wooaras_log}"
 			exit 1
 		fi
@@ -1641,7 +1640,7 @@ install_twoway () {
 						echo -e "\n${m_tab}${yellow}Two way fulfillment workflow installation aborted, recovery process completed.${reset}";
 						echo "$(timestamp): Two way fulfillment workflow installation aborted, recovery process completed." >> "${wooaras_log}";
 						twoway=false; continue_setup; break;;
-					[Cc]* ) depriv "${this_script_path}/.two.way.enb";  break;;
+					[Cc]* ) depriv "${this_script_path}/.two.way.enb" "${this_script_path}/.two.way.set"; break;;
 					* ) echo -e "\n${m_tab}${magenta}Please answer r or c${reset}"; echo "${cyan}${m_tab}#####################################################${reset}";;
 				esac
 			done
@@ -1677,7 +1676,7 @@ hard_reset () {
 		else
 			echo -e "\n${red}*${reset} ${red}Cron uninstall aborted, as file not writable: ${cron_dir}/${cron_filename}${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
-			echo "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}"
+			echo "${m_tab}${red}Try to run script with sudo privileges.${reset}"
 			echo "$(timestamp): Uninstallation error: $cron_dir/$cron_filename not writeable" >> "${wooaras_log}"
 		fi
 	fi
@@ -1691,7 +1690,7 @@ hard_reset () {
 		else
 			echo -e "\n${red}*${reset} ${red}Updater cron job uninstallation aborted, as file not writable: ${cron_dir}/${cron_filename_update}${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
-			echo "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}"
+			echo "${m_tab}${red}Try to run script with sudo privileges.${reset}"
 			echo "$(timestamp): Uninstallation error: ${cron_dir}/${cron_filename_update} is not writeable" >> "${wooaras_log}"
 		fi
 	fi
@@ -1710,7 +1709,7 @@ hard_reset () {
 		else
 			echo -e "\n${red}*${reset} ${red}Systemd uninstall aborted, as directory not writable: $systemd_dir${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
-			echo "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}"
+			echo "${m_tab}${red}Try to run script with sudo privileges.${reset}"
 			echo "$(timestamp): Uninstallation error: ${systemd_dir}/${service_filename} not writeable" >> "${wooaras_log}"
 		fi
 	fi
@@ -1724,7 +1723,7 @@ hard_reset () {
 		else
 			echo -e "\n${red}*${reset} ${red}Logrotate uninstall aborted, as file not writable: ${logrotate_dir}/${logrotate_filename}${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
-			echo "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}"
+			echo "${m_tab}${red}Try to run script with sudo privileges.${reset}"
 			echo "$(timestamp): Uninstallation error: ${logrotate_dir}/${logrotate_filename} not writeable" >> "${wooaras_log}"
 		fi
 	fi
@@ -1738,7 +1737,7 @@ hard_reset () {
 		else
 			echo -e "\n${red}*${reset} ${red}Uninstallation aborted, as file not writable: ${tmpfiles_d}/${tmpfiles_f}${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
-			echo "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}"
+			echo "${m_tab}${red}Try to run script with sudo privileges.${reset}"
 			echo "$(timestamp): Uninstallation aborted, as file not writable: ${tmpfiles_d}/${tmpfiles_f}" >> "${wooaras_log}"
 		fi
 	fi
@@ -1752,7 +1751,7 @@ hard_reset () {
 		else
 			echo -e "\n${red}*${reset} ${red}Uninstallation aborted, as file not writable: ${logrotate_conf}${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
-			echo "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}"
+			echo "${m_tab}${red}Try to run script with sudo privileges.${reset}"
 			echo "$(timestamp): Uninstallation aborted, as file not writable: ${logrotate_conf}" >> "${wooaras_log}"
 		fi
 	fi
@@ -1766,7 +1765,7 @@ hard_reset () {
 		else
 			echo -e "\n${red}*${reset} ${red}Uninstallation aborted, as file not writable: /etc/rc.local${reset}"
                         echo "${cyan}${m_tab}#####################################################${reset}"
-                        echo "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}"
+                        echo "${m_tab}${red}Try to run script with sudo privileges.${reset}"
                         echo "$(timestamp): Uninstallation aborted, as file not writable: /etc/rc.local" >> "${wooaras_log}"
 		fi
 	fi
@@ -1784,7 +1783,7 @@ disable () {
 				echo -e "\n${red}*${reset} ${red}Couldn't disable Aras-WooCommerce integration: ${reset}"
 				echo "${cyan}${m_tab}#####################################################${reset}"
 				echo "${m_tab}${red}As folder not writeable ${this_script_path}${reset}"
-				echo -e "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}\n"
+				echo -e "${m_tab}${red}Try to run script with sudo privileges.${reset}\n"
 				echo "$(timestamp): Couldn't disable Aras-WooCommerce integration: as folder not writeable ${this_script_path}" >> "${wooaras_log}"
 				exit 1
 			fi
@@ -1816,7 +1815,7 @@ enable () {
 				echo -e "\n${red}*${reset} ${red}Couldn't enable Aras-WooCommerce integration: ${reset}"
 				echo "${cyan}${m_tab}#####################################################${reset}"
 				echo "${m_tab}${red}As folder not writeable ${this_script_path}${reset}"
-				echo -e "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}\n"
+				echo -e "${m_tab}${red}Try to run script with sudo privileges.${reset}\n"
 				echo "$(timestamp): Couldn't enable Aras-WooCommerce integration: as folder not writeable ${this_script_path}" >> "${wooaras_log}"
 				exit 1
 			fi
@@ -1874,8 +1873,7 @@ un_install () {
 
 # Disable setup after successful installation
 on_fly_disable () {
-	depriv "${this_script_path}/.woo.aras.set" || { echo "Installation failed, as couldn't create ${this_script_path}/.woo.aras.set"; exit 1; }
-	depriv "${this_script_path}/.woo.aras.enb" || { echo "Installation failed, as couldn't create ${this_script_path}/.woo.aras.enb"; exit 1; }
+	depriv "${this_script_path}/.woo.aras.set" "${this_script_path}/.woo.aras.enb"
 }
 
 # Pre-setup operations
@@ -2056,7 +2054,7 @@ twoway_disable () {
 				echo -e "\n${red}*${reset} ${red}Couldn't disabled two-way workflow: ${reset}"
 				echo "${cyan}${m_tab}#####################################################${reset}"
 				echo "${m_tab}${red}As folder not writeable ${this_script_path}${reset}"
-				echo -e "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}\n"
+				echo -e "${m_tab}${red}Try to run script with sudo privileges.${reset}\n"
 				echo "$(timestamp): Couldn't disabled two-way workflow: as folder not writeable ${this_script_path}" >> "${wooaras_log}"
 				exit 1
 			fi
@@ -2498,7 +2496,7 @@ add_cron () {
 	if [[ ! -w "${cron_dir}/${cron_filename}" ]]; then
 		echo -e "\n${red}*${reset} ${red}Cron install aborted, as file not writable: ${cron_dir}/${cron_filename}${reset}"
 		echo "${cyan}${m_tab}#####################################################${reset}"
-		echo -e "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}\n"
+		echo -e "${m_tab}${red}Try to run script with sudo privileges.${reset}\n"
 		echo "$(timestamp): Installation aborted, as file not writable: ${cron_dir}/${cron_filename}." >> "${wooaras_log}"
 		exit 1
 	else
@@ -2577,7 +2575,7 @@ add_systemd () {
 	if [[ ! -w "${systemd_dir}/${service_filename}" ]]; then
 		echo -e "\n${red}*${reset} ${red}Systemd install aborted, as file not writable:${reset} ${green}${systemd_dir}/${service_filename}${reset}"
 		echo "${cyan}${m_tab}#####################################################${reset}"
-		echo -e "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}\n"
+		echo -e "${m_tab}${red}Try to run script with sudo privileges.${reset}\n"
 		echo "$(timestamp): Systemd install aborted, as file not writable: ${systemd_dir}/${service_filename}" >> "${wooaras_log}"
 		exit 1
 	else
@@ -2637,7 +2635,7 @@ add_systemd () {
 			if [[ ! -w "${cron_dir}/${cron_filename_update}" ]]; then
 				echo -e "\n${red}*${reset} ${red}Updater cron install aborted, as file not writable: ${cron_dir}/${cron_filename_update}${reset}"
 				echo "${cyan}${m_tab}#####################################################${reset}"
-				echo -e "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}\n"
+				echo -e "${m_tab}${red}Try to run script with sudo privileges.${reset}\n"
 				echo "$(timestamp): Installation aborted, as file not writable: ${cron_dir}/${cron_filename_update}." >> "${wooaras_log}"
 				exit 1
 			else
@@ -2704,7 +2702,7 @@ add_logrotate () {
 			if [[ ! -w "${logrotate_dir}" ]]; then
 				echo -e "\n${red}*${reset} ${red}Installation aborted, as folder not writeable: $logrotate_dir${reset}"
 				echo "${cyan}${m_tab}#####################################################${reset}"
-				echo -e "${m_tab}${yellow}You can run script as root or execute with sudo.${reset}\n"
+				echo -e "${m_tab}${yellow}Try to run script with sudo privileges.${reset}\n"
 				echo "$(timestamp): Installation aborted, as folder not writeable: ${logrotate_dir}" >> "${wooaras_log}"
 				exit 1
 			else
@@ -2732,7 +2730,7 @@ add_logrotate () {
 		if [[ ! -w "${logrotate_conf}" ]]; then
 			echo -e "\n${red}*${reset} ${red}Installation aborted, as file not writeable: ${logrotate_conf}${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
-			echo -e "${m_tab}${red}You can run script as root or execute with sudo.${reset}\n"
+			echo -e "${m_tab}${red}Try to run script with sudo privileges.${reset}\n"
 			echo "$(timestamp): Installation aborted, as file not writeable: ${logrotate_conf}" >> "${wooaras_log}"
 			exit 1
 		else
@@ -2768,7 +2766,7 @@ systemd_tmpfiles () {
 			if [[ ! -w "${tmpfiles_d}" ]]; then
 				echo -e "\n${red}*${reset} ${red}Installation aborted, as folder not writable: ${tmpfiles_d}${reset}"
 				echo "${cyan}${m_tab}#####################################################${reset}"
-				echo -e "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}\n"
+				echo -e "${m_tab}${red}Try to run script with sudo privileges.${reset}\n"
 				echo "$(timestamp): Installation aborted, as folder not writable: ${tmpfiles_d}" >> "${wooaras_log}"
 				exit 1
 			else
@@ -2783,7 +2781,7 @@ systemd_tmpfiles () {
 				else
 					echo -e "\n${red}*${reset} ${red}Installation aborted, as file not writable: ${tmpfiles_d}/${tmpfiles_f}${reset}"
 					echo "${cyan}${m_tab}#####################################################${reset}"
-					echo -e "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}\n"
+					echo -e "${m_tab}${red}Try to run script with sudo privileges.${reset}\n"
 					echo "$(timestamp): Installation aborted, as file not writable: ${tmpfiles_d}/${tmpfiles_f}" >> "${wooaras_log}"
 					exit 1
 				fi
@@ -2794,7 +2792,7 @@ systemd_tmpfiles () {
 		if [[ ! -w "/etc/rc.local" ]]; then
 			echo -e "\n${red}*${reset} ${red}Installation aborted, as file not writable: /etc/rc.local${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
-			echo -e "${m_tab}${red}Try to run script as root or execute script with sudo.${reset}\n"
+			echo -e "${m_tab}${red}Try to run script with sudo privileges.${reset}\n"
 			echo "$(timestamp): Installation aborted, as file not writable: /etc/rc.local" >> "${wooaras_log}"
 			exit 1
 		elif ! grep -q "woo-aras" "/etc/rc.local"; then
