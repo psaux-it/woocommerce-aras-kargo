@@ -2801,7 +2801,8 @@ systemd_tmpfiles () {
 			sed -i \
 				-e '$i \mkdir -p '"${runtime_path%/*}"' && chown '"${user}:${user}"' '"${runtime_path%/*}"'' \
 				-e '$i \mkdir -p '"${wooaras_log%/*}"' && chown '"${user}:${user}"' '"${wooaras_log%/*}"'' \
-				"/etc/rc.local" && tmpfiles_installed="rclocal" || { echo "Installation failed, as sed failed"; exit 1; }
+				"/etc/rc.local"
+				tmpfiles_installed="rclocal"
 		fi
 	else
 		echo -e "\n${red}*${reset} ${red}Installation aborted, as required systemd services not active${reset}"
