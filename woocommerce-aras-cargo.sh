@@ -806,7 +806,7 @@ validate_twoway () {
 		missing_files+=("${absolute_child_path}/functions.php")
 	fi
 
-	[[ "${#missing_files[@]}" -eq 0 ]] && return 0 || return 1
+	(( ${#missing_files[@]} )) && return 1 || return 0
 }
 
 check_delivered () {
@@ -2012,7 +2012,7 @@ twoway_enable () {
 		fi
 	done
 
-	if [[ "${#missing_t[@]}" -eq 0 ]]; then
+	if ! (( ${#missing_t[@]} )); then
 		if [[ ! -e "${this_script_path}/.two.way.set" ]]; then
 			if [[ "${functions_mod}" == "applied" ]]; then
 				depriv "${this_script_path}/.two.way.enb" "${this_script_path}/.two.way.set"
@@ -3473,7 +3473,7 @@ if [[ -e "${this_script_path}/.two.way.enb" ]]; then
 		good_del=true
 		while read -ra fields
 		do
-			if [[ ! (${fields[0]} =~ ^[+-]?[[:digit:]]+$ && ${fields[1]} =~ ^[+-]?[[:digit:]]+$ ) ]]; then
+			if [[ ! ( ${fields[0]} =~ ^[+-]?[[:digit:]]+$ && ${fields[1]} =~ ^[+-]?[[:digit:]]+$ ) ]]; then
 				good_del=false
 				break
 			fi
@@ -3486,7 +3486,7 @@ if [[ -e "${this_script_path}/.two.way.enb" ]]; then
 	fi
 
 	# Validate that orders are only in shipped/completed status
-	if [[ "${#check_status_del[@]}" -gt 0 ]]; then
+	if (( ${#check_status_del[@]} )); then
 		if ! [[ -e "${this_script_path}/wc.proc.del.tmp1" && -e "${this_script_path}/wc.proc.del.tmp" ]]; then # These are always appended file and trap(cleanup) can fail
 			for i in "${!check_status_del[@]}"
 			do
@@ -3593,7 +3593,7 @@ do
 done
 
 # Prepeare necessary data for matching operation
-if [[ "${#aras_array[@]}" -gt 0 && "${#wc_array[@]}" -gt 0 ]]; then # Check length of arrays to continue
+if (( ${#aras_array[@]} && ${#wc_array[@]} )); then # Check length of arrays to continue
 	if [[ ! -e "${this_script_path}/.lvn.all.cus" ]]; then # This is always appended file and trap(cleanup) can fail
 		for i in "${!wc_array[@]}"; do
 			for j in "${!aras_array[@]}"; do
