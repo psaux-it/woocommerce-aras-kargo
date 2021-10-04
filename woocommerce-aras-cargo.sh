@@ -2502,7 +2502,14 @@ add_cron () {
 		echo "$(timestamp): Installation aborted, as file not writable: ${cron_dir}/${cron_filename}." >> "${wooaras_log}"
 		exit 1
 	else
-		if [[ "${auto_update}" -eq 1 ]]; then
+		local good
+		local good_update
+		local good_main
+		good_main=0
+		good_update=0
+		good=true
+
+		if [[ "${auto_update}" -eq 1 && ! -e "${cron_dir}/${cron_filename_update}" ]]; then
 			cat <<- EOF > "${cron_dir}/${cron_filename_update}"
 			# At 09:19 on Sunday.
 			# Via WooCommerce - ARAS Cargo Integration Script
@@ -2511,19 +2518,24 @@ add_cron () {
 			SHELL=/bin/bash
 			$cron_minute_update ${cron_user} [ -x ${cron_script_full_path} ] && ${my_bash} ${cron_script_full_path} -u
 			EOF
-                fi
+			[[ $? -ne 0 ]] && good_update=1
+		fi
 
-		cat <<- EOF > "${cron_dir}/${cron_filename}"
-		# At every 24th minute past every hour from 9 through 19 on every day-of-week from Monday through Saturday.
-		# Via WooCommerce - ARAS Cargo Integration Script
-		# Copyright 2021 Hasan ÇALIŞIR
-		# MAILTO=$mail_to
-		SHELL=/bin/bash
-		$cron_minute ${cron_user} [ -x ${cron_script_full_path} ] && ${my_bash} ${cron_script_full_path}
-		EOF
+		if [[ ! -e "${cron_dir}/${cron_filename}" ]]; then
+			cat <<- EOF > "${cron_dir}/${cron_filename}"
+			# At every 24th minute past every hour from 9 through 19 on every day-of-week from Monday through Saturday.
+			# Via WooCommerce - ARAS Cargo Integration Script
+			# Copyright 2021 Hasan ÇALIŞIR
+			# MAILTO=$mail_to
+			SHELL=/bin/bash
+			$cron_minute ${cron_user} [ -x ${cron_script_full_path} ] && ${my_bash} ${cron_script_full_path}
+			EOF
+			[[ $? -ne 0 ]] && good_main=1
+		fi
 
-		result=$?
-		if [[ "${result}" -eq 0 ]]; then
+		[[ "${good_main}" -ne 0 || "${good_update}" -ne 0 ]] && good=false
+
+		if $good; then
 			# Install systemd_tmpfiles
 			systemd_tmpfiles
 
