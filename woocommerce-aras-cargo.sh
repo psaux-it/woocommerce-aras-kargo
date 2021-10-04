@@ -2160,7 +2160,7 @@ download () {
 		echo -e "${m_tab}\$(tput setaf 1)Failed moving ${sh_output} to ${cron_script_full_path}\$(tput sgr0)\\n"
 		echo "$(timestamp): Upgrade failed: failed moving ${sh_output} to ${cron_script_full_path}" >> "${wooaras_log}"
 
-		if [ $send_mail_err -eq 1 ]; then
+		if [[ $send_mail_err -eq 1 ]]; then
 			echo "Upgrade failed: failed moving ${sh_output} to ${cron_script_full_path}" | mail -s "$mail_subject_err" -a "$mail_from" "$mail_to"
 		fi
 
@@ -2176,7 +2176,7 @@ download () {
 		echo -e "${m_tab}\$(tput setaf 1)Unable to set permissions on ${cron_script_full_path}\$(tput sgr0)\\n"
 		echo "$(timestamp): Upgrade failed: Unable to set permissions on ${cron_script_full_path}" >> "${wooaras_log}"
 
-		if [ $send_mail_err -eq 1 ]; then
+		if [[ $send_mail_err -eq 1 ]]; then
 			 echo "Upgrade failed: Unable to set permissions on ${cron_script_full_path}" | mail -s "$mail_subject_err" -a "$mail_from" "$mail_to"
 		fi
 
@@ -2192,7 +2192,7 @@ download () {
 		echo -e "${m_tab}\$(tput setaf 1)Unable to set ownership on ${cron_script_full_path}\$(tput sgr0)\\n"
 		echo "$(timestamp): Upgrade failed: Unable to set ownership on ${cron_script_full_path}" >> "${wooaras_log}"
 
-		if [ $send_mail_err -eq 1 ]; then
+		if [[ $send_mail_err -eq 1 ]]; then
 			echo "Upgrade failed: Unable to set ownership on ${cron_script_full_path}" | mail -s "$mail_subject_err" -a "$mail_from" "$mail_to"
 		fi
 
@@ -2204,14 +2204,15 @@ download () {
 	if [[ "${f_update}" ]]; then
 		echo -e "\\n\$(tput setaf 2)*\$(tput sgr0) \$(tput setaf 2)Force upgrade completed.\$(tput sgr0)"
 		echo "Force upgrade completed. WooCommerce-aras integration script updated to version ${latest_version}" | mail -s "$mail_subject_suc" -a "$mail_from" "$mail_to" >/dev/null 2>&1
+		echo "$(timestamp): Force upgrade completed. Script updated to version ${latest_version}" >> "${wooaras_log}"
 	else
 		echo -e "\\n\$(tput setaf 2)*\$(tput sgr0) \$(tput setaf 2)Upgrade completed.\$(tput sgr0)"
-		echo -e "Upgrade completed. WooCommerce-aras integration script updated to version ${latest_version}\n${changelog_p}" | mail -s "$mail_subject_suc" -a "$mail_from" "$mail_to" >/dev/null 2>&1
+		echo -e "Upgrade completed. WooCommerce-aras integration script updated to version ${latest_version}\\n${changelog_p}" | mail -s "$mail_subject_suc" -a "$mail_from" "$mail_to" >/dev/null 2>&1
+		echo "$(timestamp): Upgrade completed. Script updated to version ${latest_version}" >> "${wooaras_log}"
 	fi
 
 	echo "\$(tput setaf 6)${m_tab}#####################################################\$(tput sgr0)"
 	echo -e "${m_tab}\$(tput setaf 2)Script updated to version ${latest_version}\$(tput sgr0)\\n"
-	echo "$(timestamp): Upgrade completed. Script updated to version ${latest_version}" >> "${wooaras_log}"
 
 	# Clean-up
         rm -rf ${this_script_path}/upgr.proc ${PIDFILE} || { echo "Temproray files couldn't removed"; }
