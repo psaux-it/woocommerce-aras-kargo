@@ -481,24 +481,25 @@ fi
 if [[ $SUDO_USER ]]; then user="${SUDO_USER}"; else user="$(whoami)"; fi
 
 # @FILE OPS
-# Drop file privileges back to non-root user if we got here with sudo
+# Create file, drop file privileges back to non-root user if we got here with sudo
 depriv () {
+	touched=0
 	for file in "${@}"
 	do
-		if [[ $SUDO_USER ]]; then
-			if [[ ! -f "${file}" ]]; then
-				touched=1
+		if [[ ! -f "${file}" ]]; then
+			if [[ $SUDO_USER ]]; then
 				touch "${file}"
+				touched=1
+				chown "${user}":"${user}" "${file}"
+			elif [[ ! -f "${file}" ]]; then
+				touch "${file}" && touched=1 || { echo "Could not create file ${file}"; exit 1; }
 			fi
-			chown "${user}":"${user}" "${file}"
-		elif [[ ! -f "${file}" ]]; then
-			touch "${file}" && touched=1 || { echo "Could not create file ${file}"; exit 1; }
 		fi
 	done
 }
 
 # @FOLDER OPS
-# Drop folder privileges back to non-root user if we got here with sudo
+# Create folder, drop folder privileges back to non-root user if we got here with sudo
 depriv_f () {
 	local my_path
 	local m_path
@@ -576,7 +577,7 @@ if [[ "${1}" == "--rotate" ]]; then my_rotate; fi
 # Check & create lock,tmp (local) & log (system) path
 depriv_f "${wooaras_log%/*}" "${this_script_path}/tmp" "${this_script_path}/.lck"
 depriv "${wooaras_log}"
-[[ "${touched}" ]] && echo "$(timestamp): Log path created: Logging started.." >> "${wooaras_log}"
+[[ "${touched}" -eq 1 ]] && echo "$(timestamp): Log path created: Logging started.." >> "${wooaras_log}"
 
 # Pid pretty error
 pid_pretty_error () {
