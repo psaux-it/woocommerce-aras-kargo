@@ -489,10 +489,11 @@ depriv () {
 		if [[ ! -f "${file}" ]]; then
 			if [[ $SUDO_USER ]]; then
 				touch "${file}"
-				touched=1
 				chown "${user}":"${user}" "${file}"
+				[[ "${file}" == "${wooaras_log}" ]] && touched=1
 			elif [[ ! -f "${file}" ]]; then
-				touch "${file}" && touched=1 || { echo "Could not create file ${file}"; exit 1; }
+				touch "${file}" || { echo "Could not create file ${file}"; exit 1; }
+				[[ "${file}" == "${wooaras_log}" ]] && touched=1
 			fi
 		fi
 	done
@@ -576,8 +577,7 @@ if [[ "${1}" == "--rotate" ]]; then my_rotate; fi
 
 # Check & create lock,tmp (local) & log (system) path
 depriv_f "${wooaras_log%/*}" "${this_script_path}/tmp" "${this_script_path}/.lck"
-depriv "${wooaras_log}"
-[[ "${touched}" -eq 1 ]] && echo "$(timestamp): Log path created: Logging started.." >> "${wooaras_log}"
+depriv "${wooaras_log}"; [[ "${touched}" -eq 1 ]] && echo "$(timestamp): Log path created: Logging started.." >> "${wooaras_log}"
 
 # Pid pretty error
 pid_pretty_error () {
