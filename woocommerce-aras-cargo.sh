@@ -158,7 +158,7 @@ fi
 usage () {
         echo -e "\n${m_tab}${cyan}# WOOCOMMERCE - ARAS CARGO INTEGRATION BASIC USAGE${reset}"
         echo -e "${m_tab}${magenta}---------------------------------------------------------------------${reset}"
-        echo -e "\n${m_tab}${cyan}# Clone git repository (non-root user)${reset}"
+        echo -e "\n${m_tab}${cyan}# Clone git repository under /home/* (non-root user)${reset}"
         echo -e "${m_tab}${magenta}git clone https://github.com/hsntgm/woocommerce-aras-kargo.git${reset}"
         echo -e "\n${m_tab}${cyan}# Setup needs sudo privileges${reset}"
         echo -e "${m_tab}${magenta}sudo ./woocommerce-aras-cargo.sh --setup${reset}"
@@ -450,6 +450,7 @@ if [[ $# -eq 0 ]]; then
 	if [[ ! -e "${this_script_path}/.woo.aras.set" ]]; then
 		echo -e "\n${red}*${reset} ${red}Broken/Uncompleted installation:${reset}"
 		echo "${cyan}${m_tab}#####################################################${reset}"
+		echo "${m_tab}${red}Missing runtime file or possibly you run the script first time${reset}"
 		echo -e "${m_tab}${red}Check below instructions for basic usage${reset}\n"
 		usage
 		broken_installation "Broken/Uncompleted installation, please re-start setup"
@@ -1660,8 +1661,12 @@ install_twoway () {
 
 # Dialog box for twoway fulfillment workflow setup
 my_whip_tail () {
-	if (whiptail --title "Two-Way Fulfillment Setup" --yesno "Do you want to auto implement two-way (processing->shipped->delivered) fulfillment workflow? If you choose 'NO' script will configure itself for default oneway (processing->completed) setup. Please keep in mind that If you decided to implement twoway workflow be sure you execute this script on webserver where woocommerce runs and don't have any woocommerce custom order statuses installed before. Script will add custom 'delivered' order status to woocommerce fulfillment workflow." 10 110); then
-		twoway=true
+	if [[ "${RUNNING_FROM_CRON}" -eq 0 && "${RUNNING_FROM_SYSTEMD}" -eq 0 ]]; then
+		if (whiptail --title "Two-Way Fulfillment Setup" --yesno "Do you want to auto implement two-way (processing->shipped->delivered) fulfillment workflow? If you choose 'NO' script will configure itself for default oneway (processing->completed) setup. Please keep in mind that If you decided to implement twoway workflow be sure you execute this script on webserver where woocommerce runs and don't have any woocommerce custom order statuses installed before. Script will add custom 'delivered' order status to woocommerce fulfillment workflow." 10 110); then
+			twoway=true
+		else
+			twoway=false
+		fi
 	else
 		twoway=false
 	fi
