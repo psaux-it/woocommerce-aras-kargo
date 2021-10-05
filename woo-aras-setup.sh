@@ -1,5 +1,11 @@
 #!/bin/bash
 
+# Ugly die
+die () {
+  echo "$@" >&2
+  exit 1
+}
+
 # Global Variables
 # =====================================================================
 export new_user="wooaras"
@@ -69,8 +75,8 @@ export temporary_path_x="${this_script_path}"
 # =====================================================================
 modified=0
 add_user () {
-  useradd -m -p "${enc_pass}" -s /bin/bash "${new_user}" >/dev/null 2>&1
-  usermod -a -G "${new_user}",cron"${1}" "${new_user}" >/dev/null 2>&1
+  useradd -m -p "${enc_pass}" -s /bin/bash "${new_user}" >/dev/null 2>&1 || die "Could not create user ${new_user}"
+  usermod -a -G "${new_user}",cron"${1}" "${new_user}" >/dev/null 2>&1 || die "Could not add ${new_user} to ${1}"
 }
 if ! grep -qE "^${new_user}" "${pass_file}"; then
   echo -e "\n${green}*${reset} ${magenta}Setting 'wooaras' user password, type q for quit${reset}"
@@ -101,22 +107,24 @@ fi
 # Prepeare the installation environment, if not set
 # =====================================================================
 # Create installation path
-mkdir -p "${installation_path}"
+if [[ ! -d "${installation_path}" ]]; then
+  mkdir -p "${installation_path}" || die "Could not create directory ${installation_path}"
+fi
 
 # Copy files from temporary path to installation path & change ownership
-if ! [[ "$(ls -A ${installation_path} 2>/dev/null)" ]]; then
-  cp -rT "${this_script_path}" "${installation_path}"
-  chmod +x "${installation_path}"/woo-aras-setup.sh
-  chmod +x "${installation_path}"/woocommerce-aras-cargo.sh
+if ! [[ "$(ls -A ${installation_path})" ]]; then
+  cp -rT "${this_script_path}" "${installation_path}" || die "Could not copy to ${installation_path}"
+  chmod +x "${installation_path}"/woo-aras-setup.sh || die "Could not change mod woo-aras-setup.sh"
+  chmod +x "${installation_path}"/woocommerce-aras-cargo.sh || die "Could not change mod woocommerce-aras-cargo.sh"
   if [[ "$(stat --format "%U" "${installation_path}/woo-aras-setup.sh" 2>/dev/null)" != "${new_user}" ]]; then
     # Change ownership of installation path&files
-    chown -R "${new_user}":"${new_user}" "${installation_path%/*}"
+    chown -R "${new_user}":"${new_user}" "${installation_path%/*}" || die "Could not change ownership of ${installation_path%/*}"
   fi
 fi
 
 # Change directory to installation path
 if [[ "$(pwd)" != "${installation_path}" ]]; then
-  cd "${installation_path}"
+  cd "${installation_path}" || die "Could not change directory to ${installation_path}"
 fi
 
 # Finally start the setup
