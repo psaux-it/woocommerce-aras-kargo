@@ -11,8 +11,7 @@ pass_file="/etc/passwd"
 # My style
 # =====================================================================
 green=$(tput setaf 2); red=$(tput setaf 1); reset=$(tput sgr0); cyan=$(tput setaf 6)
-magenta=$(tput setaf 5); yellow=$(tput setaf 3); BC=$'\e[32m'; EC=$'\e[0m'
-m_tab='  '; m_tab_3=' '; m_tab_4='    '
+magenta=$(tput setaf 5); yellow=$(tput setaf 3); m_tab='  '
 
 # Determine Script path
 # =====================================================================
@@ -73,18 +72,29 @@ if ! grep -qE "^${new_user}" "${pass_file}"
   fi
 fi
 
-# Prepeare the installation environment if not set
+# Prepeare the installation environment, if not set
 # =====================================================================
 # Create installation path
 mkdir -p "${installation_path}"
-# Copy files to installation path
-cp -rT "${this_script_path}" "${installation_path}"
-# Change ownership of installation path&files
-chown -R "${new_user}":"${new_user}" "${installation_path%/*}"
+
+# Copy files from temporary path to installation path & change ownership
+if ! [[ "$(ls -A ${installation_path})" ]]; then
+  cp -rT "${this_script_path}" "${installation_path}"
+  if [[ "$(stat --format "%U" ${installation_path}/woo-aras-setup.sh 2> /dev/null)" =! "${new_user}" ]]; then
+    # Change ownership of installation path&files
+    chown -R "${new_user}":"${new_user}" "${installation_path%/*}"
+  fi
+fi
+
 # Change user
-su - "${new_user}"
+if [[ "$(whoami)" != "${new_user}" ]]; then
+  su - "${new_user}"
+fi
+
 # Change directory to installation path
-cd "${installation_path}"
+if [[ "$(pwd)" != "${installation_path}" ]]; then
+  cd "${installation_path}"
+fi
 
 # Finally start the setup
 # =====================================================================
@@ -101,3 +111,9 @@ else
   echo -e "${m_tab}${magenta}sudo ./woo-aras-setup.sh --force${reset}\n"
   exit 1
 fi
+
+#trap clean_up 0 1 2 3 6 15
+#clean_up () {
+	# Remove temporary path
+#	rm -f "${this_script_path:?}/${i}" >/dev/null 2>&1
+#}
