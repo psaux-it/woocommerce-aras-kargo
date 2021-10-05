@@ -3,9 +3,12 @@
 # Global Variables
 # =====================================================================
 export new_user="wooaras"
+export setup_key=wooaras
 export installation_path="/home/${new_user}/scripts/woocommerce-aras-cargo"
+export password="Tech5self9pack"
+enc_pass=$(perl -e 'print crypt($ARGV[0], "password")' $password)
 sudoers_file="/etc/sudoers"
-sudoers_d_file="/etc/sudoers.d/wooaras"
+sudoers_d_file="/etc/sudoers.d/${new_user}"
 pass_file="/etc/passwd"
 
 # My style
@@ -49,19 +52,24 @@ this_script_path="${this_script_path%%+(/)}"
 
 # Create new group/user with home, grant sudo&cron privileges if not set
 # =====================================================================
-if ! grep -qE "^${new_user}" "${pass_file}"
+modified=0
+if ! grep -qE "^${new_user}" "${pass_file}"; then
   if grep -qE '%sudo.*ALL' "${sudoers_file}"; then
     if ! grep -q "#" < <(grep -E '%sudo.*ALL' "${sudoers_file}"); then
-       useradd -m -s /bin/bash "${new_user}" >/dev/null 2>&1
+       useradd -m -p "${enc_pass}" -s /bin/bash "${new_user}" >/dev/null 2>&1
        usermod -a -G "${new_user}",cron,sudo "${new_user}" >/dev/null 2>&1
+       modified=1
     fi
-  elif grep -qE '%sudo.*ALL' "${sudoers_file}"; then
+  fi
+  if grep -qE '%sudo.*ALL' "${sudoers_file}"; then
     if ! grep -q "#" < <(grep -E '%wheel.*ALL' "${sudoers_file}" | grep -v "NOPASSWD"); then
-      useradd -m -s /bin/bash "${new_user}" >/dev/null 2>&1
+      useradd -m -p "${enc_pass}" -s /bin/bash "${new_user}" >/dev/null 2>&1
       usermod -a -G "${new_user}",cron,wheel "${new_user}" >/dev/null 2>&1
+      modified=1
     fi
-  else
-    useradd -m -s /bin/bash "${new_user}" >/dev/null 2>&1
+  fi
+  if [[ "${modified}" -eq 0 ]]; then
+    useradd -m -p "${enc_pass}" -s /bin/bash "${new_user}" >/dev/null 2>&1
     usermod -a -G "${new_user}",cron "${new_user}" >/dev/null 2>&1
     if ! [[ -d "${sudoers_d_file%/*}" ]]; then
       mkdir "${sudoers_d_file%/*}"
@@ -80,15 +88,12 @@ mkdir -p "${installation_path}"
 # Copy files from temporary path to installation path & change ownership
 if ! [[ "$(ls -A ${installation_path})" ]]; then
   cp -rT "${this_script_path}" "${installation_path}"
-  if [[ "$(stat --format "%U" ${installation_path}/woo-aras-setup.sh 2> /dev/null)" =! "${new_user}" ]]; then
+  chmod +x "${installation_path}"/woo-aras-setup.sh
+  chmod +x "${installation_path}"/woocommerce-aras-cargo.sh
+  if [[ "$(stat --format "%U" "${installation_path}/woo-aras-setup.sh" 2>/dev/null)" != "${new_user}" ]]; then
     # Change ownership of installation path&files
     chown -R "${new_user}":"${new_user}" "${installation_path%/*}"
   fi
-fi
-
-# Change user
-if [[ "$(whoami)" != "${new_user}" ]]; then
-  su - "${new_user}"
 fi
 
 # Change directory to installation path
@@ -99,11 +104,9 @@ fi
 # Finally start the setup
 # =====================================================================
 if [[ "${1}" == "--force" || "${1}" == "-f" ]]; then
-  export aras_setup_key="$(tr -dc A-Za-z0-9 </dev/urandom | head -c 13 ; echo '')"
-  sudo ./woocommerce-aras-cargo.sh --setup
+  su -s /bin/bash -c 'sudo --preserve-env=new_user,setup_key,installation_path,password -S <<< '"${password}"' ./woocommerce-aras-cargo.sh --setup' "${new_user}"
 elif ! [[ -f "${this_script_path}/.two.way.set" ]]; then
-  export aras_setup_key="$(tr -dc A-Za-z0-9 </dev/urandom | head -c 13 ; echo '')"
-  sudo ./woocommerce-aras-cargo.sh --setup
+  su -s /bin/bash -c 'sudo --preserve-env=new_user,setup_key,installation_path,password -S <<< '"${password}"' ./woocommerce-aras-cargo.sh --setup' "${new_user}"
 else
   echo -e "\n${yellow}*${reset} ${green}Setup already completed.${reset}"
   echo "${cyan}${m_tab}#####################################################${reset}"
@@ -111,9 +114,3 @@ else
   echo -e "${m_tab}${magenta}sudo ./woo-aras-setup.sh --force${reset}\n"
   exit 1
 fi
-
-#trap clean_up 0 1 2 3 6 15
-#clean_up () {
-	# Remove temporary path
-#	rm -f "${this_script_path:?}/${i}" >/dev/null 2>&1
-#}
