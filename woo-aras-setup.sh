@@ -147,18 +147,30 @@ if [[ "$(pwd)" != "${installation_path}" ]]; then
   cd "${installation_path}" || die "Could not change directory to ${installation_path}"
 fi
 
-# Finally start the setup
-# =====================================================================
-if [[ "${1}" == "--force" || "${1}" == "-f" ]]; then
-  su -s /bin/bash -c 'sudo --preserve-env=new_user,setup_key,installation_path,password,temporary_path_x -S <<< '"${password}"' ./woocommerce-aras-cargo.sh --setup' "${new_user}"
-elif ! [[ -f "${this_script_path}/.two.way.set" ]]; then
-  su -s /bin/bash -c 'sudo --preserve-env=new_user,setup_key,installation_path,password,temporary_path_x -S <<< '"${password}"' ./woocommerce-aras-cargo.sh --setup' "${new_user}"
-else
+setup_info () {
   echo -e "\n${yellow}*${reset} ${green}Setup already completed.${reset}"
   echo "${cyan}${m_tab}#####################################################${reset}"
   echo "${m_tab}${yellow}If you want to re-start setup use --force or -f${reset}"
   echo -e "${m_tab}${magenta}sudo ./woo-aras-setup.sh --force${reset}\n"
   exit 1
+}
+
+# Finally start the setup
+# =====================================================================
+if [[ "$(whoami)" != "wooaras" ]]; then
+  if [[ "${1}" == "--force" || "${1}" == "-f" ]]; then
+    su -s /bin/bash -c 'sudo --preserve-env=new_user,setup_key,installation_path,password,temporary_path_x -S <<< '"${password}"' ./woocommerce-aras-cargo.sh --setup' "${new_user}"
+  elif ! [[ -f "${this_script_path}/.two.way.set" ]]; then
+    su -s /bin/bash -c 'sudo --preserve-env=new_user,setup_key,installation_path,password,temporary_path_x -S <<< '"${password}"' ./woocommerce-aras-cargo.sh --setup' "${new_user}"
+  else
+    setup_info
+  fi
+elif [[ "${1}" == "--force" || "${1}" == "-f" ]]; then
+  sudo ./woocommerce-aras-cargo.sh --setup
+elif ! [[ -f "${this_script_path}/.two.way.set" ]]; then
+  sudo ./woocommerce-aras-cargo.sh --setup
+else
+  setup_info
 fi
 
 # And lastly we exit
