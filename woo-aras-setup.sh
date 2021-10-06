@@ -190,14 +190,14 @@ setup_info () {
 if [[ "$(whoami)" != "${new_user}" ]]; then
   if [[ "${1}" == "--force" || "${1}" == "-f" ]]; then
     su -s /bin/bash -c 'sudo --preserve-env=new_user,setup_key,working_path,password,temporary_path_x -S <<< '"${password}"' ./woocommerce-aras-cargo.sh --setup' "${new_user}"
-  elif ! [[ -f "${this_script_path}/.two.way.set" ]]; then
+  elif ! [[ -f "${working_path}/.two.way.set" ]]; then
     su -s /bin/bash -c 'sudo --preserve-env=new_user,setup_key,working_path,password,temporary_path_x -S <<< '"${password}"' ./woocommerce-aras-cargo.sh --setup' "${new_user}"
   else
     setup_info
   fi
 elif [[ "${1}" == "--force" || "${1}" == "-f" ]]; then
   sudo --preserve-env=new_user,setup_key,working_path,password,temporary_path_x ./woocommerce-aras-cargo.sh --setup
-elif ! [[ -f "${this_script_path}/.two.way.set" ]]; then
+elif ! [[ -f "${working_path}/.two.way.set" ]]; then
   sudo --preserve-env=new_user,setup_key,working_path,password,temporary_path_x ./woocommerce-aras-cargo.sh --setup
 else
   setup_info
