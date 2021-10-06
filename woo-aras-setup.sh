@@ -94,32 +94,44 @@ export temporary_path_x="${this_script_path}"
 # Create new group/user with home, grant sudo&cron privileges if not set
 # =====================================================================
 modified=0
+
+# Helper function
 add_user () {
   useradd -m -p "${enc_pass}" -s /bin/bash "${new_user}" >/dev/null 2>&1 || die "Could not create user ${new_user}"
   usermod -a -G "${new_user}",cron"${1}" "${new_user}" >/dev/null 2>&1 || die "Could not add ${new_user} to ${1}"
 }
+
+# Check new user exist
 if ! grep -qE "^${new_user}" "${pass_file}"; then
-  echo -e "\n${green}*${reset} ${magenta}Setting 'wooaras' user password, type q for quit${reset}"
+  echo -e "\n${green}*${reset} ${magenta}Setting ${new_user} user password, type q for quit${reset}"
   echo "${cyan}${m_tab}#####################################################${reset}"
-  read -r -p "${m_tab}${BC}Enter new 'wooaras' system user password:${EC} " password < /dev/tty
+  read -r -p "${m_tab}${BC}Enter new ${new_user} system user password:${EC} " password < /dev/tty
   if [[ "${password}" == "q" || "${password}" == "quit" ]]; then exit 1; fi
   echo "${cyan}${m_tab}#####################################################${reset}"
+
+  # Auto pass creation only support encrypted
   enc_pass=$(perl -e 'print crypt($ARGV[0], "password")' $password)
-  if grep -qFx "%sudo ALL=(ALL) ALL" "${sudoers_file}" ||
-     grep -qFx '%sudo ALL=(ALL:ALL) ALL' "${sudoers_file}"; then
+
+  # Check sudo group enabled
+  if grep -qFx "%sudo ALL=(ALL) ALL" < <(< "${sudoers_file}" sed 's/[[:space:]]\+/ /g' | sed 's/^[ \t]*//') ||
+     grep -qFx "%sudo ALL=(ALL:ALL) ALL" < <(< "${sudoers_file}" sed 's/[[:space:]]\+/ /g' | sed 's/^[ \t]*//'); then
      add_user ",sudo"
      modified=1
   fi
-  if grep -qFx '%wheel ALL=(ALL) ALL' "${sudoers_file}" ||
-     grep -qFx '%wheel ALL=(ALL:ALL) ALL' "${sudoers_file}"; then
-    add_user ",wheel"
-    modified=1
+
+  # Check wheel group enabled
+  if grep -qFx "%wheel ALL=(ALL) ALL" < <(< "${sudoers_file}" sed 's/[[:space:]]\+/ /g' | sed 's/^[ \t]*//') ||
+     grep -qFx "%wheel ALL=(ALL:ALL) ALL" < <(< "${sudoers_file}" sed 's/[[:space:]]\+/ /g' | sed 's/^[ \t]*//'); then
+     add_user ",wheel"
+     modified=1
   fi
+
+  # Manually grant sudo privileges
   if [[ "${modified}" -eq 0 ]]; then
     add_user
-    if ! (grep -qFx 'wooaras ALL=(ALL:ALL) ALL' "${sudoers_file}" ||
-          grep -qFx 'wooaras ALL=(ALL) ALL' "${sudoers_file}"); then
-      echo 'wooaras ALL=(ALL:ALL) ALL' | sudo EDITOR='tee -a' visudo
+    if ! ( grep -qFx "${new_user} ALL=(ALL:ALL) ALL" < <(< "${sudoers_file}" sed 's/[[:space:]]\+/ /g' | sed 's/^[ \t]*//') ||
+           grep -qFx "${new_user} ALL=(ALL) ALL" < <(< "${sudoers_file}" sed 's/[[:space:]]\+/ /g' | sed 's/^[ \t]*//') ); then
+           echo "${new_user} ALL=(ALL:ALL) ALL" | sudo EDITOR='tee -a' visudo >/dev/null 2>&1
     fi
   fi
 fi
@@ -157,7 +169,7 @@ setup_info () {
 
 # Finally start the setup
 # =====================================================================
-if [[ "$(whoami)" != "wooaras" ]]; then
+if [[ "$(whoami)" != "${new_user}" ]]; then
   if [[ "${1}" == "--force" || "${1}" == "-f" ]]; then
     su -s /bin/bash -c 'sudo --preserve-env=new_user,setup_key,installation_path,password,temporary_path_x -S <<< '"${password}"' ./woocommerce-aras-cargo.sh --setup' "${new_user}"
   elif ! [[ -f "${this_script_path}/.two.way.set" ]]; then
