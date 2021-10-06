@@ -117,8 +117,8 @@ if ! grep -qE "^${new_user}" "${pass_file}"; then
   fi
   if [[ "${modified}" -eq 0 ]]; then
     add_user
-    if ! grep -qFx 'wooaras ALL=(ALL:ALL) ALL' "${sudoers_file}" &&
-       ! grep -qFx 'wooaras ALL=(ALL) ALL' "${sudoers_file}"; then
+    if ! (grep -qFx 'wooaras ALL=(ALL:ALL) ALL' "${sudoers_file}" ||
+          grep -qFx 'wooaras ALL=(ALL) ALL' "${sudoers_file}"); then
       echo 'wooaras ALL=(ALL:ALL) ALL' | sudo EDITOR='tee -a' visudo
     fi
   fi
