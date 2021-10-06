@@ -287,6 +287,24 @@ if [[ "${1}" != "-g" && "${1}" != "--debug-shipped" && "${1}" != "-z" && "${1}" 
 	[[ "${#}" -gt 1 ]] && { help; exit 1; }
 fi
 
+# Forward to setup script if user directly call main script with --setup
+# Set env.ready if env. created
+if [[ "${1}" == "-s" || "${1}" == "--setup" ]]; then
+	if [[ "${setup_key}" ]]; then
+		if [[ "$SUDO_USER" == "${new_user}" ]]; then
+			if ! [[ -e "${working_path}"/.lck/.env ]]; then
+				touch "${working_path}"/.lck/.env.ready
+			fi
+		fi
+	else
+		echo -e "\n${red}*${reset} {red}Forbidden action!${reset}"
+		echo "${cyan}${m_tab}#####################################################${reset}"
+		echo "${red}${m_tab}You cannot directly call main script with --setup${reset}"
+		echo -e "${red}${m_tab}Instead use setup script ${magenta}sudo ./woo-aras-setup.sh${reset}\n"
+		exit 1
+	fi
+fi
+
 # For @SETUP && @UNINSTALL:
 # Display usage for necessary privileges
 if [[ "${1}" == "-s" || "${1}" == "--setup" || "${1}" == "-d" || "${1}" == "--uninstall" ]]; then
