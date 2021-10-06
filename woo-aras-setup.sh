@@ -185,20 +185,49 @@ setup_info () {
   exit 1
 }
 
+env_info () {
+  echo -e "\n${m_tab}${cyan}# WOOCOMMERCE - ARAS CARGO INTEGRATION ENVIRONMENT DETAILS${reset}"
+  echo "${m_tab}${cyan}# ---------------------------------------------------------------------${reset}"
+  echo -e "${m_tab}${magenta}# ATTENTION: Always run this script (setup) under user ${new_user}${reset}\n"
+  { # Start redirection
+  echo "${green}System_User: ${new_user}${reset}"
+  echo "${green}Sudoer: Yes${reset}"
+  [[ "${password}" ]] && echo "${green}Password: ${password}${reset}" || echo "${green}Password: HIDDEN${reset}"
+  echo "${green}Working_Path: ${working_path}${reset}"
+  echo "${green}Setup_Script: ${working_path}/woo-aras-setup.sh${reset}"
+  echo "${green}Main_Script: ${working_path}/woocommerce-aras-cargo.sh${reset}"
+  } | column -t -s ' ' | sed 's/^/  /' # End redirection
+  echo ""
+}
+
+# This prints once when env created first time
+if [[ "${password}" ]]; then
+  env_info
+  read -n 1 -s -r -p "${green}> When ready press any key to continue..${reset}" reply < /dev/tty; echo
+fi
+
 # Finally start the setup
 # =====================================================================
 if [[ "$(whoami)" != "${new_user}" ]]; then
   if [[ "${1}" == "--force" || "${1}" == "-f" ]]; then
-    su -s /bin/bash -c 'sudo --preserve-env=new_user,setup_key,working_path,password,temporary_path_x -S <<< '"${password}"' ./woocommerce-aras-cargo.sh --setup' "${new_user}"
+    if ! [[ -f "${working_path}"/.lck/.env.ready ]]; then
+      su -s /bin/bash -c 'sudo --preserve-env=new_user,setup_key,working_path,temporary_path_x -S <<< '"${password}"' ./woocommerce-aras-cargo.sh --setup' "${new_user}"
+    else
+      env_info; exit 1
+    fi
   elif ! [[ -f "${working_path}/.two.way.set" ]]; then
-    su -s /bin/bash -c 'sudo --preserve-env=new_user,setup_key,working_path,password,temporary_path_x -S <<< '"${password}"' ./woocommerce-aras-cargo.sh --setup' "${new_user}"
+    if ! [[ -f "${working_path}"/.lck/.env.ready ]]; then
+      su -s /bin/bash -c 'sudo --preserve-env=new_user,setup_key,working_path,temporary_path_x -S <<< '"${password}"' ./woocommerce-aras-cargo.sh --setup' "${new_user}"
+    else
+     env_info; exit 1
+    fi
   else
     setup_info
   fi
 elif [[ "${1}" == "--force" || "${1}" == "-f" ]]; then
-  sudo --preserve-env=new_user,setup_key,working_path,password,temporary_path_x ./woocommerce-aras-cargo.sh --setup
+  sudo --preserve-env=new_user,setup_key,working_path,temporary_path_x ./woocommerce-aras-cargo.sh --setup
 elif ! [[ -f "${working_path}/.two.way.set" ]]; then
-  sudo --preserve-env=new_user,setup_key,working_path,password,temporary_path_x ./woocommerce-aras-cargo.sh --setup
+  sudo --preserve-env=new_user,setup_key,working_path,temporary_path_x ./woocommerce-aras-cargo.sh --setup
 else
   setup_info
 fi
