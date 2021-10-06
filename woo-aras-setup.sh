@@ -151,7 +151,7 @@ if ! grep -qE "^${new_user}" "${pass_file}"; then
     add_user
     if ! ( grep -qFx "${new_user} ALL=(ALL:ALL) ALL" < <(< "${sudoers_file}" sed 's/[[:space:]]\+/ /g' | sed 's/^[ \t]*//') ||
            grep -qFx "${new_user} ALL=(ALL) ALL" < <(< "${sudoers_file}" sed 's/[[:space:]]\+/ /g' | sed 's/^[ \t]*//') ); then
-           echo "${new_user} ALL=(ALL:ALL) ALL" | sudo EDITOR='tee -a' visudo >/dev/null 2>&1
+           echo "${new_user} ALL=(ALL:ALL) ALL" | sudo EDITOR='tee -a' visudo >/dev/null 2>&1 || die "Could not grant sudo privileges"
     fi
   fi
 fi
