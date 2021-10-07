@@ -46,10 +46,10 @@
 # Follow detailed installation instructions on github.
 # =====================================================================
 
-# @PERFORMANCE & SECURITY
+# @PERFORMANCE
 # =====================================================================
-umask 077 			      # Harden permissions
-renice 19 $$ > /dev/null 2> /dev/null # Be nice on production
+# Be nice on production
+renice 19 $$ > /dev/null 2> /dev/null
 
 # Need for upgrade - DON'T EDIT MANUALLY
 # =====================================================================
@@ -508,19 +508,22 @@ if [[ $SUDO_USER ]]; then user="${SUDO_USER}"; else user="$(whoami)"; fi
 # Create file, drop file privileges back to non-root user if we got here with sudo
 depriv () {
 	touched=0
+	d_umask=$(umask)
 	for file in "${@}"
 	do
 		if [[ ! -f "${file}" ]]; then
+			[[ "${file}" =~ ".lck" ]] && umask 066 || umask 022
 			if [[ $SUDO_USER ]]; then
 				touch "${file}"
 				chown "${user}":"${user}" "${file}"
 				[[ "${file}" == "${wooaras_log}" ]] && touched=1
 			elif [[ ! -f "${file}" ]]; then
-				touch "${file}" || { echo "Could not create file ${file}"; exit 1; }
+				touch "${file}" || { echo "Could not create ${file}"; exit 1; }
 				[[ "${file}" == "${wooaras_log}" ]] && touched=1
 			fi
 		fi
 	done
+	[[ "$(umask)" != "${d_umask}" ]] && umask "${d_umask}"
 }
 
 # @FOLDER OPS
