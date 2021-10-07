@@ -20,10 +20,23 @@
 # -This is a wrapper/helper script for woocommerce and ARAS cargo integration setup.
 # -This script prepares necessary environment for ARAS cargo integration.
 
-# My style
+# Set color
 # =====================================================================
-green=$(tput setaf 2); red=$(tput setaf 1); reset=$(tput sgr0); cyan=$(tput setaf 6)
-magenta=$(tput setaf 5); yellow=$(tput setaf 3); m_tab='  '; BC=$'\e[32m'; EC=$'\e[0m'
+setup_terminal () {
+  green=""; red=""; reset=""; cyan=""; magenta=""; yellow=""; TPUT_RESET="";
+  TPUT_GREEN=""; TPUT_CYAN=""; TPUT_DIM=""; TPUT_BOLD=""
+  if command -v tput > /dev/null 2>&1; then
+    if [[ $(($(tput colors 2> /dev/null))) -ge 8 ]]; then
+      green="$(tput setaf 2)"; red="$(tput setaf 1)"; reset="$(tput sgr0)"; cyan="$(tput setaf 6)"
+      magenta="$(tput setaf 5)"; yellow="$(tput setaf 3)"; TPUT_RESET="$(tput sgr 0)"
+      TPUT_GREEN="$(tput setaf 2)"; TPUT_CYAN="$(tput setaf 6)"; TPUT_DIM="$(tput dim)"
+      TPUT_BOLD="$(tput bold)"
+      return 0
+    fi
+  fi
+  m_tab='  '; BC=$'\e[32m'; EC=$'\e[0m'
+}
+setup_terminal || echo > /dev/null
 
 # @EARLY CRITICAL CONTROLS --> means that no spend cpu time anymore
 # =====================================================================
@@ -58,6 +71,47 @@ if ! command -v git > /dev/null 2>&1; then
   echo -e "${yellow}${m_tab}Install necessary package and re-start setup.${reset}\n"
   exit 1
 fi
+
+spinner () {
+  sleep 3 &
+  sleep_pid=$!
+  spin='-\|/'
+
+  i=0
+  while kill -0 $sleep_pid 2>/dev/null
+  do
+    i=$(( (i+1) %4 ))
+    printf "\r${m_tab}${green}${spin:$i:1}${reset}"
+    sleep .1
+  done
+  echo ""
+}
+
+wooaras_banner() {
+  local l1="  ^" \
+    l2="  |.-.   .-.   .-.   .-.   .-.   .-.   .-.   .-.   .-.   .-.   .-.   .-.   .-" \
+    l3="  |   '-'   '-'   '-'   '-'   '-'   '-'   '-'   '-'   '-'   '-'   '-'   '-'  " \
+    l4="  +----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+--->" \
+    sp="                                                                              " \
+    woo_aras="WooCommerce-Aras Cargo" start end msg="${*}" chartcolor="${TPUT_DIM}"
+
+  [ ${#msg} -lt ${#woo_aras} ] && msg="${msg}${sp:0:$((${#woo_aras} - ${#msg}))}"
+  [ ${#msg} -gt $((${#l2} - 20)) ] && msg="${msg:0:$((${#l2} - 23))}..."
+
+  start="$((${#l2} / 2 - 4))"
+  [ $((start + ${#msg} + 4)) -gt ${#l2} ] && start=$((${#l2} - ${#msg} - 4))
+  end=$((start + ${#msg} + 4))
+
+  echo >&2
+  echo >&2 "${chartcolor}${l1}${TPUT_RESET}"
+  echo >&2 "${chartcolor}${l2:0:start}${sp:0:2}${TPUT_RESET}${TPUT_BOLD}${TPUT_GREEN}${woo_aras}${TPUT_RESET}${chartcolor}${sp:0:$((end - start - 2 - ${#woo_aras}))}${l2:end:$((${#l2} - end))}${TPUT_RESET}"
+  echo >&2 "${chartcolor}${l3:0:start}${sp:0:2}${TPUT_RESET}${TPUT_BOLD}${TPUT_CYAN}${msg}${TPUT_RESET}${chartcolor}${sp:0:2}${l3:end:$((${#l2} - end))}${TPUT_RESET}"
+  echo >&2 "${chartcolor}${l4}${TPUT_RESET}"
+  echo >&2
+  spinner
+}
+
+wooaras_banner "Preparing Setup Environment.."
 
 # Global Variables
 # =====================================================================
