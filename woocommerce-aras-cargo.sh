@@ -280,7 +280,7 @@ fi
 if [[ "${1}" == "-s" || "${1}" == "--setup" ]]; then
 	if [[ "${setup_key}" ]]; then
 		if [[ "$SUDO_USER" == "${new_user}" ]]; then
-			if ! [[ -e "${working_path}"/.lck/.env ]]; then
+			if ! [[ -e "${working_path}"/.lck/.env.ready ]]; then
 				touch "${working_path}"/.lck/.env.ready
 			fi
 		fi
