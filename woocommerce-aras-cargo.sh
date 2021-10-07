@@ -163,7 +163,7 @@ usage () {
 help () {
 	echo -e "\n${m_tab}${cyan}# WOOCOMMERCE - ARAS CARGO INTEGRATION HELP"
 	echo -e "${m_tab}# ---------------------------------------------------------------------"
-	echo -e "${m_tab}#${m_tab}--setup            |-s      NEED SUDO! first time setup (also hard reset and re-starts setup)"
+	echo -e "${m_tab}#${m_tab}--setup            |-s      !!USE ${magenta}'woo-aras-setup.sh' ${cyan}instead of calling directly"
 	echo -e "${m_tab}#${m_tab}--twoway-enable    |-t      enable twoway fulfillment workflow"
 	echo -e "${m_tab}#${m_tab}--twoway-disable   |-y      only disable twoway fulfillment workflow without uninstall custom order status package as script will continue to work default one-way"
 	echo -e "${m_tab}#${m_tab}--disable          |-i      completely disable/inactivate script without uninstallation (for debugging purpose)"
@@ -174,7 +174,7 @@ help () {
 	echo -e "${m_tab}#${m_tab}--usage            |-U      display basic usage of this script"
 	echo -e "${m_tab}#${m_tab}--status           |-S      display automation status"
 	echo -e "${m_tab}#${m_tab}--dependencies     |-p      display prerequisites & dependencies"
-	echo -e "${m_tab}#${m_tab}--force-shipped    |-f      forces orders mark as shipped first, useful If there are orders in the processing status although they have been delivered by Aras"
+	echo -e "${m_tab}#${m_tab}--force-shipped    |-f      forces orders mark as shipped, useful If there are orders in the processing status although they have been delivered by Aras"
 	echo -e "${m_tab}#${m_tab}--debug-shipped    |-g      search logs in shipped data via search criteria [date] [ORDER_ID\|TRACKING_NUMBER]"
 	echo -e "${m_tab}#${m_tab}--debug-delivered  |-z      search logs in delivered data via search criteria [date] [ORDER_ID\|TRACKING_NUMBER]"
 	echo -e "${m_tab}#${m_tab}--version          |-v      display script info"
