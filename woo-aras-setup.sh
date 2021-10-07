@@ -72,7 +72,7 @@ pass_file="/etc/passwd"
 die () {
   echo "$@" >&2
   userdel "${new_user}" >/dev/null 2>&1
-  rm -r "/home/${new_user}" >/dev/null 2>&1
+  rm -r "/home/${new_user:?}" >/dev/null 2>&1
   exit 1
 }
 
