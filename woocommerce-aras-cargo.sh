@@ -302,7 +302,7 @@ if [[ "${1}" == "-s" || "${1}" == "--setup" ]]; then
 			fi
 		fi
 	else
-		echo -e "\n${red}*${reset} {red}Forbidden action!${reset}"
+		echo -e "\n${red}*${reset} ${red}Forbidden action!${reset}"
 		echo "${cyan}${m_tab}#####################################################${reset}"
 		echo "${red}${m_tab}You cannot directly call main script with --setup${reset}"
 		echo -e "${red}${m_tab}Instead use setup script ${magenta}sudo ./woo-aras-setup.sh${reset}\n"
