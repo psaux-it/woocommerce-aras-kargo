@@ -18,7 +18,7 @@
 #
 # What is doing this script exactly?
 # -This is a wrapper/helper script for woocommerce and ARAS cargo integration setup.
-# -This script prepares necessary environment for ARAS cargo integration.
+# -This script prepares environment for ARAS cargo integration.
 
 # Set color
 # =====================================================================
@@ -72,6 +72,23 @@ if ! command -v git > /dev/null 2>&1; then
   exit 1
 fi
 
+# Global Variables
+# =====================================================================
+export new_user="wooaras"
+export setup_key="gajVVK2zXo"
+export working_path="/home/${new_user}/scripts/woocommerce-aras-kargo"
+git_repo="https://github.com/hsntgm/woocommerce-aras-kargo.git"
+sudoers_file="/etc/sudoers"
+pass_file="/etc/passwd"
+
+# Ugly die
+die () {
+  echo "$@" >&2
+  userdel "${new_user}" >/dev/null 2>&1
+  rm -r "/home/${new_user:?}" >/dev/null 2>&1
+  exit 1
+}
+
 spinner () {
   sleep 3 &
   sleep_pid=$!
@@ -87,7 +104,7 @@ spinner () {
   echo ""
 }
 
-wooaras_banner() {
+wooaras_banner () {
   local l1="  ^" \
     l2="  |.-.   .-.   .-.   .-.   .-.   .-.   .-.   .-.   .-.   .-.   .-.   .-.   .-" \
     l3="  |   '-'   '-'   '-'   '-'   '-'   '-'   '-'   '-'   '-'   '-'   '-'   '-'  " \
@@ -110,23 +127,28 @@ wooaras_banner() {
   echo >&2
   spinner
 }
-wooaras_banner "Preparing Setup Environment.."
 
-# Global Variables
-# =====================================================================
-export new_user="wooaras"
-export setup_key="gajVVK2zXo"
-export working_path="/home/${new_user}/scripts/woocommerce-aras-kargo"
-git_repo="https://github.com/hsntgm/woocommerce-aras-kargo.git"
-sudoers_file="/etc/sudoers"
-pass_file="/etc/passwd"
-
-# Ugly die
-die () {
-  echo "$@" >&2
-  userdel "${new_user}" >/dev/null 2>&1
-  rm -r "/home/${new_user:?}" >/dev/null 2>&1
+setup_info () {
+  echo -e "\n${yellow}*${reset} ${green}Setup already completed.${reset}"
+  echo "${cyan}${m_tab}#####################################################${reset}"
+  echo "${m_tab}${yellow}If you want to re-start setup use --force or -f${reset}"
+  echo -e "${m_tab}${magenta}sudo ./woo-aras-setup.sh --force${reset}\n"
   exit 1
+}
+
+env_info () {
+  echo -e "\n${m_tab}${cyan}# WOOCOMMERCE - ARAS CARGO INTEGRATION ENVIRONMENT DETAILS${reset}"
+  echo "${m_tab}${cyan}# ---------------------------------------------------------------------${reset}"
+  echo -e "${m_tab}${magenta}# ATTENTION: Always run under system user --> ${new_user}${reset}\n"
+  { # Start redirection
+  echo "${green}System_User: ${new_user}${reset}"
+  echo "${green}Sudoer: Yes${reset}"
+  [[ "${password}" ]] && echo "${green}Password: ${password}${reset}" || echo "${green}Password: HIDDEN${reset}"
+  echo "${green}Working_Path: ${working_path}${reset}"
+  echo "${green}Setup_Script: ${working_path}/woo-aras-setup.sh${reset}"
+  echo "${green}Main_Script: ${working_path}/woocommerce-aras-cargo.sh${reset}"
+  } | column -t -s ' ' | sed 's/^/  /' # End redirection
+  echo ""
 }
 
 # Determine Script path
@@ -166,7 +188,7 @@ export temporary_path_x="${this_script_path}"
 
 # Create new user with home, grant privileges
 # =====================================================================
-# Check new user exist, if not create
+# Check user exist, if not create
 if ! grep -qE "^${new_user}" "${pass_file}"; then
   echo -e "\n${green}*${reset} ${magenta}Setting ${new_user} user password, type q for quit${reset}"
   echo "${cyan}${m_tab}#####################################################${reset}"
@@ -183,9 +205,9 @@ if ! grep -qE "^${new_user}" "${pass_file}"; then
   sudo EDITOR='tee -a' visudo >/dev/null 2>&1 || die "Could not grant sudo privileges"
 fi
 
-# Prepeare the installation environment for the first time
+# Prepare the environment if not set
 # =====================================================================
-# Create installation path
+# Create working path
 if [[ ! -d "${working_path%/*}" ]]; then
   mkdir -p "${working_path%/*}" || die "Could not create directory ${working_path}"
 fi
@@ -203,31 +225,9 @@ if [[ "$(pwd)" != "${working_path}" ]]; then
   cd "${working_path}" || die "Could not change directory to ${working_path}"
 fi
 
-setup_info () {
-  echo -e "\n${yellow}*${reset} ${green}Setup already completed.${reset}"
-  echo "${cyan}${m_tab}#####################################################${reset}"
-  echo "${m_tab}${yellow}If you want to re-start setup use --force or -f${reset}"
-  echo -e "${m_tab}${magenta}sudo ./woo-aras-setup.sh --force${reset}\n"
-  exit 1
-}
-
-env_info () {
-  echo -e "\n${m_tab}${cyan}# WOOCOMMERCE - ARAS CARGO INTEGRATION ENVIRONMENT DETAILS${reset}"
-  echo "${m_tab}${cyan}# ---------------------------------------------------------------------${reset}"
-  echo -e "${m_tab}${magenta}# ATTENTION: Always run this script (setup) under user ${new_user}${reset}\n"
-  { # Start redirection
-  echo "${green}System_User: ${new_user}${reset}"
-  echo "${green}Sudoer: Yes${reset}"
-  [[ "${password}" ]] && echo "${green}Password: ${password}${reset}" || echo "${green}Password: HIDDEN${reset}"
-  echo "${green}Working_Path: ${working_path}${reset}"
-  echo "${green}Setup_Script: ${working_path}/woo-aras-setup.sh${reset}"
-  echo "${green}Main_Script: ${working_path}/woocommerce-aras-cargo.sh${reset}"
-  } | column -t -s ' ' | sed 's/^/  /' # End redirection
-  echo ""
-}
-
 # This prints once when env created first time
 if [[ "${password}" ]]; then
+  wooaras_banner "Environment ready.."
   env_info
   read -n 1 -s -r -p "${green}> When ready press any key to continue..${reset}" reply < /dev/tty; echo
 fi
