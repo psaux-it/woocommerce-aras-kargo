@@ -46,6 +46,11 @@
 # Follow detailed installation instructions on github.
 # =====================================================================
 
+# @PERFORMANCE & SECURITY
+# =====================================================================
+umask 077 			      # Harden permissions
+renice 19 $$ > /dev/null 2> /dev/null # Be nice on production
+
 # Need for upgrade - DON'T EDIT MANUALLY
 # =====================================================================
 script_version="2.1.1"
