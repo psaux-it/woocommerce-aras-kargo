@@ -49,6 +49,7 @@
 # @PERFORMANCE
 # =====================================================================
 # Be nice on production
+d_umask=$(umask)
 renice 19 $$ > /dev/null 2> /dev/null
 
 # Need for upgrade - DON'T EDIT MANUALLY
@@ -508,7 +509,6 @@ if [[ $SUDO_USER ]]; then user="${SUDO_USER}"; else user="$(whoami)"; fi
 # Create file, drop file privileges back to non-root user if we got here with sudo
 depriv () {
 	touched=0
-	d_umask=$(umask)
 	for file in "${@}"
 	do
 		if [[ ! -f "${file}" ]]; then
