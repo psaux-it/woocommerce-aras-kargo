@@ -131,29 +131,11 @@ send_mail_suc () {
 # END
 # =====================================================================
 
-# Script called by
-called_by () {
-	local FROM_CRON
-	local FROM_CRON_2
-	local FROM_SYSTEMD
+# This scripts adjusts itself according to the type of shell it is running
+# Check shell is interactive or non-interactive
+if [ -t 0 ]; then my_shell="interactive"; else my_shell="non-interactive"; fi
 
-	# Cron
-	FROM_CRON="$(pstree -s $$ | grep -c cron 2>/dev/null)"
-	FROM_CRON_2=$([[ ! "$TERM" || "$TERM" = "dumb" ]] && echo '1' || echo '0')
-
-	if [[ "${FROM_CRON}" -eq 1 || "${FROM_CRON_2}" -eq 1 ]]; then
-		RUNNING_FROM_CRON=1
-	else
-		RUNNING_FROM_CRON=0
-	fi
-
-	# Systemd
-	FROM_SYSTEMD="0"
-	RUNNING_FROM_SYSTEMD="${RUNNING_FROM_SYSTEMD:=$FROM_SYSTEMD}"
-}
-called_by
-
-if [[ "${RUNNING_FROM_CRON}" -eq 0 && "${RUNNING_FROM_SYSTEMD}" -eq 0 ]]; then
+if [[ "${my_shell}" == "interactive" ]]; then
 	# My code my style
 	green=$(tput setaf 2); red=$(tput setaf 1); reset=$(tput sgr0); cyan=$(tput setaf 6)
 	magenta=$(tput setaf 5); yellow=$(tput setaf 3); BC=$'\e[32m'; EC=$'\e[0m'
@@ -455,7 +437,7 @@ PIDFILE="/var/run/woo-aras/woocommerce-aras-cargo.pid"
 
 # Notify broken installations via email
 broken_installation () {
-	if [[ "${RUNNING_FROM_CRON}" -eq 0 && "${RUNNING_FROM_SYSTEMD}" -eq 0 ]]; then
+	if [[ "${my_shell}" == "interactive" ]]; then
 		send_mail "${1}"
 	fi
 }
@@ -1687,7 +1669,7 @@ install_twoway () {
 
 # Dialog box for twoway fulfillment workflow setup
 my_whip_tail () {
-	if [[ "${RUNNING_FROM_CRON}" -eq 0 && "${RUNNING_FROM_SYSTEMD}" -eq 0 ]]; then
+	if [[ "${my_shell}" == "interactive" ]]; then
 		if (whiptail --title "Two-Way Fulfillment Setup" --yesno "Do you want to auto implement two-way (processing->shipped->delivered) fulfillment workflow? If you choose 'NO' script will configure itself for default oneway (processing->completed) setup. Please keep in mind that If you decided to implement twoway workflow be sure you execute this script on webserver where woocommerce runs and don't have any woocommerce custom order statuses installed before. Script will add custom 'delivered' order status to woocommerce fulfillment workflow." 10 110); then
 			twoway=true
 		else
@@ -2264,7 +2246,7 @@ upgrade () {
 
 	if [[ "${latest_version}" && "${current_version}" ]]; then
 		if [[ "${latest_version//./}" -gt "${current_version//./}" ]]; then
-			if [[ "${RUNNING_FROM_CRON}" -eq 0 && "${RUNNING_FROM_SYSTEMD}" -eq 0 ]]; then
+			if [[ "${my_shell}" == "interactive" ]]; then
 				echo -e "\n${green}*${reset} ${green}NEW UPDATE FOUND!${reset}"
 				echo "${cyan}${m_tab}#####################################################${reset}"
 				echo -e "${magenta}$changelog_p${reset}\n" | $m_sed 's/^/  /'
@@ -2287,7 +2269,7 @@ upgrade () {
 		fi
 
 		if [ "${latest_version//./}" -eq "${current_version//./}" ]; then
-			if [[ "${RUNNING_FROM_CRON}" -eq 0 && "${RUNNING_FROM_SYSTEMD}" -eq 0 ]]; then
+			if [[ "${my_shell}" == "interactive" ]]; then
 				while true; do
 					read -r -n 1 -p "${m_tab}${BC}Do you want to force update version $latest_version? --> (Y)es | (N)o${EC} " yn < /dev/tty
 					echo ""
@@ -2645,7 +2627,6 @@ add_systemd () {
 		LogsDirectoryMode=0775
 		RuntimeDirectoryMode=0775
 		RuntimeDirectoryPreserve=yes
-		Environment=RUNNING_FROM_SYSTEMD=1
 		PrivateTmp=true
 		ReadOnlyPaths=/
 		ReadWritePaths=/var /run ${this_script_path}
@@ -2875,7 +2856,7 @@ encrypt_ops_exit () {
 encrypt_wc_auth () {
 	hide_me --enable
 	if [[ ! -s "${this_script_lck_path}/.key.wc.lck" ]]; then
-		if [[ "${RUNNING_FROM_CRON}" -eq 0 && "${RUNNING_FROM_SYSTEMD}" -eq 0 ]]; then
+		if [[ "${my_shell}" == "interactive" ]]; then
 			echo -e "\n${green}*${reset} ${magenta}Setting your woocommerce api_key, type q for quit${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			read -r -p "${m_tab}${BC}Enter WooCommerce API key:${EC} " my_wc_api_key < /dev/tty
@@ -2888,7 +2869,7 @@ encrypt_wc_auth () {
 		fi
 	fi
 	if [[ ! -s "${this_script_lck_path}/.secret.wc.lck" ]]; then
-		if [[ "${RUNNING_FROM_CRON}" -eq 0 && "${RUNNING_FROM_SYSTEMD}" -eq 0 ]]; then
+		if [[ "${my_shell}" == "interactive" ]]; then
 			echo -e "\n${green}*${reset} ${magenta}Setting your woocommerce api_secret, type q for quit${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			read -r -p "${m_tab}${BC}Enter WooCommerce API secret:${EC} " my_wc_api_secret < /dev/tty
@@ -2906,7 +2887,7 @@ encrypt_wc_auth () {
 encrypt_wc_end () {
 	hide_me --enable
 	if [[ ! -s "${this_script_lck_path}/.end.wc.lck" ]]; then
-		if [[ "${RUNNING_FROM_CRON}" -eq 0 && "${RUNNING_FROM_SYSTEMD}" -eq 0 ]]; then
+		if [[ "${my_shell}" == "interactive" ]]; then
 			echo -e "\n${green}*${reset} ${magenta}Setting your Wordpress installation url, type q for quit${reset}"
 			echo -e "${m_tab}${magenta}format --> www.example.com | www.example.com/wordpress.${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
@@ -2925,7 +2906,7 @@ encrypt_wc_end () {
 encrypt_aras_auth () {
 	hide_me --enable
 	if [[ ! -s "${this_script_lck_path}/.key.aras.lck" ]]; then
-		if [[ "${RUNNING_FROM_CRON}" -eq 0 && "${RUNNING_FROM_SYSTEMD}" -eq 0 ]]; then
+		if [[ "${my_shell}" == "interactive" ]]; then
 			echo -e "\n${green}*${reset} ${magenta}Setting your ARAS SOAP api_key, type q for quit${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			read -r -p "${m_tab}${BC}Enter ARAS SOAP API Password:${EC} " my_aras_api_pass < /dev/tty
@@ -2938,7 +2919,7 @@ encrypt_aras_auth () {
 		fi
 	fi
 	if [[ ! -s "${this_script_lck_path}/.usr.aras.lck" ]]; then
-		if [[ "${RUNNING_FROM_CRON}" -eq 0 && "${RUNNING_FROM_SYSTEMD}" -eq 0 ]]; then
+		if [[ "${my_shell}" == "interactive" ]]; then
 			echo -e "\n${green}*${reset} ${magenta}Setting your ARAS SOAP api_username, type q for quit${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			read -r -p "${m_tab}${BC}Enter ARAS SOAP API Username:${EC} " my_aras_api_usr < /dev/tty
@@ -2951,7 +2932,7 @@ encrypt_aras_auth () {
 		fi
 	fi
 	if [[ ! -s "${this_script_lck_path}/.mrc.aras.lck" ]]; then
-		if [[ "${RUNNING_FROM_CRON}" -eq 0 && "${RUNNING_FROM_SYSTEMD}" -eq 0 ]]; then
+		if [[ "${my_shell}" == "interactive" ]]; then
 			while true; do
 				echo -e "\n${green}*${reset} ${magenta}Setting your ARAS SOAP merchant_code, type q for quit${reset}"
 				echo "${cyan}${m_tab}#####################################################${reset}"
@@ -2976,7 +2957,7 @@ encrypt_aras_auth () {
 encrypt_aras_end () {
 	hide_me --enable
 	if [[ ! -s "${this_script_lck_path}/.end.aras.lck" ]]; then
-		if [[ "${RUNNING_FROM_CRON}" -eq 0 && "${RUNNING_FROM_SYSTEMD}" -eq 0 ]]; then
+		if [[ "${my_shell}" == "interactive" ]]; then
 			echo -e "\n${green}*${reset} ${magenta}Setting your ARAS SOAP endpoint_url, type q for quit${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			read -r -p "${m_tab}${BC}Enter ARAS SOAP endpoint URL (wsdl):${EC} " my_aras_api_end < /dev/tty
@@ -2994,7 +2975,7 @@ encrypt_aras_end () {
 encrypt_aras_qry () {
 	hide_me --enable
 	if [[ ! -s "${this_script_lck_path}/.qry.aras.lck" ]]; then
-		if [[ "${RUNNING_FROM_CRON}" -eq 0 && "${RUNNING_FROM_SYSTEMD}" -eq 0 ]]; then
+		if [[ "${my_shell}" == "interactive" ]]; then
 			echo -e "\n${green}*${reset} ${magenta}Setting your ARAS SOAP query_type.${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			while true; do
@@ -3100,7 +3081,7 @@ control_ops_try_exit () {
 
 # Test host connection
 w_curl_a
-if [[ "${RUNNING_FROM_CRON}" -eq 0 && "${RUNNING_FROM_SYSTEMD}" -eq 0 ]]; then
+if [[ "${my_shell}" == "interactive" ]]; then
 	try=0
 	while grep -q "Could not resolve host" "${this_script_path}/curl.proc"
 	do
@@ -3131,7 +3112,7 @@ elif grep -q "Could not resolve host" "${this_script_path}/curl.proc"; then
 fi
 
 # Test WooCommerce REST API
-if [[ "${RUNNING_FROM_CRON}" -eq 0 && "${RUNNING_FROM_SYSTEMD}" -eq 0 ]]; then
+if [[ "${my_shell}" == "interactive" ]]; then
 	if grep -q  "404\|400" "${this_script_path}/curl.proc"; then
 		echo -e "\n${red}*${reset}${red} WooCommerce REST API connection error${reset}"
 		echo "${cyan}${m_tab}#####################################################${reset}"
@@ -3144,7 +3125,7 @@ elif grep -q  "404\|400" "${this_script_path}/curl.proc"; then
 fi
 
 # Test WooCommerce REST API Authorization
-if [[ "${RUNNING_FROM_CRON}" -eq 0 && "${RUNNING_FROM_SYSTEMD}" -eq 0 ]]; then
+if [[ "${my_shell}" == "interactive" ]]; then
 	if grep -q "403" "${this_script_path}/curl.proc"; then
 		echo -e "\n${red}*${reset}${red} WooCommerce REST API Authorization error${reset}"
 		echo "${cyan}${m_tab}#####################################################${reset}"
@@ -3159,7 +3140,7 @@ elif grep -q "403" "${this_script_path}/curl.proc"; then
 fi
 
 # Test WooCommerce REST API Authentication
-if [[ "${RUNNING_FROM_CRON}" -eq 0 && "${RUNNING_FROM_SYSTEMD}" -eq 0 ]]; then
+if [[ "${my_shell}" == "interactive" ]]; then
 	try=0
 	while grep -q "woocommerce_rest_authentication_error\|woocommerce_rest_cannot_view\|401" "${this_script_path}/curl.proc"
 	do
@@ -3243,7 +3224,7 @@ aras_request () {
 
 # Test Aras SOAP Endpoint
 aras_request
-if [[ "${RUNNING_FROM_CRON}" -eq 0 && "${RUNNING_FROM_SYSTEMD}" -eq 0 ]]; then
+if [[ "${my_shell}" == "interactive" ]]; then
 	try=0
 	while grep -q "error_4625264224" "${this_script_path}/aras.json"
 	do
@@ -3276,7 +3257,7 @@ elif grep -q "error_4625264224" "${this_script_path}/aras.json"; then
 fi
 
 # Test Aras SOAP Authentication
-if [[ "${RUNNING_FROM_CRON}" -eq 0 && "${RUNNING_FROM_SYSTEMD}" -eq 0 ]]; then
+if [[ "${my_shell}" == "interactive" ]]; then
 	try=0
 	while grep -q "error_75546475052" "${this_script_path}/aras.json"
 	do
@@ -3316,7 +3297,7 @@ fi
 # @INSTALLATION
 # Validate the data that parsed by script.
 # If ARAS data is empty first check 'merchant code' which not return any error from ARAS SOAP end
-if [[ $RUNNING_FROM_CRON -eq 0 ]] && [[ $RUNNING_FROM_SYSTEMD -eq 0 ]]; then
+if [[ "${my_shell}" == "interactive" ]]; then
 	if [[ ! -e "${this_script_path}/.woo.aras.set" ]]; then
 		pre_check
 		echo -e "\n${green}*${reset} ${green}Parsing some random data to validate.${reset}"
