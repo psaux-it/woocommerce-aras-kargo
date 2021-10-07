@@ -110,7 +110,6 @@ wooaras_banner() {
   echo >&2
   spinner
 }
-
 wooaras_banner "Preparing Setup Environment.."
 
 # Global Variables
