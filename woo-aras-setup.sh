@@ -444,7 +444,7 @@ if (( ${#missing_deps[@]} )); then
     elif [[ "${distribution}" = "gentoo" ]]; then
       opts="--ask=n --quiet --quiet-build --quiet-fail"
       $my_emerge "${opts}" "${p}"
-    elif [[ "${distribution}" = "fedora" ]]; then
+    fi
   done
 fi
 
