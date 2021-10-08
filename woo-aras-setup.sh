@@ -356,14 +356,14 @@ check_deps
 if (( ${#missing_deps[@]} )); then
   autodetect_distribution || unsupported_os
 
-  cat <<-EOF
-  We detected these:
-  Distribution    : ${distribution}
-  Version         : ${version}
-  Codename        : ${codename}
-  Package Manager : ${package_installer}
-  Detection Method: ${detection}
-  EOF
+	cat <<-EOF
+	We detected these:
+	Distribution    : ${distribution}
+	Version         : ${version}
+	Codename        : ${codename}
+	Package Manager : ${package_installer}
+	Detection Method: ${detection}
+	EOF
 
   declare -A pkg_build=(
     ['centos']="groupinstall 'Development Tools'"
