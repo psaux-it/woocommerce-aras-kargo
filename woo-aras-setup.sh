@@ -186,6 +186,268 @@ shopt -s extglob
 this_script_path="${this_script_path%%+(/)}"
 export temporary_path_x="${this_script_path}"
 
+
+# Install required packages
+# =====================================================================
+unsupported_os () {
+	error message
+	exit 1
+}
+
+lsb_release=$(command -v lsb_release 2> /dev/null)
+
+distribution=
+release=
+version=
+codename=
+detection=
+NAME=
+ID=
+ID_LIKE=
+VERSION=
+VERSION_ID=
+
+# Check which package managers are available
+my_apt_get=$(command -v apt-get 2> /dev/null)
+my_dnf=$(command -v dnf 2> /dev/null)
+my_emerge=$(command -v emerge 2> /dev/null)
+my_pacman=$(command -v pacman 2> /dev/null)
+my_yum=$(command -v yum 2> /dev/null)
+my_zypper=$(command -v zypper 2> /dev/null)
+
+# Determine package manager
+declare -a pm=( "${my_apt_get}" "${my_dnf}" "${my_emerge}"
+                "${my_pacman}" "${my_yum}" "${my_zypper}" )
+
+for i in "${pm[@]}"
+do
+  if [[ "${i}" ]]; then
+    package_installer="${i}"
+  fi
+done
+
+release2lsb_release() {
+  local file="${1}" x DISTRIB_ID="" DISTRIB_RELEASE="" DISTRIB_CODENAME=""
+  x="$(grep -v "^$" "${file}" | head -n 1)"
+
+  if [[ "${x}" =~ ^.*[[:space:]]+Linux[[:space:]]+release[[:space:]]+.*[[:space:]]+(.*)[[:space:]]*$ ]]; then
+    eval "$(echo "${x}" | sed "s|^\(.*\)[[:space:]]\+Linux[[:space:]]\+release[[:space:]]\+\(.*\)[[:space:]]\+(\(.*\))[[:space:]]*$|DISTRIB_ID=\"\1\"\nDISTRIB_RELEASE=\"\2\"\nDISTRIB_CODENAME=\"\3\"|g" | grep "^DISTRIB")"
+  elif [[ "${x}" =~ ^.*[[:space:]]+Linux[[:space:]]+release[[:space:]]+.*[[:space:]]+$ ]]; then
+    eval "$(echo "${x}" | sed "s|^\(.*\)[[:space:]]\+Linux[[:space:]]\+release[[:space:]]\+\(.*\)[[:space:]]*$|DISTRIB_ID=\"\1\"\nDISTRIB_RELEASE=\"\2\"|g" | grep "^DISTRIB")"
+  elif [[ "${x}" =~ ^.*[[:space:]]+release[[:space:]]+.*[[:space:]]+(.*)[[:space:]]*$ ]]; then
+    eval "$(echo "${x}" | sed "s|^\(.*\)[[:space:]]\+release[[:space:]]\+\(.*\)[[:space:]]\+(\(.*\))[[:space:]]*$|DISTRIB_ID=\"\1\"\nDISTRIB_RELEASE=\"\2\"\nDISTRIB_CODENAME=\"\3\"|g" | grep "^DISTRIB")"
+  elif [[ "${x}" =~ ^.*[[:space:]]+release[[:space:]]+.*[[:space:]]+$ ]]; then
+    eval "$(echo "${x}" | sed "s|^\(.*\)[[:space:]]\+release[[:space:]]\+\(.*\)[[:space:]]*$|DISTRIB_ID=\"\1\"\nDISTRIB_RELEASE=\"\2\"|g" | grep "^DISTRIB")"
+  fi
+
+  distribution="${DISTRIB_ID}"
+  version="${DISTRIB_RELEASE}"
+  codename="${DISTRIB_CODENAME}"
+
+  [ -z "${distribution}" ] && return 1
+  detection="${file}"
+  return 0
+}
+
+get_os_release() {
+  os_release_file=
+  if [ -s "/etc/os-release" ]; then
+    os_release_file="/etc/os-release"
+  elif [ -s "/usr/lib/os-release" ]; then
+    os_release_file="/usr/lib/os-release"
+  else
+    return 1
+  fi
+  local x
+  eval "$(grep -E "^(NAME|ID|ID_LIKE|VERSION|VERSION_ID)=" "${os_release_file}")"
+  for x in "${ID}" ${ID_LIKE}; do
+    case "${x,,}" in
+      arch | centos | debian | fedora | gentoo | opensuse-leap | rhel | suse | ubuntu)
+        distribution="${x}"
+        version="${VERSION_ID}"
+        codename="${VERSION}"
+        detection="${os_release_file}"
+        break
+        ;;
+      *)
+        echo >&2 "Unknown distribution ID: ${x}"
+        ;;
+    esac
+  done
+  [ -z "${distribution}" ] && return 1
+  return 0
+}
+
+get_lsb_release() {
+  if [ -f "/etc/lsb-release" ]; then
+    local DISTRIB_ID="" DISTRIB_RELEASE="" DISTRIB_CODENAME=""
+    eval "$(grep -E "^(DISTRIB_ID|DISTRIB_RELEASE|DISTRIB_CODENAME)=" /etc/lsb-release)"
+    distribution="${DISTRIB_ID}"
+    version="${DISTRIB_RELEASE}"
+    codename="${DISTRIB_CODENAME}"
+    detection="/etc/lsb-release"
+  fi
+
+  if [ -z "${distribution}" ] && [ -n "${lsb_release}" ]; then
+    eval "declare -A release=( $(lsb_release -a 2> /dev/null | sed -e "s|^\(.*\):[[:space:]]*\(.*\)$|[\1]=\"\2\"|g") )"
+    distribution="${release["Distributor ID"]}"
+    version="${release[Release]}"
+    codename="${release[Codename]}"
+    detection="lsb_release"
+  fi
+
+  [ -z "${distribution}" ] && return 1
+  return 0
+}
+
+find_etc_any_release() {
+  if [ -f "/etc/arch-release" ]; then
+    release2lsb_release "/etc/arch-release" && return 0
+  fi
+
+  if [ -f "/etc/centos-release" ]; then
+    release2lsb_release "/etc/centos-release" && return 0
+  fi
+
+  if [ -f "/etc/redhat-release" ]; then
+    release2lsb_release "/etc/redhat-release" && return 0
+  fi
+
+  if [ -f "/etc/SuSe-release" ]; then
+    release2lsb_release "/etc/SuSe-release" && return 0
+  fi
+
+  return 1
+}
+
+autodetect_distribution () {
+  # Autodetection of distribution/OS
+  case "$(uname -s)" in
+    "Linux")
+      get_os_release || get_lsb_release || find_etc_any_release
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+# Check hard dependencies that not in bash built-in or pre-installed commonly
+declare -a dependencies=("curl" "openssl" "jq" "php" "perl" "whiptail" "logrotate" "git")
+check_deps () {
+  missing_deps=()
+  for dep in "${dependencies[@]}"
+  do
+    if ! command -v "${dep}" >/dev/null 2>&1; then
+      missing_deps+=( "${dep} )"
+    elif [[ "${dep}" == "php" ]]; then
+	  if ! php -m | grep -q "soap"; then
+        missing_deps+=( "php-soap" )
+      fi
+    elif [[ "${dep}" == "perl" ]]; then
+      if ! perl -e 'use Text::Fuzzy;' >/dev/null 2>&1; then
+        missing_deps+=( "Perl Text::Fuzzy" )
+      fi
+    fi
+  done
+}
+check_deps
+
+if (( ${#missing_deps[@]} )); then
+  autodetect_distribution || unsupported_os
+
+  cat <<-EOF
+  We detected these:
+  Distribution    : ${distribution}
+  Version         : ${version}
+  Codename        : ${codename}
+  Package Manager : ${package_installer}
+  Detection Method: ${detection}
+  EOF
+
+  declare -A pkg_build=(
+    ['centos']="groupinstall 'Development Tools'"
+    ['fedora']="groupinstall 'Development Tools'"
+    ['rhel']="groupinstall 'Development Tools'"
+    ['ubuntu']="build-essential"
+    ['debian']="build-essential"
+    ['arch']="base-devel"
+    ['suse']="--type pattern devel_basis"
+    ['opensuse-leap']="--type pattern devel_basis"
+  )
+
+  declare -A pkg_curl=(
+    ['gentoo']="net-misc/curl"
+    ['default']="curl"
+  )
+
+  declare -A pkg_openssl=(
+    ['gentoo']="dev-libs/openssl"
+    ['default']="openssl"
+  )
+
+  declare -A pkg_jq=(
+    ['gentoo']="app-misc/jq"
+    ['default']="jq"
+  )
+
+  declare -A pkg_php=(
+    ['gentoo']="dev-lang/php"
+    ['default']="php"
+  )
+
+  declare -A pkg_php_soap=(
+    ['gentoo']="dev-lang/php"
+    ['default']="php-soap"
+  )
+
+  declare -A pkg_perl_fuzzy=(
+    ['gentoo']="sys-devel/autogen"
+    ['default']="autogen"
+  )
+
+  declare -A pkg_git=(
+    ['gentoo']="dev-vcs/git"
+    ['default']="git"
+  )
+
+  declare -A pkg_logrotate=(
+    ['gentoo']="app-admin/logrotate"
+    ['default']="logrotate"
+  )
+
+  declare -A pkg_whiptail=(
+    ['gentoo']="dev-util/dialog"
+    ['ubuntu']="whiptail"
+    ['debian']="whiptail"
+    ['arch']="libnewt"
+    ['default']="newt"
+  )
+
+  # Install build essential for all oses for text-fuzzy compile
+
+  # Install missing dependencies
+  for dep in "${missing_deps[@]}"
+  do
+    eval "p=\${pkg_${dep}['${distribution,,}']}"
+    [[ -z "${p}" ]] && eval "p=\${pkg_${dep}['default']}"
+
+    if [[ "${distribution}" = "centos" ]]; then
+      opts="-yq install"
+      $my_yum "${opts}" "${p}"
+    elif [[ "${distribution}" = "debian" ]]; then
+      opts="-yq install"
+      $my_apt_get "${opts}" "${p}"
+    elif [[ "${distribution}" = "ubuntu" ]]; then
+      opts="-yq install"
+      $my_apt_get "${opts}" "${p}"
+    elif [[ "${distribution}" = "gentoo" ]]; then
+      opts="--ask=n --quiet --quiet-build --quiet-fail"
+      $my_emerge "${opts}" "${p}"
+    elif [[ "${distribution}" = "fedora" ]]; then
+  done
+fi
+
 # Create new user with home, grant privileges
 # =====================================================================
 # Check user exist, if not create
