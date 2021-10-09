@@ -646,9 +646,9 @@ dynamic_vars () {
 }
 
 # Check dependencies
-declare -a dependencies=("curl" "iconv" "openssl" "jq" "php" "perl" "awk" "sed" "pstree" "stat" "${send_mail_command}"
-			 "whiptail" "logrotate" "paste" "column" "mapfile" "readarray" "locale" "systemctl" "find"
-			 "sort" "true" "false" "join")
+declare -a dependencies=("iconv" "awk" "sed" "stat" "${send_mail_command}"
+			 "paste" "column" "mapfile" "readarray" "locale"
+			 "find" "sort" "true" "false" "join" "systemctl")
 
 for i in "${dependencies[@]}"
 do
@@ -921,7 +921,7 @@ pre_check () {
 	local sed_old; local sed_not_gnu; local woo_unknown; local jq_unknown
 	local word_unknown; local find_unknown; local gnu_awk_v_unknown
 	local gnu_sed_v_unknown; local bridge="$1"; local ast_unknown
-	local delimeter
+	local delimeter; local my_bash
 
 	if [[ "${bridge}" == "--status" ]]; then # Coming from --setup or --status?
 		if [[ -e "${this_script_path}/.woo.aras.set" ]]; then
@@ -973,7 +973,14 @@ pre_check () {
 	fi
 
 	# Bash Version
-	bash_ver="${BASH_VERSINFO:-0}"
+	my_bash="$(command -v bash 2> /dev/null)"
+	if [[ ! "${BASH_VERSION}" ]]; then
+		if [[ "${my_bash}" && -x "${my_bash}" ]]; then
+			bash_ver=$(${my_bash} -c 'echo "${BASH_VERSINFO[0]}"')
+		fi
+	else
+		bash_ver="${BASH_VERSINFO:-0}"
+	fi
 
 	# awk Version
 	if grep -q "GNU Awk" <<< "$($m_awk -Wv 2>&1)"; then
