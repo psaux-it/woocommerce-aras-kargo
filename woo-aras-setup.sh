@@ -38,12 +38,42 @@ setup_terminal () {
 }
 setup_terminal || echo > /dev/null
 
-# @EARLY CRITICAL CONTROLS --> means that no spend cpu time anymore
+# @EARLY CRITICAL CONTROLS
 # =====================================================================
+# Early check bash exists and met version requirement
+# This function written in POSIX for portability but rest of script is bashify
+detect_bash5 () {
+  local my_bash
+  my_bash="$(command -v bash 2> /dev/null)"
+  if [ -z "${BASH_VERSION}" ]; then
+    # we don't run under bash
+    if [ -n "${my_bash}" ] && [ -x "${my_bash}" ]; then
+      # shellcheck disable=SC2016
+      bash_ver=$(${my_bash} -c 'echo "${BASH_VERSINFO[0]}"')
+    fi
+  else
+    # we run under bash
+    bash_ver="${BASH_VERSINFO[0]}"
+  fi
+
+  if [ -z "${bash_ver}" ]; then
+    return 1
+  elif [ $((bash_ver)) -lt 5 ]; then
+    return 1
+  fi
+  return 0
+}
+
+if ! detect_bash5; then
+  echo -e "\n${red}*${reset} ${red}FATAL ERROR: Need BASH v5+${reset}"
+  echo -e "${cyan}${m_tab}#####################################################${reset}\n"
+  exit 1
+fi
+
 # Prevent errors cause by uncompleted upgrade
 # Detect to make sure the entire script is available, fail if the script is missing contents
 if [[ "$(tail -n 1 "${0}" | head -n 1 | cut -c 1-7)" != "exit \$?" ]]; then
-  echo -e "\n${red}*${reset} ${red}Script is incomplete, please force upgrade manually${reset}"
+  echo -e "\n${red}*${reset} ${red}Script is incomplete${reset}"
   echo -e "${cyan}${m_tab}#####################################################${reset}\n"
   exit 1
 fi
@@ -64,15 +94,7 @@ usage () {
 # Display usage for necessary privileges
 [[ ! $SUDO_USER && $EUID -ne 0 ]] && { usage; exit 1; }
 
-# Check git installed
-if ! command -v git > /dev/null 2>&1; then
-  echo -e "\n${yellow}*${reset} ${yellow}git not found!${reset}"
-  echo "${cyan}${m_tab}#####################################################${reset}"
-  echo -e "${yellow}${m_tab}Install necessary package and re-start setup.${reset}\n"
-  exit 1
-fi
-
-# Global Variables
+# @GLOBAL VARIABLES
 # =====================================================================
 export new_user="wooaras"
 export setup_key="gajVVK2zXo"
@@ -110,7 +132,7 @@ wooaras_banner () {
     l3="  |   '-'   '-'   '-'   '-'   '-'   '-'   '-'   '-'   '-'   '-'   '-'   '-'  " \
     l4="  +----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+--->" \
     sp="                                                                              " \
-    woo_aras="WooCommerce-Aras Cargo" start end msg="${*}" chartcolor="${TPUT_DIM}"
+    woo_aras="WooCommerce-Aras Cargo Setup" start end msg="${*}" chartcolor="${TPUT_DIM}"
 
   [ ${#msg} -lt ${#woo_aras} ] && msg="${msg}${sp:0:$((${#woo_aras} - ${#msg}))}"
   [ ${#msg} -gt $((${#l2} - 20)) ] && msg="${msg:0:$((${#l2} - 23))}..."
@@ -151,7 +173,7 @@ env_info () {
   echo ""
 }
 
-# Determine Script path
+# @DETERMINE SCRIPT PATH
 # =====================================================================
 script_path_pretty_error () {
   echo -e "\n${red}*${reset} ${red}Could not determine script name and fullpath${reset}"
@@ -184,18 +206,35 @@ fi
 # Remove trailing / (removes / and //) from script path
 shopt -s extglob
 this_script_path="${this_script_path%%+(/)}"
+
+# Export for main executable
 export temporary_path_x="${this_script_path}"
 
-
-# Install required packages
+# @INSTALL REQUIRED PACKAGES
 # =====================================================================
-unsupported_os () {
-	error message
-	exit 1
+# Add /usr // /usr/local to PATH
+uniquepath () {
+  export PATH="${PATH}:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin"
+  local path
+  path=""
+  while read -r
+  do
+    if [[ ! "${path}" =~ (^|:)"${REPLY}"(:|$) ]]; then
+      [[ "${path}" ]] && path="${path}:"
+      path="${path}${REPLY}"
+    fi
+  done < <(echo "${PATH}" | tr ":" "\n")
+  [[ "${path}" ]] && [[ "${PATH}" =~ /bin ]] && [[ "${PATH}" =~ /sbin ]] && export PATH="${path}"
 }
 
-lsb_release=$(command -v lsb_release 2> /dev/null)
+# Unsupported os&pm pretty error
+unsupported () {
+  error message
+  exit 1
+}
 
+# Distribution based variables
+lsb_release=$(command -v lsb_release 2> /dev/null)
 distribution=
 release=
 version=
@@ -208,25 +247,32 @@ VERSION=
 VERSION_ID=
 
 # Check which package managers are available
-my_apt_get=$(command -v apt-get 2> /dev/null)
-my_dnf=$(command -v dnf 2> /dev/null)
-my_emerge=$(command -v emerge 2> /dev/null)
-my_pacman=$(command -v pacman 2> /dev/null)
-my_yum=$(command -v yum 2> /dev/null)
-my_zypper=$(command -v zypper 2> /dev/null)
+autodetect_package_manager () {
+  my_apt_get=$(command -v apt-get 2> /dev/null)
+  my_dnf=$(command -v dnf 2> /dev/null)
+  my_emerge=$(command -v emerge 2> /dev/null)
+  my_pacman=$(command -v pacman 2> /dev/null)
+  my_yum=$(command -v yum 2> /dev/null)
+  my_zypper=$(command -v zypper 2> /dev/null)
 
-# Determine package manager
-declare -a pm=( "${my_apt_get}" "${my_dnf}" "${my_emerge}"
-                "${my_pacman}" "${my_yum}" "${my_zypper}" )
+  # Determine package manager
+  package_installer=()
+  declare -a my_pm=("${my_apt_get}" "${my_dnf}" "${my_emerge}"
+                    "${my_pacman}" "${my_yum}" "${my_zypper}")
 
-for i in "${pm[@]}"
-do
-  if [[ "${i}" ]]; then
-    package_installer="${i}"
-  fi
-done
+  for i in "${my_pm[@]}"
+  do
+   if [[ "${i}" ]]; then
+     package_installer+=( "${i}" )
+   fi
+  done
 
-release2lsb_release() {
+  ! (( ${#package_installer[@]} )) && return 1
+
+  return 0
+}
+
+release2lsb_release () {
   local file="${1}" x DISTRIB_ID="" DISTRIB_RELEASE="" DISTRIB_CODENAME=""
   x="$(grep -v "^$" "${file}" | head -n 1)"
 
@@ -249,7 +295,7 @@ release2lsb_release() {
   return 0
 }
 
-get_os_release() {
+get_os_release () {
   os_release_file=
   if [ -s "/etc/os-release" ]; then
     os_release_file="/etc/os-release"
@@ -278,7 +324,7 @@ get_os_release() {
   return 0
 }
 
-get_lsb_release() {
+get_lsb_release () {
   if [ -f "/etc/lsb-release" ]; then
     local DISTRIB_ID="" DISTRIB_RELEASE="" DISTRIB_CODENAME=""
     eval "$(grep -E "^(DISTRIB_ID|DISTRIB_RELEASE|DISTRIB_CODENAME)=" /etc/lsb-release)"
@@ -300,7 +346,7 @@ get_lsb_release() {
   return 0
 }
 
-find_etc_any_release() {
+find_etc_any_release () {
   if [ -f "/etc/arch-release" ]; then
     release2lsb_release "/etc/arch-release" && return 0
   fi
@@ -333,20 +379,21 @@ autodetect_distribution () {
 }
 
 # Check hard dependencies that not in bash built-in or pre-installed commonly
-declare -a dependencies=("curl" "openssl" "jq" "php" "perl" "whiptail" "logrotate" "git")
 check_deps () {
+  declare -a dependencies=("curl" "openssl" "jq" "php" "perl" "whiptail" "logrotate" "git")
   missing_deps=()
+  uniquepath # --
   for dep in "${dependencies[@]}"
   do
     if ! command -v "${dep}" >/dev/null 2>&1; then
       missing_deps+=( "${dep} )"
     elif [[ "${dep}" == "php" ]]; then
-	  if ! php -m | grep -q "soap"; then
-        missing_deps+=( "php-soap" )
+      if ! php -m | grep -q "soap"; then
+        missing_deps+=( "php_soap" )
       fi
     elif [[ "${dep}" == "perl" ]]; then
       if ! perl -e 'use Text::Fuzzy;' >/dev/null 2>&1; then
-        missing_deps+=( "Perl Text::Fuzzy" )
+        missing_deps+=( "fuzzy" )
       fi
     fi
   done
@@ -354,7 +401,7 @@ check_deps () {
 check_deps
 
 if (( ${#missing_deps[@]} )); then
-  autodetect_distribution || unsupported_os
+  autodetect_distribution && { autodetect_package_manager; || unsupported --pm; } || unsupported --os
 
 	cat <<-EOF
 	We detected these:
@@ -397,13 +444,8 @@ if (( ${#missing_deps[@]} )); then
   )
 
   declare -A pkg_php_soap=(
-    ['gentoo']="dev-lang/php"
+    ['gentoo']="exception"
     ['default']="php-soap"
-  )
-
-  declare -A pkg_perl_fuzzy=(
-    ['gentoo']="sys-devel/autogen"
-    ['default']="autogen"
   )
 
   declare -A pkg_git=(
@@ -426,29 +468,44 @@ if (( ${#missing_deps[@]} )); then
 
   # Install build essential for all oses for text-fuzzy compile
 
-  # Install missing dependencies
+  # Collect missing dependencies for distribution
   for dep in "${missing_deps[@]}"
   do
     eval "p=\${pkg_${dep}['${distribution,,}']}"
     [[ -z "${p}" ]] && eval "p=\${pkg_${dep}['default']}"
-
-    if [[ "${distribution}" = "centos" ]]; then
-      opts="-yq install"
-      $my_yum "${opts}" "${p}"
-    elif [[ "${distribution}" = "debian" ]]; then
-      opts="-yq install"
-      $my_apt_get "${opts}" "${p}"
-    elif [[ "${distribution}" = "ubuntu" ]]; then
-      opts="-yq install"
-      $my_apt_get "${opts}" "${p}"
-    elif [[ "${distribution}" = "gentoo" ]]; then
-      opts="--ask=n --quiet --quiet-build --quiet-fail"
-      $my_emerge "${opts}" "${p}"
-    fi
+    packages+=( "${p}" )
   done
+
+  if [[ "${distribution}" = "centos" ]]; then
+    opts="-yq install"
+    $my_yum "${opts}" "${packages[@]}"
+  elif [[ "${distribution}" = "debian" ]]; then
+    opts="-yq install"
+    $my_apt_get "${opts}" "${packages[@]}"
+  elif [[ "${distribution}" = "ubuntu" ]]; then
+    opts="-yq install"
+    $my_apt_get "${opts}" "${packages[@]}"
+  elif [[ "${distribution}" = "gentoo" ]]; then
+    if [[ "${packages[*]}" =~ "php" ]]; then
+      echo
+      packages=( "${packages[@]/exception}" )
+    fi
+    opts="--ask=n --quiet --quiet-build --quiet-fail"
+    $my_emerge "${opts}" "${packages[@]}"
+  elif [[ "${distribution}" = "arch" ]]; then
+    opts="--noconfirm --quiet --needed -S"
+    opts_legacy="--needed -S"
+    $my_pacman "${opts}" "${packages[@]}" || yes | $my_pacman "${opts_legacy}" "${packages[@]}"
+  elif [[ "${distribution}" = "suse" || "${distribution}" = "opensuse-leap" ]]; then
+    opts="--non-interactive --quiet install"
+    $my_zypper "${opts}" "${packages[@]}"
+  elif [[ "${distribution}" = "fedora" ]]; then
+    opts="install -y --quiet --setopt=strict=0"
+    $my_dnf "${opts}" "${packages[@]}"
+  fi
 fi
 
-# Create new user with home, grant privileges
+# @COMPLETE USER & PRIVILEGE OPERATIONS
 # =====================================================================
 # Check user exist, if not create
 if ! grep -qE "^${new_user}" "${pass_file}"; then
@@ -467,7 +524,7 @@ if ! grep -qE "^${new_user}" "${pass_file}"; then
   sudo EDITOR='tee -a' visudo >/dev/null 2>&1 || die "Could not grant sudo privileges"
 fi
 
-# Prepare the environment if not set
+# @PREPARE THE ENVIRONMENT
 # =====================================================================
 # Create working path
 if [[ ! -d "${working_path%/*}" ]]; then
@@ -494,7 +551,7 @@ if [[ "${password}" ]]; then
   read -n 1 -s -r -p "${green}> When ready press any key to continue..${reset}" reply < /dev/tty; echo
 fi
 
-# Finally start the setup
+# @START THE SETUP
 # =====================================================================
 if [[ "$(whoami)" != "${new_user}" ]]; then
   if [[ "${1}" == "--force" || "${1}" == "-f" ]]; then
