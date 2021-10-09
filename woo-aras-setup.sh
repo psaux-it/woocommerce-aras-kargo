@@ -102,6 +102,7 @@ export working_path="/home/${new_user}/scripts/woocommerce-aras-kargo"
 git_repo="https://github.com/hsntgm/woocommerce-aras-kargo.git"
 sudoers_file="/etc/sudoers"
 pass_file="/etc/passwd"
+portage_php="/etc/portage/package.use/woo_php"
 
 # Ugly die
 die () {
@@ -213,8 +214,8 @@ export temporary_path_x="${this_script_path}"
 # @INSTALL REQUIRED PACKAGES
 # =====================================================================
 # Add /usr // /usr/local to PATH
+export PATH="${PATH}:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin"
 uniquepath () {
-  export PATH="${PATH}:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin"
   local path
   path=""
   while read -r
@@ -226,6 +227,7 @@ uniquepath () {
   done < <(echo "${PATH}" | tr ":" "\n")
   [[ "${path}" ]] && [[ "${PATH}" =~ /bin ]] && [[ "${PATH}" =~ /sbin ]] && export PATH="${path}"
 }
+uniquepath
 
 # Unsupported os&pm pretty error
 unsupported () {
@@ -378,15 +380,39 @@ autodetect_distribution () {
   esac
 }
 
+# Need for perl module installation
+get_cpanm (){
+  if command -v cpanm >/dev/null 2>&1; then
+    cd /tmp || die "Change directory failed, cpanm"
+    curl -sLO https://cpanmin.us | perl - --sudo App::cpanminus >/dev/null 2>&1
+    if [[ ! -f /usr/local/bin/cpanm ]]; then
+      curl -sLO http://xrl.us/cpanm || die "Curl failed, cpanm"
+      chmod +x cpanm || die "Change mod failed, cpanm"
+      mv cpanm /usr/local/bin/cpanm || die "Move failed, cpanm"
+    fi
+  fi
+
+  CPANM=$(type cpanm)
+  if [[ ! -f "$CPANM" ]]; then
+    return 1
+  fi
+
+  return 0
+}
+
 # Check hard dependencies that not in bash built-in or pre-installed commonly
 check_deps () {
   declare -a dependencies=("curl" "openssl" "jq" "php" "perl" "whiptail" "logrotate" "git")
   missing_deps=()
-  uniquepath # --
   for dep in "${dependencies[@]}"
   do
     if ! command -v "${dep}" >/dev/null 2>&1; then
-      missing_deps+=( "${dep} )"
+      missing_deps+=( "${dep}" )
+      if [[ "${dep}" == "php" ]]; then
+        missing_deps+=( "php_soap" )
+      elif [[ "${dep}" == "perl" ]]; then
+       missing_deps+=( "fuzzy" )
+      fi
     elif [[ "${dep}" == "php" ]]; then
       if ! php -m | grep -q "soap"; then
         missing_deps+=( "php_soap" )
@@ -433,6 +459,10 @@ if (( ${#missing_deps[@]} )); then
     ['default']="openssl"
   )
 
+  declare -A pkg_fuzzy=(
+    ['default']=""
+  )
+
   declare -A pkg_jq=(
     ['gentoo']="app-misc/jq"
     ['default']="jq"
@@ -444,7 +474,7 @@ if (( ${#missing_deps[@]} )); then
   )
 
   declare -A pkg_php_soap=(
-    ['gentoo']="exception"
+    ['gentoo']=""
     ['default']="php-soap"
   )
 
@@ -472,10 +502,11 @@ if (( ${#missing_deps[@]} )); then
   for dep in "${missing_deps[@]}"
   do
     eval "p=\${pkg_${dep}['${distribution,,}']}"
-    [[ -z "${p}" ]] && eval "p=\${pkg_${dep}['default']}"
-    packages+=( "${p}" )
+    [[ ! "${p}" ]] && eval "p=\${pkg_${dep}['default']}"
+    [[ "${p}" ]] && packages+=( "${p}" )
   done
 
+  # Lets start package installation
   if [[ "${distribution}" = "centos" ]]; then
     opts="-yq install"
     $my_yum "${opts}" "${packages[@]}"
@@ -486,9 +517,9 @@ if (( ${#missing_deps[@]} )); then
     opts="-yq install"
     $my_apt_get "${opts}" "${packages[@]}"
   elif [[ "${distribution}" = "gentoo" ]]; then
-    if [[ "${packages[*]}" =~ "php" ]]; then
-      echo
-      packages=( "${packages[@]/exception}" )
+    if [[ "${packages[*]}" =~ "^php" ]]; then
+      echo 'dev-lang/php soap' > "${portage_php}"
+      #packages=( "${packages[@]/exception}" )
     fi
     opts="--ask=n --quiet --quiet-build --quiet-fail"
     $my_emerge "${opts}" "${packages[@]}"
@@ -502,6 +533,13 @@ if (( ${#missing_deps[@]} )); then
   elif [[ "${distribution}" = "fedora" ]]; then
     opts="install -y --quiet --setopt=strict=0"
     $my_dnf "${opts}" "${packages[@]}"
+  fi
+
+  # Install Text::Fuzzy perl module
+  if [[ "${missing_deps[*]}" =~ "fuzzy" ]]; then
+    if get_cpanm; then
+      cpanm -Sq Text::Fuzzy
+    fi
   fi
 fi
 
