@@ -64,6 +64,17 @@ detect_bash5 () {
   return 0
 }
 
+# Test connection for package installation
+test_connection () {
+  if ! : >/dev/tcp/8.8.8.8/53; then
+    echo -e "\n${red}*${reset} ${red}There is no internet connection.${reset}"
+    echo "${cyan}${m_tab}#####################################################${reset}"
+    echo -e "\n${m_tab}${red}These are the missing packages I need:${reset}"
+    echo -e "\n${m_tab}${magenta}${#missing_deps[*]}${reset}"
+    exit 1
+  fi
+}
+
 if ! detect_bash5; then
   echo -e "\n${red}*${reset} ${red}FATAL ERROR: Need BASH v5+${reset}"
   echo -e "${cyan}${m_tab}#####################################################${reset}\n"
@@ -79,7 +90,7 @@ if [[ "$(tail -n 1 "${0}" | head -n 1 | cut -c 1-7)" != "exit \$?" ]]; then
 fi
 
 # Check OS is supported
-if [[ "${OSTYPE}" != "linux-gnu"* ]]; then
+if [[ "$(uname -s)" != "Linux" ]]; then
   echo -e "\n${red}*${reset} ${red}Unsupported operating system: $OSTYPE${reset}"
   echo -e "${cyan}${m_tab}#####################################################${reset}\n"
   exit 1
@@ -214,8 +225,8 @@ export temporary_path_x="${this_script_path}"
 # @INSTALL REQUIRED PACKAGES
 # =====================================================================
 # Add /usr // /usr/local to PATH
-export PATH="${PATH}:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin"
 uniquepath () {
+  export PATH="${PATH}:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin"
   local path
   path=""
   while read -r
@@ -230,9 +241,14 @@ uniquepath () {
 uniquepath
 
 # Unsupported os&pm pretty error
-unsupported () {
-  error message
-  exit 1
+un_supported () {
+  if [[ "${1}" == "--pm" ]]; then
+    echo "Unsupported package manager"
+    exit 1
+  elif [[ "${1}" == "--os" ]]; then
+    echo "Unsupported linux distribution"
+    exit 1
+  fi
 }
 
 # Distribution based variables
@@ -479,7 +495,7 @@ vaidate_suse () {
 
 # Check hard dependencies that not in bash built-in or pre-installed commonly
 check_deps () {
-  declare -a dependencies=("curl" "openssl" "jq" "php" "perl" "whiptail" "logrotate" "git")
+  declare -a dependencies=("curl" "openssl" "jq" "php" "perl" "whiptail" "logrotate" "git" "make")
   missing_deps=()
   for dep in "${dependencies[@]}"
   do
@@ -504,7 +520,11 @@ check_deps () {
 check_deps
 
 if (( ${#missing_deps[@]} )); then
-  autodetect_distribution && { autodetect_package_manager; || unsupported --pm; } || unsupported --os
+  # Check distribution & package_manager are supported
+  autodetect_distribution && { autodetect_package_manager; || un_supported --pm; } || un_supported --os
+
+  # Test connection for package installation
+  test_connection
 
 	cat <<-EOF
 	We detected these:
@@ -516,15 +536,16 @@ if (( ${#missing_deps[@]} )); then
 	EOF
 
   # Package lists for distributions
-  declare -A pkg_build=(
+  declare -A pkg_make=(
     ['centos']="@'Development Tools'"
     ['fedora']="@'Development Tools'"
     ['rhel']="@'Development Tools'"
     ['ubuntu']="build-essential"
     ['debian']="build-essential"
     ['arch']="base-devel"
-    ['suse']="--type pattern devel_basis"
-    ['opensuse-leap']="--type pattern devel_basis"
+    ['suse']=""
+    ['opensuse-leap']=""
+    ['gentoo']=""
   )
 
   declare -A pkg_curl=(
@@ -601,25 +622,23 @@ if (( ${#missing_deps[@]} )); then
   echo -e "\n${m_tab}${magenta}THIS MAY TAKE A WHILE..${reset}"
 
   # Lets start package installation
-  eval "pb=\${pkg_build['${distribution,,}']}" # Install build essentials separetely
-
   if [[ "${distribution}" = "centos" ]]; then
     opts="-yq install"
-    $my_yum "${opts}" "${packages[@]}" "${pb}" &>/dev/null &
+    $my_yum "${opts}" "${packages[@]}" &>/dev/null &
     # Wait for bg command finish
     my_wait
     # Validate installation
     validate_centos_tree
   elif [[ "${distribution}" = "debian" ]]; then
     opts="-yq install"
-    $my_apt_get "${opts}" "${packages[@]}" "${pb}" &>/dev/null &
+    $my_apt_get "${opts}" "${packages[@]}" &>/dev/null &
     # Wait for bg command finish
     my_wait
     # Validate installation
     validate_debian_tree
   elif [[ "${distribution}" = "ubuntu" ]]; then
     opts="-yq install"
-    $my_apt_get "${opts}" "${packages[@]}" "${pb}" &>/dev/null &
+    $my_apt_get "${opts}" "${packages[@]}" &>/dev/null &
     # Wait for bg command finish
     my_wait
     # Validate installation
@@ -636,7 +655,7 @@ if (( ${#missing_deps[@]} )); then
     vaidate_gentoo
   elif [[ "${distribution}" = "arch" ]]; then
     opts="--noconfirm --quiet --needed -S"
-    $my_pacman "${opts}" "${packages[@]}" "${pb}" &>/dev/null &
+    $my_pacman "${opts}" "${packages[@]}" &>/dev/null &
     # Wait for bg command finish
     my_wait
     # Validate installation
@@ -646,44 +665,52 @@ if (( ${#missing_deps[@]} )); then
     $my_zypper "${opts}" "${packages[@]}" &>/dev/null &
     # Wait for bg command finish
     my_wait
+    if [[ "${missing_deps[*]}" =~ "make" ]]; then
+      package="devel_basis"
+      opts="--non-interactive --quiet install --type pattern"
+      $my_zypper "${opts}" "${package}" &>/dev/null &
+      wait $!
+    fi
     # Validate installation
     validate_suse
   elif [[ "${distribution}" = "fedora" ]]; then
     opts="install -y --quiet --setopt=strict=0"
-    $my_dnf "${opts}" "${packages[@]}" "${pb}" &>/dev/null &
+    $my_dnf "${opts}" "${packages[@]}" &>/dev/null &
     # Wait for bg command finish
     my_wait
     # Validate installation
     validate_centos_tree
   elif [[ "${distribution}" = "rhel" ]]; then
     opts="-yq install"
-    $my_yum "${opts}" "${packages[@]}" "${pb}" &>/dev/null &
+    $my_yum "${opts}" "${packages[@]}" &>/dev/null &
     # Wait for bg command finish
     my_wait
     # Validate installation
     validate_centos_tree
   fi
 
-  # Install Text::Fuzzy perl module seperately
-  if [[ "${missing_deps[*]}" =~ "fuzzy" ]]; then
-    if ! (( ${#fail[@]} )); then
+  # Check package installation completed without error &
+  # Install Text::Fuzzy perl module
+  if ! (( ${#fail[@]} )); then
+    if [[ "${missing_deps[*]}" =~ "fuzzy" ]]; then
       if get_cpanm; then
         /usr/local/bin/cpanm -Sq Text::Fuzzy &>/dev/null &
-        my_wait
+        wait $!
       else
-        echo "Cannot install Text::Fuzzy perl module"
+        echo "Could not get 'cpanm' for perl"
+        echo "Could not install:  Perl Text::Fuzzy"
         exit 1
       fi
-    else
-      echo "failed"
     fi
   fi
 
-  # Re-check deps to validate installation completed
+  # Re-check deps to validate whole package installation
   check_deps
 
-  if (( ${#missing_deps[@]} )); then
-    echo "fail"
+  if ! (( ${#missing_deps[@]} )); then
+    echo "All Packages installed successfuly"
+  else
+    echo "Could not installed packages: ${missing_deps[*]}"
     exit 1
   fi
 fi
