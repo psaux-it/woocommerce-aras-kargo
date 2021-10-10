@@ -420,7 +420,7 @@ get_cpanm (){
 
 # Wait for bg process stylish
 my_wait () {
-  local my_pid=$1
+  local my_pid=$!
 
   # If this script is killed, stop the waiting background process
   trap "kill -9 $my_pid 2>/dev/null" EXIT
@@ -441,7 +441,7 @@ my_wait () {
 
 # Validate installed packages silently
 # =====================================================================
-validate_centos_tree () {
+validate_centos () {
   fail=()
   for packageName in "${packages[@]}"
   do
@@ -451,7 +451,27 @@ validate_centos_tree () {
   done
 }
 
-validate_debian_tree () {
+validate_rhel () {
+  fail=()
+  for packageName in "${packages[@]}"
+  do
+    if ! rpm --quiet -qa | grep -qw "$packageName" >/dev/null 2>&1; then
+      fail+=( "${packageName}" )
+    fi
+  done
+}
+
+validate_fedora () {
+  fail=()
+  for packageName in "${packages[@]}"
+  do
+    if ! rpm --quiet -qa | grep -qw "$packageName" >/dev/null 2>&1; then
+      fail+=( "${packageName}" )
+    fi
+  done
+}
+
+validate_debian () {
   fail=()
   for packageName in "${packages[@]}"
   do
@@ -460,6 +480,17 @@ validate_debian_tree () {
     fi
   done
 }
+
+validate_ubuntu () {
+  fail=()
+  for packageName in "${packages[@]}"
+  do
+    if ! dpkg -l | grep -qw "$packageName" >/dev/null 2>&1; then
+      fail+=( "${packageName}" )
+    fi
+  done
+}
+
 
 vaidate_gentoo () {
   fail=()
@@ -492,6 +523,12 @@ vaidate_suse () {
 }
 # =====================================================================
 
+post_ops () {
+  # Wait for bg command finish
+  my_wait
+  # Validate installation
+  eval validate_${distribution}
+}
 
 # Check hard dependencies that not in bash built-in or pre-installed commonly
 check_deps () {
@@ -521,19 +558,29 @@ check_deps
 
 if (( ${#missing_deps[@]} )); then
   # Check distribution & package_manager are supported
-  autodetect_distribution && { autodetect_package_manager; || un_supported --pm; } || un_supported --os
+  autodetect_distribution &&
+  {
+  autodetect_package_manager || un_supported --pm
+  } ||
+  un_supported --os
 
   # Test connection for package installation
   test_connection
 
-	cat <<-EOF
-	We detected these:
+  # STAGE-1
+  wooaras_banner "STAGE-1: Package Installation"
+
+        echo "${green}* ${magenta}OS Information${reset}"
+        echo "${cyan}${m_tab}#####################################################${reset}"
+        printf "${green}"
+	cat <<-EOF | sed 's/^/  /'
 	Distribution    : ${distribution}
 	Version         : ${version}
 	Codename        : ${codename}
 	Package Manager : ${package_installer}
 	Detection Method: ${detection}
 	EOF
+        printf "${reset}"
 
   # Package lists for distributions
   declare -A pkg_make=(
@@ -625,41 +672,26 @@ if (( ${#missing_deps[@]} )); then
   if [[ "${distribution}" = "centos" ]]; then
     opts="-yq install"
     $my_yum "${opts}" "${packages[@]}" &>/dev/null &
-    # Wait for bg command finish
-    my_wait
-    # Validate installation
-    validate_centos_tree
+    post_ops
   elif [[ "${distribution}" = "debian" ]]; then
     opts="-yq install"
     $my_apt_get "${opts}" "${packages[@]}" &>/dev/null &
-    # Wait for bg command finish
-    my_wait
-    # Validate installation
-    validate_debian_tree
+    post_ops
   elif [[ "${distribution}" = "ubuntu" ]]; then
     opts="-yq install"
     $my_apt_get "${opts}" "${packages[@]}" &>/dev/null &
-    # Wait for bg command finish
-    my_wait
-    # Validate installation
-    validate_debian_tree
+    post_ops
   elif [[ "${distribution}" = "gentoo" ]]; then
     if [[ "${packages[*]}" =~ "^php" ]]; then
       echo 'dev-lang/php soap' > "${portage_php}"
     fi
     opts="--ask=n --quiet --quiet-build --quiet-fail"
     $my_emerge "${opts}" "${packages[@]}" &>/dev/null &
-    # Wait for bg command finish
-    my_wait
-    # Validate installation
-    vaidate_gentoo
+    post_ops
   elif [[ "${distribution}" = "arch" ]]; then
     opts="--noconfirm --quiet --needed -S"
     $my_pacman "${opts}" "${packages[@]}" &>/dev/null &
-    # Wait for bg command finish
-    my_wait
-    # Validate installation
-    validate_arch
+    post_ops
   elif [[ "${distribution}" = "suse" || "${distribution}" = "opensuse-leap" ]]; then
     opts="--non-interactive --quiet install"
     $my_zypper "${opts}" "${packages[@]}" &>/dev/null &
@@ -676,17 +708,11 @@ if (( ${#missing_deps[@]} )); then
   elif [[ "${distribution}" = "fedora" ]]; then
     opts="install -y --quiet --setopt=strict=0"
     $my_dnf "${opts}" "${packages[@]}" &>/dev/null &
-    # Wait for bg command finish
-    my_wait
-    # Validate installation
-    validate_centos_tree
+    post_ops
   elif [[ "${distribution}" = "rhel" ]]; then
     opts="-yq install"
     $my_yum "${opts}" "${packages[@]}" &>/dev/null &
-    # Wait for bg command finish
-    my_wait
-    # Validate installation
-    validate_centos_tree
+    post_ops
   fi
 
   # Check package installation completed without error &
@@ -708,7 +734,7 @@ if (( ${#missing_deps[@]} )); then
   check_deps
 
   if ! (( ${#missing_deps[@]} )); then
-    echo "All Packages installed successfuly"
+    echo "STAGE-1 COMPLETED"
   else
     echo "Could not installed packages: ${missing_deps[*]}"
     exit 1
