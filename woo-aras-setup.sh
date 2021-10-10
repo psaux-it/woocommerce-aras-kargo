@@ -382,9 +382,11 @@ autodetect_distribution () {
 
 # Need for perl module installation
 get_cpanm (){
-  if command -v cpanm >/dev/null 2>&1; then
-    cd /tmp || die "Change directory failed, cpanm"
-    curl -sLO https://cpanmin.us | perl - --sudo App::cpanminus >/dev/null 2>&1
+  if ! command -v cpanm >/dev/null 2>&1; then # Check in PATH
+    if [[ ! -f /usr/local/bin/cpanm ]]; then  # Check manually
+      cd /tmp || die "Change directory failed, cpanm"
+      curl -sLO https://cpanmin.us | perl - --sudo App::cpanminus >/dev/null 2>&1
+    fi
     if [[ ! -f /usr/local/bin/cpanm ]]; then
       curl -sLO http://xrl.us/cpanm || die "Curl failed, cpanm"
       chmod +x cpanm || die "Change mod failed, cpanm"
@@ -392,12 +394,32 @@ get_cpanm (){
     fi
   fi
 
-  CPANM=$(type cpanm)
-  if [[ ! -f "$CPANM" ]]; then
+  CPANM=$(type cpanm | awk '{print $3}')
+  if [[ ! -f "$CPANM" && ! -f /usr/local/bin/cpanm ]]; then
     return 1
   fi
 
   return 0
+}
+
+my_wait () {
+  local my_pid=$1
+
+  # If this script is killed, stop the waiting background process
+  trap "kill -9 $my_pid 2>/dev/null" EXIT
+
+  spin='-\|/'
+  mi=0
+  while kill -0 $my_pid 2>/dev/null
+  do
+    mi=$(( (mi+1) %4 ))
+    printf "\r${m_tab}${green}${spin:$mi:1}${reset}"
+    sleep .1
+  done
+  echo ""
+
+  # Disable the trap on a normal exit.
+  trap - EXIT
 }
 
 # Check hard dependencies that not in bash built-in or pre-installed commonly
@@ -411,7 +433,7 @@ check_deps () {
       if [[ "${dep}" == "php" ]]; then
         missing_deps+=( "php_soap" )
       elif [[ "${dep}" == "perl" ]]; then
-       missing_deps+=( "fuzzy" )
+       missing_deps+=( "perl_text_fuzzy" )
       fi
     elif [[ "${dep}" == "php" ]]; then
       if ! php -m | grep -q "soap"; then
@@ -419,7 +441,7 @@ check_deps () {
       fi
     elif [[ "${dep}" == "perl" ]]; then
       if ! perl -e 'use Text::Fuzzy;' >/dev/null 2>&1; then
-        missing_deps+=( "fuzzy" )
+        missing_deps+=( "perl_text_fuzzy" )
       fi
     fi
   done
@@ -439,9 +461,9 @@ if (( ${#missing_deps[@]} )); then
 	EOF
 
   declare -A pkg_build=(
-    ['centos']="groupinstall 'Development Tools'"
-    ['fedora']="groupinstall 'Development Tools'"
-    ['rhel']="groupinstall 'Development Tools'"
+    ['centos']="@'Development Tools'"
+    ['fedora']="@'Development Tools'"
+    ['rhel']="@'Development Tools'"
     ['ubuntu']="build-essential"
     ['debian']="build-essential"
     ['arch']="base-devel"
@@ -459,7 +481,7 @@ if (( ${#missing_deps[@]} )); then
     ['default']="openssl"
   )
 
-  declare -A pkg_fuzzy=(
+  declare -A pkg_perl_text_fuzzy=(
     ['default']=""
   )
 
@@ -506,40 +528,80 @@ if (( ${#missing_deps[@]} )); then
     [[ "${p}" ]] && packages+=( "${p}" )
   done
 
+  echo -e "\n${green}*${reset}${green} I'm about to install following packages for you.${reset}"
+  echo "${cyan}${m_tab}#####################################################${reset}"
+  echo "${m_tab}${magenta}${packages[*]}${reset}"
+
+  # User approval
+  while :; do
+    echo -e "\n${cyan}${m_tab}#####################################################${reset}"
+    read -r -n 1 -p "${m_tab}${BC}Do you want to continue? --> (Y)es | (N)o${EC} " yn < /dev/tty
+    echo ""
+    case "${yn}" in
+      [Yy]* ) break;;
+      [Nn]* ) exit 1;;
+      * ) echo -e "\n${m_tab}${magenta}Please answer yes or no.${reset}";;
+    esac
+  done
+
+  echo -e "\n${m_tab}${magenta}THIS MAY TAKE A WHILE..${reset}"
+
   # Lets start package installation
+  eval "pb=\${pkg_build['${distribution,,}']}" # --
   if [[ "${distribution}" = "centos" ]]; then
     opts="-yq install"
-    $my_yum "${opts}" "${packages[@]}"
+    $my_yum "${opts}" "${packages[@]}" "${pb}" &>/dev/null &
+    my_wait
   elif [[ "${distribution}" = "debian" ]]; then
     opts="-yq install"
-    $my_apt_get "${opts}" "${packages[@]}"
+    $my_apt_get "${opts}" "${packages[@]}" "${pb}" &>/dev/null &
+    my_wait
   elif [[ "${distribution}" = "ubuntu" ]]; then
     opts="-yq install"
-    $my_apt_get "${opts}" "${packages[@]}"
+    $my_apt_get "${opts}" "${packages[@]}" "${pb}" &>/dev/null &
+    my_wait
   elif [[ "${distribution}" = "gentoo" ]]; then
     if [[ "${packages[*]}" =~ "^php" ]]; then
       echo 'dev-lang/php soap' > "${portage_php}"
-      #packages=( "${packages[@]/exception}" )
     fi
     opts="--ask=n --quiet --quiet-build --quiet-fail"
-    $my_emerge "${opts}" "${packages[@]}"
+    $my_emerge "${opts}" "${packages[@]}" &>/dev/null &
+    my_wait
   elif [[ "${distribution}" = "arch" ]]; then
     opts="--noconfirm --quiet --needed -S"
-    opts_legacy="--needed -S"
-    $my_pacman "${opts}" "${packages[@]}" || yes | $my_pacman "${opts_legacy}" "${packages[@]}"
+    $my_pacman "${opts}" "${packages[@]}" "${pb}" &>/dev/null &
+    my_wait
   elif [[ "${distribution}" = "suse" || "${distribution}" = "opensuse-leap" ]]; then
     opts="--non-interactive --quiet install"
-    $my_zypper "${opts}" "${packages[@]}"
+    $my_zypper "${opts}" "${packages[@]}" &>/dev/null &
+    my_wait
   elif [[ "${distribution}" = "fedora" ]]; then
     opts="install -y --quiet --setopt=strict=0"
-    $my_dnf "${opts}" "${packages[@]}"
+    $my_dnf "${opts}" "${packages[@]}" "${pb}" &>/dev/null &
+    my_wait
+  elif [[ "${distribution}" = "rhel" ]]; then
+    opts="-yq install"
+    $my_yum "${opts}" "${packages[@]}" "${pb}" &>/dev/null &
+    my_wait
   fi
 
   # Install Text::Fuzzy perl module
   if [[ "${missing_deps[*]}" =~ "fuzzy" ]]; then
     if get_cpanm; then
-      cpanm -Sq Text::Fuzzy
+      /usr/local/bin/cpanm -Sq Text::Fuzzy &>/dev/null &
+      my_wait
+    else
+      echo "Cannot install Text::Fuzzy perl module"
+      exit 1
     fi
+  fi
+
+  # Re-check deps to validate installation completed
+  check_deps
+
+  if (( ${#missing_deps[@]} )); then
+    echo "fail"
+    exit 1
   fi
 fi
 
