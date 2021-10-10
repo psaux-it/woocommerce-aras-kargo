@@ -158,7 +158,6 @@ wooaras_banner () {
   echo >&2 "${chartcolor}${l3:0:start}${sp:0:2}${TPUT_RESET}${TPUT_BOLD}${TPUT_CYAN}${msg}${TPUT_RESET}${chartcolor}${sp:0:2}${l3:end:$((${#l2} - end))}${TPUT_RESET}"
   echo >&2 "${chartcolor}${l4}${TPUT_RESET}"
   echo >&2
-  spinner
 }
 
 setup_info () {
@@ -522,10 +521,9 @@ vaidate_suse () {
 }
 # =====================================================================
 
+# Merge ops.
 post_ops () {
-  # Wait for bg command finish
   my_wait
-  # Validate installation
   eval validate_${distribution}
 }
 
@@ -569,7 +567,7 @@ if (( ${#missing_deps[@]} )); then
   # STAGE-1
   wooaras_banner "STAGE-1: Package Installation"
 
-        echo "${green}* ${magenta}OS Information${reset}"
+        echo -e "\n${green}* ${magenta}OS Information${reset}"
         echo "${cyan}${m_tab}#####################################################${reset}"
         printf "${green}"
 	cat <<-EOF | sed 's/^/  /'
@@ -702,7 +700,6 @@ if (( ${#missing_deps[@]} )); then
       $my_zypper "${opts}" "${package}" &>/dev/null &
       wait $!
     fi
-    # Validate installation
     validate_suse
   elif [[ "${distribution}" = "fedora" ]]; then
     opts="install -y --quiet --setopt=strict=0"
@@ -738,12 +735,15 @@ if (( ${#missing_deps[@]} )); then
     echo "Could not installed packages: ${missing_deps[*]}"
     exit 1
   fi
+else
+  wooaras_banner "STAGE-1: ✓"
 fi
 
 # @COMPLETE USER & PRIVILEGE OPERATIONS
 # =====================================================================
 # Check user exist, if not create
 if ! grep -qE "^${new_user}" "${pass_file}"; then
+  wooaras_banner "STAGE-2: User Operations"
   echo -e "\n${green}*${reset} ${magenta}Setting ${new_user} user password, type q for quit${reset}"
   echo "${cyan}${m_tab}#####################################################${reset}"
   read -r -p "${m_tab}${BC}Enter new system user password:${EC} " password < /dev/tty
@@ -757,6 +757,8 @@ if ! grep -qE "^${new_user}" "${pass_file}"; then
   # Limited sudoer for only execute this script
   echo "${new_user} ALL=(ALL) NOPASSWD: ${working_path}/woocommerce-aras-cargo.sh,${working_path}/woocommerce-aras-cargo.sh" |
   sudo EDITOR='tee -a' visudo >/dev/null 2>&1 || die "Could not grant sudo privileges"
+else
+  wooaras_banner "STAGE-2: ✓"
 fi
 
 # @PREPARE THE ENVIRONMENT
@@ -768,10 +770,13 @@ fi
 
 # Clone repo to working path & change ownership
 if ! [[ -d "${working_path}" ]]; then
+  wooaras_banner "STAGE-3: Prepare Environment"
   cd "${working_path%/*}" || die "Could not change directory to ${working_path%/*}"
   git clone --quiet "${git_repo}" || die "Could not git clone into ${working_path%/*}"
   chown -R "${new_user}":"${new_user}" "${working_path%/*}" >/dev/null 2>&1 || die "Could not change ownership of ${working_path%/*}"
   chmod 750 "${working_path}"/woocommerce-aras-cargo.sh >/dev/null 2>&1 || die "Could not change mod woocommerce-aras-cargo.sh" || die "Could not change permission woocommerce-aras-cargo.sh"
+else
+  wooaras_banner "STAGE-3: ✓"
 fi
 
 # Change directory to working path
@@ -781,9 +786,8 @@ fi
 
 # This prints once when env created first time
 if [[ "${password}" ]]; then
-  wooaras_banner "Environment ready.."
   env_info
-  read -n 1 -s -r -p "${green}> When ready press any key to continue..${reset}" reply < /dev/tty; echo
+  read -n 1 -s -r -p "${green}> When ready press any key to start setup..${reset}" reply < /dev/tty; echo
 fi
 
 # @START THE SETUP
