@@ -368,8 +368,8 @@ find_etc_any_release () {
   return 1
 }
 
+# Autodetection of distribution/OS
 autodetect_distribution () {
-  # Autodetection of distribution/OS
   case "$(uname -s)" in
     "Linux")
       get_os_release || get_lsb_release || find_etc_any_release
@@ -402,6 +402,7 @@ get_cpanm (){
   return 0
 }
 
+# Wait for bg process stylish
 my_wait () {
   local my_pid=$1
 
@@ -421,6 +422,60 @@ my_wait () {
   # Disable the trap on a normal exit.
   trap - EXIT
 }
+
+# Validate installed packages silently
+# =====================================================================
+validate_centos_tree () {
+  fail=()
+  for packageName in "${packages[@]}"
+  do
+    if ! rpm --quiet -qa | grep -qw "$packageName" >/dev/null 2>&1; then
+      fail+=( "${packageName}" )
+    fi
+  done
+}
+
+validate_debian_tree () {
+  fail=()
+  for packageName in "${packages[@]}"
+  do
+    if ! dpkg -l | grep -qw "$packageName" >/dev/null 2>&1; then
+      fail+=( "${packageName}" )
+    fi
+  done
+}
+
+vaidate_gentoo () {
+  fail=()
+  for packageName in "${packages[@]}"
+  do
+    if ! qlist -I | grep -qw "$packageName" >/dev/null 2>&1; then
+      fail+=( "${packageName}" )
+    fi
+  done
+}
+
+vaidate_arch () {
+  fail=()
+  for packageName in "${packages[@]}"
+  do
+    if ! pacman -Qq | grep -qw "$packageName" >/dev/null 2>&1; then
+      fail+=( "${packageName}" )
+    fi
+  done
+}
+
+vaidate_suse () {
+  fail=()
+  for packageName in "${packages[@]}"
+  do
+    if ! zypper se -i "$packageName" | grep -qw "$packageName" >/dev/null 2>&1; then
+      fail+=( "${packageName}" )
+    fi
+  done
+}
+# =====================================================================
+
 
 # Check hard dependencies that not in bash built-in or pre-installed commonly
 check_deps () {
@@ -460,6 +515,7 @@ if (( ${#missing_deps[@]} )); then
 	Detection Method: ${detection}
 	EOF
 
+  # Package lists for distributions
   declare -A pkg_build=(
     ['centos']="@'Development Tools'"
     ['fedora']="@'Development Tools'"
@@ -518,8 +574,6 @@ if (( ${#missing_deps[@]} )); then
     ['default']="newt"
   )
 
-  # Install build essential for all oses for text-fuzzy compile
-
   # Collect missing dependencies for distribution
   for dep in "${missing_deps[@]}"
   do
@@ -547,52 +601,81 @@ if (( ${#missing_deps[@]} )); then
   echo -e "\n${m_tab}${magenta}THIS MAY TAKE A WHILE..${reset}"
 
   # Lets start package installation
-  eval "pb=\${pkg_build['${distribution,,}']}" # --
+  eval "pb=\${pkg_build['${distribution,,}']}" # Install build essentials separetely
+
   if [[ "${distribution}" = "centos" ]]; then
     opts="-yq install"
     $my_yum "${opts}" "${packages[@]}" "${pb}" &>/dev/null &
+    # Wait for bg command finish
     my_wait
+    # Validate installation
+    validate_centos_tree
   elif [[ "${distribution}" = "debian" ]]; then
     opts="-yq install"
     $my_apt_get "${opts}" "${packages[@]}" "${pb}" &>/dev/null &
+    # Wait for bg command finish
     my_wait
+    # Validate installation
+    validate_debian_tree
   elif [[ "${distribution}" = "ubuntu" ]]; then
     opts="-yq install"
     $my_apt_get "${opts}" "${packages[@]}" "${pb}" &>/dev/null &
+    # Wait for bg command finish
     my_wait
+    # Validate installation
+    validate_debian_tree
   elif [[ "${distribution}" = "gentoo" ]]; then
     if [[ "${packages[*]}" =~ "^php" ]]; then
       echo 'dev-lang/php soap' > "${portage_php}"
     fi
     opts="--ask=n --quiet --quiet-build --quiet-fail"
     $my_emerge "${opts}" "${packages[@]}" &>/dev/null &
+    # Wait for bg command finish
     my_wait
+    # Validate installation
+    vaidate_gentoo
   elif [[ "${distribution}" = "arch" ]]; then
     opts="--noconfirm --quiet --needed -S"
     $my_pacman "${opts}" "${packages[@]}" "${pb}" &>/dev/null &
+    # Wait for bg command finish
     my_wait
+    # Validate installation
+    validate_arch
   elif [[ "${distribution}" = "suse" || "${distribution}" = "opensuse-leap" ]]; then
     opts="--non-interactive --quiet install"
     $my_zypper "${opts}" "${packages[@]}" &>/dev/null &
+    # Wait for bg command finish
     my_wait
+    # Validate installation
+    validate_suse
   elif [[ "${distribution}" = "fedora" ]]; then
     opts="install -y --quiet --setopt=strict=0"
     $my_dnf "${opts}" "${packages[@]}" "${pb}" &>/dev/null &
+    # Wait for bg command finish
     my_wait
+    # Validate installation
+    validate_centos_tree
   elif [[ "${distribution}" = "rhel" ]]; then
     opts="-yq install"
     $my_yum "${opts}" "${packages[@]}" "${pb}" &>/dev/null &
+    # Wait for bg command finish
     my_wait
+    # Validate installation
+    validate_centos_tree
   fi
 
-  # Install Text::Fuzzy perl module
+  # Install Text::Fuzzy perl module seperately
   if [[ "${missing_deps[*]}" =~ "fuzzy" ]]; then
-    if get_cpanm; then
-      /usr/local/bin/cpanm -Sq Text::Fuzzy &>/dev/null &
-      my_wait
+    if ! (( ${#fail[@]} )); then
+      if get_cpanm; then
+        /usr/local/bin/cpanm -Sq Text::Fuzzy &>/dev/null &
+        my_wait
+      else
+        echo "Cannot install Text::Fuzzy perl module"
+        exit 1
+      fi
     else
-      echo "Cannot install Text::Fuzzy perl module"
-      exit 1
+      echo "failed"
     fi
   fi
 
