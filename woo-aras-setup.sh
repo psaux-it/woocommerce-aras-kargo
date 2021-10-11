@@ -25,15 +25,17 @@
 setup_terminal () {
   green=""; red=""; reset=""; cyan=""; magenta=""; yellow=""; TPUT_RESET="";
   TPUT_GREEN=""; TPUT_CYAN=""; TPUT_DIM=""; TPUT_BOLD=""; m_tab='  '; BC=$'\e[32m'
-  EC=$'\e[0m'
+  EC=$'\e[0m'; TPUT_BGRED=""; TPUT_WHITE=""
+  test -t 2 || return 1
   if command -v tput > /dev/null 2>&1; then
     if [[ $(($(tput colors 2> /dev/null))) -ge 8 ]]; then
       green="$(tput setaf 2)"; red="$(tput setaf 1)"; reset="$(tput sgr0)"; cyan="$(tput setaf 6)"
       magenta="$(tput setaf 5)"; yellow="$(tput setaf 3)"; TPUT_RESET="$(tput sgr 0)"
       TPUT_GREEN="$(tput setaf 2)"; TPUT_CYAN="$(tput setaf 6)"; TPUT_DIM="$(tput dim)"
-      TPUT_BOLD="$(tput bold)"
+      TPUT_BOLD="$(tput bold)"; TPUT_BGRED="$(tput setab 1)"; TPUT_WHITE="$(tput setaf 7)"
     fi
   fi
+  return 0
 }
 setup_terminal || echo > /dev/null
 
@@ -114,12 +116,24 @@ sudoers_file="/etc/sudoers"
 pass_file="/etc/passwd"
 portage_php="/etc/portage/package.use/woo_php"
 
-# Ugly die
+# Use for env operations errors
 die () {
-  echo "$@" >&2
+  printf >&2 "%s ABORTED %s %s \n\n" "${TPUT_BGRED}${TPUT_WHITE}${TPUT_BOLD}" "${TPUT_RESET}" "${*}"
   userdel "${new_user}" >/dev/null 2>&1
   rm -r "/home/${new_user:?}" >/dev/null 2>&1
   exit 1
+}
+
+# Use for other errors
+fatal () {
+  printf >&2 "%s ABORTED %s %s \n\n" "${TPUT_BGRED}${TPUT_WHITE}${TPUT_BOLD}" "${TPUT_RESET}" "${*}"
+  exit 1
+}
+
+# Use for completed tasks
+done_ () {
+  echo ""
+  printf >&2 "%s DONE %s %s" "${TPUT_BGGREEN}${TPUT_WHITE}${TPUT_BOLD}" "${TPUT_RESET}" "${*}"
 }
 
 spinner () {
@@ -158,6 +172,7 @@ wooaras_banner () {
   echo >&2 "${chartcolor}${l3:0:start}${sp:0:2}${TPUT_RESET}${TPUT_BOLD}${TPUT_CYAN}${msg}${TPUT_RESET}${chartcolor}${sp:0:2}${l3:end:$((${#l2} - end))}${TPUT_RESET}"
   echo >&2 "${chartcolor}${l4}${TPUT_RESET}"
   echo >&2
+  spinner
 }
 
 setup_info () {
@@ -223,8 +238,8 @@ export temporary_path_x="${this_script_path}"
 # @INSTALL REQUIRED PACKAGES
 # =====================================================================
 # Add /usr // /usr/local to PATH
+export PATH="${PATH}:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin"
 uniquepath () {
-  export PATH="${PATH}:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin"
   local path
   path=""
   while read -r
@@ -241,16 +256,15 @@ uniquepath
 # Unsupported os&pm pretty error
 un_supported () {
   if [[ "${1}" == "--pm" ]]; then
-    echo "Unsupported package manager"
-    exit 1
+    fatal "Unsupported package manager"
   elif [[ "${1}" == "--os" ]]; then
-    echo "Unsupported linux distribution"
-    exit 1
+    fatal "Unsupported linux distribution"
   fi
 }
 
 # Distribution based variables
 lsb_release=$(command -v lsb_release 2> /dev/null)
+
 distribution=
 release=
 version=
@@ -306,16 +320,16 @@ release2lsb_release () {
   version="${DISTRIB_RELEASE}"
   codename="${DISTRIB_CODENAME}"
 
-  [ -z "${distribution}" ] && return 1
+  [[ -z "${distribution}" ]] && return 1
   detection="${file}"
   return 0
 }
 
 get_os_release () {
   os_release_file=
-  if [ -s "/etc/os-release" ]; then
+  if [[ -s "/etc/os-release" ]]; then
     os_release_file="/etc/os-release"
-  elif [ -s "/usr/lib/os-release" ]; then
+  elif [[ -s "/usr/lib/os-release" ]]; then
     os_release_file="/usr/lib/os-release"
   else
     return 1
@@ -336,12 +350,12 @@ get_os_release () {
         ;;
     esac
   done
-  [ -z "${distribution}" ] && return 1
+  [[ -z "${distribution}" ]] && return 1
   return 0
 }
 
 get_lsb_release () {
-  if [ -f "/etc/lsb-release" ]; then
+  if [[ -f "/etc/lsb-release" ]]; then
     local DISTRIB_ID="" DISTRIB_RELEASE="" DISTRIB_CODENAME=""
     eval "$(grep -E "^(DISTRIB_ID|DISTRIB_RELEASE|DISTRIB_CODENAME)=" /etc/lsb-release)"
     distribution="${DISTRIB_ID}"
@@ -350,7 +364,7 @@ get_lsb_release () {
     detection="/etc/lsb-release"
   fi
 
-  if [ -z "${distribution}" ] && [ -n "${lsb_release}" ]; then
+  if [[ -z "${distribution}" ]] && [[ -n "${lsb_release}" ]]; then
     eval "declare -A release=( $(lsb_release -a 2> /dev/null | sed -e "s|^\(.*\):[[:space:]]*\(.*\)$|[\1]=\"\2\"|g") )"
     distribution="${release["Distributor ID"]}"
     version="${release[Release]}"
@@ -358,24 +372,24 @@ get_lsb_release () {
     detection="lsb_release"
   fi
 
-  [ -z "${distribution}" ] && return 1
+  [[ -z "${distribution}" ]] && return 1
   return 0
 }
 
 find_etc_any_release () {
-  if [ -f "/etc/arch-release" ]; then
+  if [[ -f "/etc/arch-release" ]]; then
     release2lsb_release "/etc/arch-release" && return 0
   fi
 
-  if [ -f "/etc/centos-release" ]; then
+  if [[ -f "/etc/centos-release" ]]; then
     release2lsb_release "/etc/centos-release" && return 0
   fi
 
-  if [ -f "/etc/redhat-release" ]; then
+  if [[ -f "/etc/redhat-release" ]]; then
     release2lsb_release "/etc/redhat-release" && return 0
   fi
 
-  if [ -f "/etc/SuSe-release" ]; then
+  if [[ -f "/etc/SuSe-release" ]]; then
     release2lsb_release "/etc/SuSe-release" && return 0
   fi
 
@@ -396,15 +410,16 @@ autodetect_distribution () {
 
 # Need for perl module installation
 get_cpanm (){
-  if ! command -v cpanm >/dev/null 2>&1; then # Check in PATH
-    if [[ ! -f /usr/local/bin/cpanm ]]; then  # Check manually
-      cd /tmp || die "Change directory failed, cpanm"
-      curl -sLO https://cpanmin.us | perl - --sudo App::cpanminus >/dev/null 2>&1
+  if ! command -v cpanm >/dev/null 2>&1; then # Check in $PATH
+    if [[ ! -f /usr/local/bin/cpanm ]]; then  # Check in locally
+      cd /tmp || fatal "Change directory failed, cpanm"
+      curl -sL https://cpanmin.us | perl - App::cpanminus &>/dev/null &
+      wait $!
     fi
     if [[ ! -f /usr/local/bin/cpanm ]]; then
-      curl -sLO http://xrl.us/cpanm || die "Curl failed, cpanm"
-      chmod +x cpanm || die "Change mod failed, cpanm"
-      mv cpanm /usr/local/bin/cpanm || die "Move failed, cpanm"
+      curl -sLO http://xrl.us/cpanm || fatal "Curl failed, cpanm"
+      chmod +x cpanm || fatal "Change mod failed, cpanm"
+      mv cpanm /usr/local/bin/cpanm || fatal "Move file failed, cpanm"
     fi
   fi
 
@@ -494,8 +509,14 @@ vaidate_gentoo () {
   fail=()
   for packageName in "${packages[@]}"
   do
-    if ! qlist -I | grep -qw "$packageName" >/dev/null 2>&1; then
-      fail+=( "${packageName}" )
+    if command -v qlist >/dev/null 2>&1; then
+      if ! qlist -I | grep -qw "$packageName" >/dev/null 2>&1; then
+        fail+=( "${packageName}" )
+      fi
+    elif command -v eix-installed >/dev/null 2>&1; then
+      if ! eix-installed -a | grep -q "$packageName" >/dev/null 2>&1; then
+        fail+=( "${packageName}" )
+      fi
     fi
   done
 }
@@ -565,11 +586,12 @@ if (( ${#missing_deps[@]} )); then
   test_connection
 
   # STAGE-1
-  wooaras_banner "STAGE-1: Package Installation"
+  wooaras_banner "STAGE-1: PACKAGE INSTALLATION"
 
-        echo -e "\n${green}* ${magenta}OS Information${reset}"
-        echo "${cyan}${m_tab}#####################################################${reset}"
-        printf "${green}"
+  echo -e "\n${green}* ${magenta}OS Information${reset}"
+  echo "${cyan}${m_tab}#####################################################${reset}"
+  printf "${green}"
+
 	cat <<-EOF | sed 's/^/  /'
 	Distribution    : ${distribution}
 	Version         : ${version}
@@ -577,7 +599,8 @@ if (( ${#missing_deps[@]} )); then
 	Package Manager : ${package_installer}
 	Detection Method: ${detection}
 	EOF
-        printf "${reset}"
+
+  printf "${reset}"
 
   # Package lists for distributions
   declare -A pkg_make=(
@@ -719,9 +742,7 @@ if (( ${#missing_deps[@]} )); then
         /usr/local/bin/cpanm -Sq Text::Fuzzy &>/dev/null &
         wait $!
       else
-        echo "Could not get 'cpanm' for perl"
-        echo "Could not install:  Perl Text::Fuzzy"
-        exit 1
+        fatal "Could not install perl App::cpanminus"
       fi
     fi
   fi
@@ -730,35 +751,36 @@ if (( ${#missing_deps[@]} )); then
   check_deps
 
   if ! (( ${#missing_deps[@]} )); then
-    echo "STAGE-1 COMPLETED"
+    done_ "STAGE-1 | PACKAGE INSTALLATION"
   else
-    echo "Could not installed packages: ${missing_deps[*]}"
-    exit 1
+    fatal "Could not install packages: ${missing_deps[*]}"
   fi
 else
-  wooaras_banner "STAGE-1: ✓"
+  done_ "STAGE-1 | PACKAGE INSTALLATION"
 fi
 
 # @COMPLETE USER & PRIVILEGE OPERATIONS
 # =====================================================================
 # Check user exist, if not create
 if ! grep -qE "^${new_user}" "${pass_file}"; then
-  wooaras_banner "STAGE-2: User Operations"
+  wooaras_banner "STAGE-2: USER OPERATIONS"
   echo -e "\n${green}*${reset} ${magenta}Setting ${new_user} user password, type q for quit${reset}"
   echo "${cyan}${m_tab}#####################################################${reset}"
   read -r -p "${m_tab}${BC}Enter new system user password:${EC} " password < /dev/tty
   if [[ "${password}" == "q" || "${password}" == "quit" ]]; then exit 1; fi
   echo "${cyan}${m_tab}#####################################################${reset}"
-
+  echo -e "\n${m_tab}${magenta}THIS MAY TAKE A WHILE..${reset}"
+  spinner
   # Encrypt password
-  enc_pass=$(perl -e 'print crypt($ARGV[0], "password")' $password || die "Could not encrypt password")
+  enc_pass=$(perl -e 'print crypt($ARGV[0], "password")' $password || die "Could not encrypt user password")
   # Create user
   useradd -m -p "${enc_pass}" -s /bin/bash "${new_user}" >/dev/null 2>&1 || die "Could not create user ${new_user}"
   # Limited sudoer for only execute this script
   echo "${new_user} ALL=(ALL) NOPASSWD: ${working_path}/woocommerce-aras-cargo.sh,${working_path}/woocommerce-aras-cargo.sh" |
   sudo EDITOR='tee -a' visudo >/dev/null 2>&1 || die "Could not grant sudo privileges"
+  done_ "STAGE-2 | USER OPERATIONS"
 else
-  wooaras_banner "STAGE-2: ✓"
+  done_ "STAGE-2 | USER OPERATIONS"
 fi
 
 # @PREPARE THE ENVIRONMENT
@@ -770,13 +792,16 @@ fi
 
 # Clone repo to working path & change ownership
 if ! [[ -d "${working_path}" ]]; then
-  wooaras_banner "STAGE-3: Prepare Environment"
+  wooaras_banner "STAGE-3: ENVIRONMENT OPERATIONS"
+  echo -e "\n${m_tab}${magenta}THIS MAY TAKE A WHILE..${reset}"
   cd "${working_path%/*}" || die "Could not change directory to ${working_path%/*}"
-  git clone --quiet "${git_repo}" || die "Could not git clone into ${working_path%/*}"
+  git clone --quiet "${git_repo}" &>/dev/null & || die "Could not git clone into ${working_path%/*}"
+  my_wait
   chown -R "${new_user}":"${new_user}" "${working_path%/*}" >/dev/null 2>&1 || die "Could not change ownership of ${working_path%/*}"
   chmod 750 "${working_path}"/woocommerce-aras-cargo.sh >/dev/null 2>&1 || die "Could not change mod woocommerce-aras-cargo.sh" || die "Could not change permission woocommerce-aras-cargo.sh"
+  done_ "STAGE-3 | ENVIRONMENT OPERATIONS"
 else
-  wooaras_banner "STAGE-3: ✓"
+  done_ "STAGE-3 | ENVIRONMENT OPERATIONS"
 fi
 
 # Change directory to working path
