@@ -120,7 +120,6 @@ portage_php="/etc/portage/package.use/woo_php"
 die () {
   printf >&2 "%s ABORTED %s %s \n\n" "${TPUT_BGRED}${TPUT_WHITE}${TPUT_BOLD}" "${TPUT_RESET}" "${*}"
   userdel "${new_user}" >/dev/null 2>&1
-  rm -r "/home/${new_user:?}" >/dev/null 2>&1
   exit 1
 }
 
@@ -409,18 +408,17 @@ autodetect_distribution () {
   esac
 }
 
-# Need for perl module installation
+# Install perl App::cpanminus module for further module installation
 get_cpanm (){
   if ! command -v cpanm >/dev/null 2>&1; then # Check in $PATH
     if [[ ! -f /usr/local/bin/cpanm ]]; then  # Check in locally
       cd /tmp || fatal "Change directory failed, cpanm"
-      curl -sL https://cpanmin.us | perl - App::cpanminus &>/dev/null &
-      wait $!
+      curl -L https://cpanmin.us | perl - --sudo App::cpanminus >/dev/null 2>&1
     fi
     if [[ ! -f /usr/local/bin/cpanm ]]; then
-      curl -sLO http://xrl.us/cpanm || fatal "Curl failed, cpanm"
-      chmod +x cpanm || fatal "Change mod failed, cpanm"
-      mv cpanm /usr/local/bin/cpanm || fatal "Move file failed, cpanm"
+      curl -L https://cpanmin.us/ -o cpanm >/dev/null 2>&1 || fatal "Curl cpanm failed"
+      chmod +x cpanm || fatal "Change mod cpanm failed"
+      mv cpanm /usr/local/bin/cpanm || fatal "Move cpanm failed"
     fi
   fi
 
@@ -432,11 +430,9 @@ get_cpanm (){
   return 0
 }
 
-# Wait for bg process stylish
+# Wait for bg process stylish also get exit code of bg process
 my_wait () {
   local my_pid=$!
-
-  # If this script is killed, stop the waiting background process
   trap "kill -9 $my_pid 2>/dev/null" EXIT
 
   spin='-\|/'
@@ -447,10 +443,12 @@ my_wait () {
     printf "\r${m_tab}${green}${spin:$mi:1}${reset}"
     sleep .1
   done
+  wait $my_pid
+  [[ $? -ne 0 ]] && return 1
   echo ""
-
-  # Disable the trap on a normal exit.
   trap - EXIT
+
+  return 0
 }
 
 # Validate installed packages silently
@@ -740,8 +738,7 @@ if (( ${#missing_deps[@]} )); then
   if ! (( ${#fail[@]} )); then
     if [[ "${missing_deps[*]}" =~ "fuzzy" ]]; then
       if get_cpanm; then
-        /usr/local/bin/cpanm -Sq Text::Fuzzy &>/dev/null &
-        wait $!
+        /usr/local/bin/cpanm -Sq Text::Fuzzy >/dev/null 2>&1
       else
         fatal "Could not install perl App::cpanminus"
       fi
@@ -777,8 +774,7 @@ if ! grep -qE "^${new_user}" "${pass_file}"; then
   # Create user
   useradd -m -p "${enc_pass}" -s /bin/bash "${new_user}" >/dev/null 2>&1 || fatal "Could not create user ${new_user}"
   # Limited sudoer for only execute this script
-  echo "${new_user} ALL=(ALL) NOPASSWD: ${working_path}/woocommerce-aras-cargo.sh" | sudo EDITOR='tee -a' visudo >/dev/null 2>&1
-  [[ $? -ne 0 ]] && die "Could not grant sudo privileges for user"
+  echo "${new_user} ALL=(ALL) NOPASSWD: ${working_path}/woocommerce-aras-cargo.sh" | sudo EDITOR='tee -a' visudo >/dev/null 2>&1 || die "Could not grant sudo privileges for user"
   done_ "STAGE-2 | USER OPERATIONS"
 else
   done_ "STAGE-2 | USER OPERATIONS"
@@ -795,11 +791,9 @@ fi
 if ! [[ -d "${working_path}" ]]; then
   wooaras_banner "STAGE-3: ENVIRONMENT OPERATIONS"
   echo -e "\n${m_tab}${magenta}THIS MAY TAKE A WHILE..${reset}"
-  spinner
   cd "${working_path%/*}" || die "Could not change directory to ${working_path%/*}"
   git clone --quiet "${git_repo}" &>/dev/null &
-  wait $!
-  [[ $? -ne 0 ]] && die "Could not git clone into ${working_path%/*}"
+  my_wait || die "Could not git clone into ${working_path%/*}"
   chown -R "${new_user}":"${new_user}" "${working_path%/*}" >/dev/null 2>&1 || die "Could not change ownership of ${working_path%/*}"
   chmod 750 "${working_path}"/woocommerce-aras-cargo.sh >/dev/null 2>&1 || die "Could not change mod woocommerce-aras-cargo.sh"
   done_ "STAGE-3 | ENVIRONMENT OPERATIONS"
