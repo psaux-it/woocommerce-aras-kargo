@@ -136,8 +136,9 @@ done_ () {
   printf >&2 "%s DONE %s %s" "${TPUT_BGGREEN}${TPUT_WHITE}${TPUT_BOLD}" "${TPUT_RESET}" "${*}"
 }
 
+# Fake spinner
 spinner () {
-  sleep 3 &
+  sleep 2 &
   sleep_pid=$!
   spin='-\|/'
 
@@ -772,12 +773,12 @@ if ! grep -qE "^${new_user}" "${pass_file}"; then
   echo -e "\n${m_tab}${magenta}THIS MAY TAKE A WHILE..${reset}"
   spinner
   # Encrypt password
-  enc_pass=$(perl -e 'print crypt($ARGV[0], "password")' $password || die "Could not encrypt user password")
+  enc_pass=$(perl -e 'print crypt($ARGV[0], "password")' $password || fatal "Could not encrypt user password")
   # Create user
-  useradd -m -p "${enc_pass}" -s /bin/bash "${new_user}" >/dev/null 2>&1 || die "Could not create user ${new_user}"
+  useradd -m -p "${enc_pass}" -s /bin/bash "${new_user}" >/dev/null 2>&1 || fatal "Could not create user ${new_user}"
   # Limited sudoer for only execute this script
-  echo "${new_user} ALL=(ALL) NOPASSWD: ${working_path}/woocommerce-aras-cargo.sh,${working_path}/woocommerce-aras-cargo.sh" |
-  sudo EDITOR='tee -a' visudo >/dev/null 2>&1 || die "Could not grant sudo privileges"
+  echo "${new_user} ALL=(ALL) NOPASSWD: ${working_path}/woocommerce-aras-cargo.sh" | sudo EDITOR='tee -a' visudo >/dev/null 2>&1
+  [[ $? -ne 0 ]] && die "Could not grant sudo privileges for user"
   done_ "STAGE-2 | USER OPERATIONS"
 else
   done_ "STAGE-2 | USER OPERATIONS"
@@ -794,11 +795,13 @@ fi
 if ! [[ -d "${working_path}" ]]; then
   wooaras_banner "STAGE-3: ENVIRONMENT OPERATIONS"
   echo -e "\n${m_tab}${magenta}THIS MAY TAKE A WHILE..${reset}"
+  spinner
   cd "${working_path%/*}" || die "Could not change directory to ${working_path%/*}"
-  git clone --quiet "${git_repo}" &>/dev/null & || die "Could not git clone into ${working_path%/*}"
-  my_wait
+  git clone --quiet "${git_repo}" &>/dev/null &
+  wait $!
+  [[ $? -ne 0 ]] && die "Could not git clone into ${working_path%/*}"
   chown -R "${new_user}":"${new_user}" "${working_path%/*}" >/dev/null 2>&1 || die "Could not change ownership of ${working_path%/*}"
-  chmod 750 "${working_path}"/woocommerce-aras-cargo.sh >/dev/null 2>&1 || die "Could not change mod woocommerce-aras-cargo.sh" || die "Could not change permission woocommerce-aras-cargo.sh"
+  chmod 750 "${working_path}"/woocommerce-aras-cargo.sh >/dev/null 2>&1 || die "Could not change mod woocommerce-aras-cargo.sh"
   done_ "STAGE-3 | ENVIRONMENT OPERATIONS"
 else
   done_ "STAGE-3 | ENVIRONMENT OPERATIONS"
