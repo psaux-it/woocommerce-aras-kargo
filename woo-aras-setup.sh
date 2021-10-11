@@ -25,7 +25,7 @@
 setup_terminal () {
   green=""; red=""; reset=""; cyan=""; magenta=""; yellow=""; TPUT_RESET="";
   TPUT_GREEN=""; TPUT_CYAN=""; TPUT_DIM=""; TPUT_BOLD=""; m_tab='  '; BC=$'\e[32m'
-  EC=$'\e[0m'; TPUT_BGRED=""; TPUT_WHITE=""
+  EC=$'\e[0m'; TPUT_BGRED=""; TPUT_WHITE=""; TPUT_BGGREEN=""
   test -t 2 || return 1
   if command -v tput > /dev/null 2>&1; then
     if [[ $(($(tput colors 2> /dev/null))) -ge 8 ]]; then
@@ -33,6 +33,7 @@ setup_terminal () {
       magenta="$(tput setaf 5)"; yellow="$(tput setaf 3)"; TPUT_RESET="$(tput sgr 0)"
       TPUT_GREEN="$(tput setaf 2)"; TPUT_CYAN="$(tput setaf 6)"; TPUT_DIM="$(tput dim)"
       TPUT_BOLD="$(tput bold)"; TPUT_BGRED="$(tput setab 1)"; TPUT_WHITE="$(tput setaf 7)"
+      TPUT_BGGREEN="$(tput setab 2)"
     fi
   fi
   return 0
@@ -120,6 +121,7 @@ portage_php="/etc/portage/package.use/woo_php"
 die () {
   printf >&2 "%s ABORTED %s %s \n\n" "${TPUT_BGRED}${TPUT_WHITE}${TPUT_BOLD}" "${TPUT_RESET}" "${*}"
   userdel "${new_user}" >/dev/null 2>&1
+  rm -r "${working_path:?}"
   exit 1
 }
 
@@ -133,6 +135,7 @@ fatal () {
 done_ () {
   echo ""
   printf >&2 "%s DONE %s %s" "${TPUT_BGGREEN}${TPUT_WHITE}${TPUT_BOLD}" "${TPUT_RESET}" "${*}"
+  echo ""
 }
 
 # Fake spinner
@@ -414,10 +417,10 @@ get_cpanm (){
   if ! command -v cpanm >/dev/null 2>&1; then # Check in $PATH
     if [[ ! -f /usr/local/bin/cpanm ]]; then  # Check in locally
       cd /tmp
-      curl -L https://cpanmin.us | perl - --sudo App::cpanminus >/dev/null 2>&1
+      curl -sL https://cpanmin.us | perl - --sudo App::cpanminus >/dev/null 2>&1
     fi
     if [[ ! -f /usr/local/bin/cpanm ]]; then
-      curl -L https://cpanmin.us/ -o cpanm >/dev/null 2>&1
+      curl -sL https://cpanmin.us/ -o cpanm >/dev/null 2>&1
       chmod +x cpanm >/dev/null 2>&1
       mkdir -p /usr/local/bin >/dev/null 2>&1
       mv cpanm /usr/local/bin/cpanm >/dev/null 2>&1
@@ -693,46 +696,46 @@ if (( ${#missing_deps[@]} )); then
   # Lets start package installation
   if [[ "${distribution}" = "centos" ]]; then
     opts="-yq install"
-    $my_yum "${opts}" "${packages[@]}" &>/dev/null &
+    $my_yum ${opts} "${packages[@]}" &>/dev/null &
     post_ops
   elif [[ "${distribution}" = "debian" ]]; then
     opts="-yq install"
-    $my_apt_get "${opts}" "${packages[@]}" &>/dev/null &
+    $my_apt_get ${opts} "${packages[@]}" &>/dev/null &
     post_ops
   elif [[ "${distribution}" = "ubuntu" ]]; then
     opts="-yq install"
-    $my_apt_get "${opts}" "${packages[@]}" &>/dev/null &
+    $my_apt_get ${opts} "${packages[@]}" &>/dev/null &
     post_ops
   elif [[ "${distribution}" = "gentoo" ]]; then
     if [[ "${packages[*]}" =~ "^php" ]]; then
       echo 'dev-lang/php soap' > "${portage_php}"
     fi
     opts="--ask=n --quiet --quiet-build --quiet-fail"
-    $my_emerge "${opts}" "${packages[@]}" &>/dev/null &
+    $my_emerge ${opts} "${packages[@]}" &>/dev/null &
     post_ops
   elif [[ "${distribution}" = "arch" ]]; then
     opts="--noconfirm --quiet --needed -S"
-    $my_pacman "${opts}" "${packages[@]}" &>/dev/null &
+    $my_pacman ${opts} "${packages[@]}" &>/dev/null &
     post_ops
   elif [[ "${distribution}" = "suse" || "${distribution}" = "opensuse-leap" ]]; then
     opts="--non-interactive --quiet install"
-    $my_zypper "${opts}" "${packages[@]}" &>/dev/null &
+    $my_zypper ${opts} "${packages[@]}" &>/dev/null &
     # Wait for bg command finish
     my_wait
     if [[ "${missing_deps[*]}" =~ "make" ]]; then
       package="devel_basis"
       opts="--non-interactive --quiet install --type pattern"
-      $my_zypper "${opts}" "${package}" &>/dev/null &
+      $my_zypper ${opts} "${package}" &>/dev/null &
       wait $!
     fi
     validate_suse
   elif [[ "${distribution}" = "fedora" ]]; then
     opts="install -y --quiet --setopt=strict=0"
-    $my_dnf "${opts}" "${packages[@]}" &>/dev/null &
+    $my_dnf ${opts} "${packages[@]}" &>/dev/null &
     post_ops
   elif [[ "${distribution}" = "rhel" ]]; then
     opts="-yq install"
-    $my_yum "${opts}" "${packages[@]}" &>/dev/null &
+    $my_yum ${opts} "${packages[@]}" &>/dev/null &
     post_ops
   fi
 
