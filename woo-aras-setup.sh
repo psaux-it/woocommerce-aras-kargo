@@ -189,7 +189,8 @@ env_info () {
   echo -e "${m_tab}${magenta}# ATTENTION: Always run under system user --> ${new_user}${reset}\n"
   { # Start redirection
   echo "${green}System_User: ${new_user}${reset}"
-  echo "${green}Sudoer: Yes${reset}"
+  echo "${green}Home_Folder: /home/${new_user}${reset}"
+  echo "${green}Sudoer: Limited${reset}"
   [[ "${password}" ]] && echo "${green}Password: ${password}${reset}" || echo "${green}Password: HIDDEN${reset}"
   echo "${green}Working_Path: ${working_path}${reset}"
   echo "${green}Setup_Script: ${working_path}/woo-aras-setup.sh${reset}"
@@ -235,7 +236,7 @@ this_script_path="${this_script_path%%+(/)}"
 # Export for main executable
 export temporary_path_x="${this_script_path}"
 
-# @INSTALL REQUIRED PACKAGES
+# STAGE-1 @PACKAGE INSTALLATION
 # =====================================================================
 # Add /usr // /usr/local to PATH
 export PATH="${PATH}:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin"
@@ -763,7 +764,7 @@ else
   done_ "STAGE-1 | PACKAGE INSTALLATION"
 fi
 
-# @COMPLETE USER & PRIVILEGE OPERATIONS
+# STAGE-2 @USER OPERATIONS
 # =====================================================================
 # Check user exist, if not create
 if ! grep -qE "^${new_user}" "${pass_file}"; then
@@ -786,12 +787,11 @@ else
   done_ "STAGE-2 | USER OPERATIONS"
 fi
 
-# @PREPARE THE ENVIRONMENT
+# STAGE-3 @ENVIRONMENT OPERATIONS
 # =====================================================================
-# Create working path
 if ! [[ -d "${working_path}" ]]; then
   wooaras_banner "STAGE-3: ENVIRONMENT OPERATIONS"
-  echo -e "\n${m_tab}${magenta}THIS MAY TAKE A WHILE..${reset}"
+  echo -e "\n${m_tab}${magenta}< THIS MAY TAKE A WHILE >${reset}"
   if [[ ! -d "${working_path%/*}" ]]; then
     mkdir -p "${working_path%/*}" || die "STAGE-3 | FAIL --> Could not create directory ${working_path}"
   fi
@@ -802,6 +802,7 @@ if ! [[ -d "${working_path}" ]]; then
   my_wait || die "STAGE-3 | FAIL --> Could not git clone into ${working_path%/*}"
   chown -R "${new_user}":"${new_user}" "${working_path%/*}" >/dev/null 2>&1 || die "STAGE-3 | FAIL --> Could not change ownership of ${working_path%/*}"
   chmod 750 "${working_path}"/woocommerce-aras-cargo.sh >/dev/null 2>&1 || die "STAGE-3 | FAIL --> Could not change mod woocommerce-aras-cargo.sh"
+  env_info
   done_ "STAGE-3 | ENVIRONMENT OPERATIONS"
 else
   done_ "STAGE-3 | ENVIRONMENT OPERATIONS"
@@ -809,8 +810,7 @@ fi
 
 # This prints once when env created first time
 if [[ "${password}" ]]; then
-  env_info
-  read -n 1 -s -r -p "${green}> When ready press any key to start setup..${reset}" reply < /dev/tty; echo
+  read -n 1 -s -r -p "${green}> Pre operations completed press any key to start setup..${reset}" reply < /dev/tty; echo
 fi
 
 # @START THE SETUP
