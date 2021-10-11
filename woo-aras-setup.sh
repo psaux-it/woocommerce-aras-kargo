@@ -445,7 +445,7 @@ my_wait () {
   while kill -0 $my_pid 2>/dev/null
   do
     mi=$(( (mi+1) %4 ))
-    printf "\r${m_tab}${green}${spin:$mi:1}${reset}"
+    printf "\r${m_tab}${green}${spin:$mi:1}${magenta} ${1}${reset}"
     sleep .1
   done
   wait $my_pid
@@ -548,8 +548,24 @@ vaidate_suse () {
 
 # Merge ops.
 post_ops () {
-  my_wait
+  my_wait "${1}"
   eval validate_${distribution}
+}
+
+# Replace previous line in terminal
+replace_suc () {
+  tput cuu 1
+  echo "${m_tab}${green}[ ✓ ] ${cyan}${1}${reset}"
+}
+
+replace_fail () {
+  tput cuu 1
+  echo "${m_tab}${red}[ x ] ${cyan}${1}${reset}"
+}
+
+fake_progress () {
+  sleep 3 &
+  my_wait "${1}"
 }
 
 # Check hard dependencies that not in bash built-in or pre-installed commonly
@@ -690,38 +706,38 @@ if (( ${#missing_deps[@]} )); then
     esac
   done
 
-  echo -e "\n${m_tab}${magenta}< THIS MAY TAKE A WHILE >${reset}"
-  echo -e "\n${m_tab}${green}@-INSTALLING PACKAGES${reset}"
+  echo -e "\n${m_tab}${magenta}${TPUT_BOLD}< THIS MAY TAKE A WHILE >${reset}"
+  echo -e "${m_tab}${cyan}-------------------------${reset}\n"
 
   # Lets start package installation
   if [[ "${distribution}" = "centos" ]]; then
     opts="-yq install"
     $my_yum ${opts} "${packages[@]}" &>/dev/null &
-    post_ops
+    post_ops "INSTALLING PACKAGES"
   elif [[ "${distribution}" = "debian" ]]; then
     opts="-yq install"
     $my_apt_get ${opts} "${packages[@]}" &>/dev/null &
-    post_ops
+    post_ops "INSTALLING PACKAGES"
   elif [[ "${distribution}" = "ubuntu" ]]; then
     opts="-yq install"
     $my_apt_get ${opts} "${packages[@]}" &>/dev/null &
-    post_ops
+    post_ops "INSTALLING PACKAGES"
   elif [[ "${distribution}" = "gentoo" ]]; then
     if [[ "${packages[*]}" =~ "^php" ]]; then
       echo 'dev-lang/php soap' > "${portage_php}"
     fi
     opts="--ask=n --quiet --quiet-build --quiet-fail"
     $my_emerge ${opts} "${packages[@]}" &>/dev/null &
-    post_ops
+    post_ops "INSTALLING PACKAGES"
   elif [[ "${distribution}" = "arch" ]]; then
     opts="--noconfirm --quiet --needed -S"
     $my_pacman ${opts} "${packages[@]}" &>/dev/null &
-    post_ops
+    post_ops "INSTALLING PACKAGES"
   elif [[ "${distribution}" = "suse" || "${distribution}" = "opensuse-leap" ]]; then
     opts="--non-interactive --quiet install"
     $my_zypper ${opts} "${packages[@]}" &>/dev/null &
     # Wait for bg command finish
-    my_wait
+    my_wait "INSTALLING PACKAGES"
     if [[ "${missing_deps[*]}" =~ "make" ]]; then
       package="devel_basis"
       opts="--non-interactive --quiet install --type pattern"
@@ -732,27 +748,30 @@ if (( ${#missing_deps[@]} )); then
   elif [[ "${distribution}" = "fedora" ]]; then
     opts="install -y --quiet --setopt=strict=0"
     $my_dnf ${opts} "${packages[@]}" &>/dev/null &
-    post_ops
+    post_ops "INSTALLING PACKAGES"
   elif [[ "${distribution}" = "rhel" ]]; then
     opts="-yq install"
     $my_yum ${opts} "${packages[@]}" &>/dev/null &
-    post_ops
+    post_ops "INSTALLING PACKAGES"
   fi
 
   # Check package installation completed without error &
-  # Install Text::Fuzzy perl module needs App::cpanminus, curl and make
+  # Install Text::Fuzzy perl module needs App::cpanminus(curl and make)
   if ! (( ${#fail[@]} )); then
-    echo "${m_tab}${cyan}--OK--${reset}"
+    replace_suc "PACKAGES INSTALLED"
     if [[ "${missing_deps[*]}" =~ "fuzzy" ]]; then
-      echo -e "\n${m_tab}${magenta}@INSTALLING PERL MODULES${reset}"
       if get_cpanm; then
         /usr/local/bin/cpanm -Sq Text::Fuzzy &>/dev/null &
-        my_wait && echo "${m_tab}${cyan}--OK--${reset}" || fatal "STAGE-1 | FAIL --> Could not install perl Text::Fuzzy"
+        my_wait "INSTALLING PERL MODULES" && replace_suc "PERL MODULES INSTALLED" || replace_fail "INSTALLING PERL MODULES FAILED"
       else
-        spinner
-        fatal "STAGE-1 | FAIL --> Could not install perl App::cpanminus"
+        fake_progress "INSTALLING PERL MODULES"
+        replace_fail "INSTALLING PERL MODULES FAILED"
       fi
     fi
+  else
+    replace_fail "INSTALLING PACKAGES FAILED"
+    fake_progress "INSTALLING PERL MODULES"
+    replace_fail "INSTALLING PERL MODULES FAILED"
   fi
 
   # Re-check deps to validate whole package installation
@@ -761,7 +780,7 @@ if (( ${#missing_deps[@]} )); then
   if ! (( ${#missing_deps[@]} )); then
     done_ "STAGE-1 | PACKAGE INSTALLATION"
   else
-    fatal "STAGE-1 | FAIL --> Could not install packages: ${missing_deps[*]}"
+    fatal "STAGE-1 | FAIL --> CANNOT INSTALL: ${missing_deps[*]}"
   fi
 else
   done_ "STAGE-1 | PACKAGE INSTALLATION"
@@ -777,15 +796,27 @@ if ! grep -qE "^${new_user}" "${pass_file}"; then
   read -r -p "${m_tab}${BC}Enter new system user password:${EC} " password < /dev/tty
   if [[ "${password}" == "q" || "${password}" == "quit" ]]; then exit 1; fi
   echo "${cyan}${m_tab}#####################################################${reset}"
-  echo -e "\n${m_tab}${magenta}THIS MAY TAKE A WHILE..${reset}"
-  spinner
+  echo -e "\n${m_tab}${magenta}${TPUT_BOLD}< THIS MAY TAKE A WHILE >${reset}"
+  echo -e "${m_tab}${cyan}-------------------------${reset}\n"
+  fake_progress "USER OPERATIONS"
   # Encrypt password
-  enc_pass=$(perl -e 'print crypt($ARGV[0], "password")' $password || fatal "STAGE-2 | FAIL --> Could not encrypt user password")
+  enc_pass=$(perl -e 'print crypt($ARGV[0], "password")' $password || { replace_fail "USER OPERATIONS FAILED"; error=enc; })
   # Create user
-  useradd -m -p "${enc_pass}" -s /bin/bash "${new_user}" >/dev/null 2>&1 || fatal "STAGE-2 | FAIL --> Could not create user ${new_user}"
+  useradd -m -p "${enc_pass}" -s /bin/bash "${new_user}" >/dev/null 2>&1 || { replace_fail "USER OPERATIONS FAILED"; error=add; }
   # Limited sudoer for only execute this script
-  echo "${new_user} ALL=(ALL) NOPASSWD: ${working_path}/woocommerce-aras-cargo.sh" | sudo EDITOR='tee -a' visudo >/dev/null 2>&1 || die "STAGE-2 | FAIL --> Could not grant sudo privileges for wooaras"
-  done_ "STAGE-2 | USER OPERATIONS"
+  echo "${new_user} ALL=(ALL) NOPASSWD: ${working_path}/woocommerce-aras-cargo.sh" | sudo EDITOR='tee -a' visudo >/dev/null 2>&1 || { replace_fail "USER OPERATIONS FAILED"; error=sudo; }
+  if [[ "${error}" ]]; then
+    if [[ "${error}" == "enc" ]]; then
+      fatal "STAGE-2 | FAIL --> PASSWORD ENCRYPTION ERROR"
+    elif [[ "${error}" == "add" ]]; then
+      fatal "STAGE-2 | FAIL --> CANNOT CREATE USER"
+    elif [[ "${error}" == "sudo" ]]; then
+      fatal "STAGE-2 | FAIL --> CANNOT GRANT SUDO"
+    fi
+  else
+    replace_suc "USER OPERATIONS COMPLETED"
+    done_ "STAGE-2 | USER OPERATIONS"
+  fi
 else
   done_ "STAGE-2 | USER OPERATIONS"
 fi
@@ -794,7 +825,8 @@ fi
 # =====================================================================
 if ! [[ -d "${working_path}" ]]; then
   wooaras_banner "STAGE-3: ENVIRONMENT OPERATIONS"
-  echo -e "\n${m_tab}${magenta}< THIS MAY TAKE A WHILE >${reset}"
+  echo -e "\n${m_tab}${magenta}${TPUT_BOLD}< THIS MAY TAKE A WHILE >${reset}"
+  echo -e "${m_tab}${cyan}-------------------------${reset}\n"
   if [[ ! -d "${working_path%/*}" ]]; then
     mkdir -p "${working_path%/*}" || die "STAGE-3 | FAIL --> Could not create directory ${working_path}"
   fi
@@ -802,7 +834,7 @@ if ! [[ -d "${working_path}" ]]; then
   # Clone repo to working path & change permissions
   cd "${working_path%/*}" || die "STAGE-3 | FAIL --> Could not change directory to ${working_path%/*}"
   git clone --quiet "${git_repo}" &>/dev/null &
-  my_wait || die "STAGE-3 | FAIL --> Could not git clone into ${working_path%/*}"
+  my_wait "ENVIRONMENT OPERATIONS" || die "STAGE-3 | FAIL --> Could not git clone into ${working_path%/*}"
   chown -R "${new_user}":"${new_user}" "${working_path%/*}" >/dev/null 2>&1 || die "STAGE-3 | FAIL --> Could not change ownership of ${working_path%/*}"
   chmod 750 "${working_path}"/woocommerce-aras-cargo.sh >/dev/null 2>&1 || die "STAGE-3 | FAIL --> Could not change mod woocommerce-aras-cargo.sh"
   env_info
