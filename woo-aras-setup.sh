@@ -265,16 +265,16 @@ un_supported () {
 # Distribution based variables
 lsb_release=$(command -v lsb_release 2> /dev/null)
 
-distribution=
-release=
-version=
-codename=
-detection=
-NAME=
-ID=
-ID_LIKE=
-VERSION=
-VERSION_ID=
+  distribution=
+  release=
+  version=
+  codename=
+  detection=
+  NAME=
+  ID=
+  ID_LIKE=
+  VERSION=
+  VERSION_ID=
 
 # Check which package managers are available
 autodetect_package_manager () {
@@ -412,13 +412,14 @@ autodetect_distribution () {
 get_cpanm (){
   if ! command -v cpanm >/dev/null 2>&1; then # Check in $PATH
     if [[ ! -f /usr/local/bin/cpanm ]]; then  # Check in locally
-      cd /tmp || fatal "Change directory failed, cpanm"
+      cd /tmp
       curl -L https://cpanmin.us | perl - --sudo App::cpanminus >/dev/null 2>&1
     fi
     if [[ ! -f /usr/local/bin/cpanm ]]; then
-      curl -L https://cpanmin.us/ -o cpanm >/dev/null 2>&1 || fatal "Curl cpanm failed"
-      chmod +x cpanm || fatal "Change mod cpanm failed"
-      mv cpanm /usr/local/bin/cpanm || fatal "Move cpanm failed"
+      curl -L https://cpanmin.us/ -o cpanm >/dev/null 2>&1
+      chmod +x cpanm >/dev/null 2>&1
+      mkdir -p /usr/local/bin >/dev/null 2>&1
+      mv cpanm /usr/local/bin/cpanm >/dev/null 2>&1
     fi
   fi
 
@@ -685,7 +686,8 @@ if (( ${#missing_deps[@]} )); then
     esac
   done
 
-  echo -e "\n${m_tab}${magenta}THIS MAY TAKE A WHILE..${reset}"
+  echo -e "\n${m_tab}${magenta}< THIS MAY TAKE A WHILE >${reset}"
+  echo -e "\n${m_tab}${green}@-INSTALLING PACKAGES${reset}"
 
   # Lets start package installation
   if [[ "${distribution}" = "centos" ]]; then
@@ -734,13 +736,17 @@ if (( ${#missing_deps[@]} )); then
   fi
 
   # Check package installation completed without error &
-  # Install Text::Fuzzy perl module
+  # Install Text::Fuzzy perl module needs App::cpanminus, curl and make
   if ! (( ${#fail[@]} )); then
+    echo "${m_tab}${cyan}--OK--${reset}"
     if [[ "${missing_deps[*]}" =~ "fuzzy" ]]; then
+      echo -e "\n${m_tab}${magenta}@INSTALLING PERL MODULES${reset}"
       if get_cpanm; then
-        /usr/local/bin/cpanm -Sq Text::Fuzzy >/dev/null 2>&1
+        /usr/local/bin/cpanm -Sq Text::Fuzzy &>/dev/null &
+        my_wait && echo "${m_tab}${cyan}--OK--${reset}" || fatal "STAGE-1 | FAIL --> Could not install perl Text::Fuzzy"
       else
-        fatal "Could not install perl App::cpanminus"
+        spinner
+        fatal "STAGE-1 | FAIL --> Could not install perl App::cpanminus"
       fi
     fi
   fi
@@ -751,7 +757,7 @@ if (( ${#missing_deps[@]} )); then
   if ! (( ${#missing_deps[@]} )); then
     done_ "STAGE-1 | PACKAGE INSTALLATION"
   else
-    fatal "Could not install packages: ${missing_deps[*]}"
+    fatal "STAGE-1 | FAIL --> Could not install packages: ${missing_deps[*]}"
   fi
 else
   done_ "STAGE-1 | PACKAGE INSTALLATION"
@@ -770,11 +776,11 @@ if ! grep -qE "^${new_user}" "${pass_file}"; then
   echo -e "\n${m_tab}${magenta}THIS MAY TAKE A WHILE..${reset}"
   spinner
   # Encrypt password
-  enc_pass=$(perl -e 'print crypt($ARGV[0], "password")' $password || fatal "Could not encrypt user password")
+  enc_pass=$(perl -e 'print crypt($ARGV[0], "password")' $password || fatal "STAGE-2 | FAIL --> Could not encrypt user password")
   # Create user
-  useradd -m -p "${enc_pass}" -s /bin/bash "${new_user}" >/dev/null 2>&1 || fatal "Could not create user ${new_user}"
+  useradd -m -p "${enc_pass}" -s /bin/bash "${new_user}" >/dev/null 2>&1 || fatal "STAGE-2 | FAIL --> Could not create user ${new_user}"
   # Limited sudoer for only execute this script
-  echo "${new_user} ALL=(ALL) NOPASSWD: ${working_path}/woocommerce-aras-cargo.sh" | sudo EDITOR='tee -a' visudo >/dev/null 2>&1 || die "Could not grant sudo privileges for user"
+  echo "${new_user} ALL=(ALL) NOPASSWD: ${working_path}/woocommerce-aras-cargo.sh" | sudo EDITOR='tee -a' visudo >/dev/null 2>&1 || die "STAGE-2 | FAIL --> Could not grant sudo privileges for wooaras"
   done_ "STAGE-2 | USER OPERATIONS"
 else
   done_ "STAGE-2 | USER OPERATIONS"
@@ -783,27 +789,22 @@ fi
 # @PREPARE THE ENVIRONMENT
 # =====================================================================
 # Create working path
-if [[ ! -d "${working_path%/*}" ]]; then
-  mkdir -p "${working_path%/*}" || die "Could not create directory ${working_path}"
-fi
-
-# Clone repo to working path & change ownership
 if ! [[ -d "${working_path}" ]]; then
   wooaras_banner "STAGE-3: ENVIRONMENT OPERATIONS"
   echo -e "\n${m_tab}${magenta}THIS MAY TAKE A WHILE..${reset}"
-  cd "${working_path%/*}" || die "Could not change directory to ${working_path%/*}"
+  if [[ ! -d "${working_path%/*}" ]]; then
+    mkdir -p "${working_path%/*}" || die "STAGE-3 | FAIL --> Could not create directory ${working_path}"
+  fi
+
+  # Clone repo to working path & change permissions
+  cd "${working_path%/*}" || die "STAGE-3 | FAIL --> Could not change directory to ${working_path%/*}"
   git clone --quiet "${git_repo}" &>/dev/null &
-  my_wait || die "Could not git clone into ${working_path%/*}"
-  chown -R "${new_user}":"${new_user}" "${working_path%/*}" >/dev/null 2>&1 || die "Could not change ownership of ${working_path%/*}"
-  chmod 750 "${working_path}"/woocommerce-aras-cargo.sh >/dev/null 2>&1 || die "Could not change mod woocommerce-aras-cargo.sh"
+  my_wait || die "STAGE-3 | FAIL --> Could not git clone into ${working_path%/*}"
+  chown -R "${new_user}":"${new_user}" "${working_path%/*}" >/dev/null 2>&1 || die "STAGE-3 | FAIL --> Could not change ownership of ${working_path%/*}"
+  chmod 750 "${working_path}"/woocommerce-aras-cargo.sh >/dev/null 2>&1 || die "STAGE-3 | FAIL --> Could not change mod woocommerce-aras-cargo.sh"
   done_ "STAGE-3 | ENVIRONMENT OPERATIONS"
 else
   done_ "STAGE-3 | ENVIRONMENT OPERATIONS"
-fi
-
-# Change directory to working path
-if [[ "$(pwd)" != "${working_path}" ]]; then
-  cd "${working_path}" || die "Could not change directory to ${working_path}"
 fi
 
 # This prints once when env created first time
@@ -814,6 +815,13 @@ fi
 
 # @START THE SETUP
 # =====================================================================
+# Change directory to working path
+if [[ "$(pwd)" != "${working_path}" ]]; then
+  cd "${working_path}" || fatal "FINAL STAGE | FAIL --> Could not change directory to ${working_path}"
+fi
+
+echo ""
+
 if [[ "$(whoami)" != "${new_user}" ]]; then
   if [[ "${1}" == "--force" || "${1}" == "-f" ]]; then
     if ! [[ -f "${working_path}"/.lck/.env.ready ]]; then
