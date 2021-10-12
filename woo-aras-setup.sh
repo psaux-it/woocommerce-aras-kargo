@@ -608,12 +608,12 @@ post_ops () {
 # Replace previous line in terminal
 replace_suc () {
   tput cuu 1
-  echo "${m_tab}${green}[ ✓ ] ${cyan}${1}${reset}"
+  echo "${m_tab}${TPUT_BOLD}${green}[ ✓ ] ${cyan}${1}${reset}"
 }
 
 replace_fail () {
   tput cuu 1
-  echo "${m_tab}${red}[ x ] ${cyan}${1}${reset}"
+  echo "${m_tab}${TPUT_BOLD}${red}[ x ] ${cyan}${1}${reset}"
 }
 
 fake_progress () {
