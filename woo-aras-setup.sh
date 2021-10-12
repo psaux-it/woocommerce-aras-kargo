@@ -127,7 +127,9 @@ die () {
 
 # Use for other errors
 fatal () {
+  echo ""
   printf >&2 "%s ABORTED %s %s \n\n" "${TPUT_BGRED}${TPUT_WHITE}${TPUT_BOLD}" "${TPUT_RESET}" "${*}"
+  echo ""
   exit 1
 }
 
@@ -138,7 +140,7 @@ done_ () {
   echo ""
 }
 
-# Fake spinner
+# Fake progress
 spinner () {
   sleep 2 &
   sleep_pid=$!
@@ -435,25 +437,31 @@ get_cpanm (){
   return 0
 }
 
-# Wait for bg process stylish also get exit code of bg process
+# Wait for bg process stylish also get exit code of the bg process
 my_wait () {
   local my_pid=$!
+  local result
+  # Force kill bg process if script exits
   trap "kill -9 $my_pid 2>/dev/null" EXIT
-
+  # Wait stylish while process is alive
   spin='-\|/'
   mi=0
-  while kill -0 $my_pid 2>/dev/null
+  while kill -0 $my_pid 2>/dev/null # (ps | grep $my_pid) is alternative
   do
     mi=$(( (mi+1) %4 ))
     printf "\r${m_tab}${green}${spin:$mi:1}${magenta} ${1}${reset}"
     sleep .1
   done
+  # Get bg process exit code
   wait $my_pid
-  [[ $? -ne 0 ]] && return 1
+  [[ $? -eq 0 ]] && result=ok
+  # Need for tput cuu1
   echo ""
+  # Reset trap to normal exit
   trap - EXIT
-
-  return 0
+  # Return status of function according to bg process status
+  [[ "${result}" ]] && return 0
+  return 1
 }
 
 # Validate installed packages silently
