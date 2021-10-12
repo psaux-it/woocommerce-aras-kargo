@@ -513,50 +513,50 @@ my_wait () {
 # =====================================================================
 validate_centos () {
   fail=()
-  for packageName in "${packages[@]}"
+  for packagename in "${packages[@]}"
   do
-    if ! rpm --quiet -qa | grep -qw "$packageName" >/dev/null 2>&1; then
-      fail+=( "${packageName}" )
+    if ! $my_yum list installed ${packagename} >/dev/null 2>&1; then
+      fail+=( "${packagename}" )
     fi
   done
 }
 
 validate_rhel () {
   fail=()
-  for packageName in "${packages[@]}"
+  for packagename in "${packages[@]}"
   do
-    if ! rpm --quiet -qa | grep -qw "$packageName" >/dev/null 2>&1; then
-      fail+=( "${packageName}" )
+    if ! $my_yum list installed ${packagename} >/dev/null 2>&1; then
+      fail+=( "${packagename}" )
     fi
   done
 }
 
 validate_fedora () {
   fail=()
-  for packageName in "${packages[@]}"
+  for packagename in "${packages[@]}"
   do
-    if ! rpm --quiet -qa | grep -qw "$packageName" >/dev/null 2>&1; then
-      fail+=( "${packageName}" )
+    if ! $my_dnf list installed ${packagename} >/dev/null 2>&1; then
+      fail+=( "${packagename}" )
     fi
   done
 }
 
 validate_debian () {
   fail=()
-  for packageName in "${packages[@]}"
+  for packagename in "${packages[@]}"
   do
-    if ! dpkg -l | grep -qw "$packageName" >/dev/null 2>&1; then
-      fail+=( "${packageName}" )
+    if ! dpkg -l | grep -qw "$packagename" >/dev/null 2>&1; then
+      fail+=( "${packagename}" )
     fi
   done
 }
 
 validate_ubuntu () {
   fail=()
-  for packageName in "${packages[@]}"
+  for packagename in "${packages[@]}"
   do
-    if ! dpkg -l | grep -qw "$packageName" >/dev/null 2>&1; then
-      fail+=( "${packageName}" )
+    if ! dpkg -l | grep -qw "$packagename" >/dev/null 2>&1; then
+      fail+=( "${packagename}" )
     fi
   done
 }
@@ -564,15 +564,15 @@ validate_ubuntu () {
 
 vaidate_gentoo () {
   fail=()
-  for packageName in "${packages[@]}"
+  for packagename in "${packages[@]}"
   do
     if command -v qlist >/dev/null 2>&1; then
-      if ! qlist -I | grep -qw "$packageName" >/dev/null 2>&1; then
-        fail+=( "${packageName}" )
+      if ! qlist -I | grep -qw "$packagename" >/dev/null 2>&1; then
+        fail+=( "${packagename}" )
       fi
     elif command -v eix-installed >/dev/null 2>&1; then
-      if ! eix-installed -a | grep -q "$packageName" >/dev/null 2>&1; then
-        fail+=( "${packageName}" )
+      if ! eix-installed -a | grep -q "$packagename" >/dev/null 2>&1; then
+        fail+=( "${packagename}" )
       fi
     fi
   done
@@ -580,20 +580,20 @@ vaidate_gentoo () {
 
 vaidate_arch () {
   fail=()
-  for packageName in "${packages[@]}"
+  for packagename in "${packages[@]}"
   do
-    if ! pacman -Qq | grep -qw "$packageName" >/dev/null 2>&1; then
-      fail+=( "${packageName}" )
+    if ! pacman -Qqs | grep -q "$packagename" >/dev/null 2>&1; then
+      fail+=( "${packagename}" )
     fi
   done
 }
 
 vaidate_suse () {
   fail=()
-  for packageName in "${packages[@]}"
+  for packagename in "${packages[@]}"
   do
-    if ! zypper se -i "$packageName" | grep -qw "$packageName" >/dev/null 2>&1; then
-      fail+=( "${packageName}" )
+    if ! zypper se -i "$packagename" | grep -qw "$packagename" >/dev/null 2>&1; then
+      fail+=( "${packagename}" )
     fi
   done
 }
@@ -602,7 +602,7 @@ vaidate_suse () {
 # Merge ops.
 post_ops () {
   my_wait "${1}"
-  eval validate_${distribution}
+  validate_${distribution}
 }
 
 # Replace previous line in terminal
@@ -846,7 +846,7 @@ if (( ${#missing_deps[@]} )); then
     fi
     validate_suse
   elif [[ "${distribution}" = "fedora" ]]; then
-    opts="install -y --quiet"
+    opts="-yq --setopt=strict=0 install"
     repo="distro-sync"
     echo n | $my_dnf ${repo} &>/dev/null &
     my_wait "SYNCING REPOSITORY"
