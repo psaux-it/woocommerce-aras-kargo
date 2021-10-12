@@ -128,7 +128,7 @@ die () {
 # Use for other errors
 fatal () {
   echo ""
-  printf >&2 "%s ABORTED %s %s \n\n" "${TPUT_BGRED}${TPUT_WHITE}${TPUT_BOLD}" "${TPUT_RESET}" "${*}"
+  printf >&2 "${m_tab}%s ABORTED %s %s \n\n" "${TPUT_BGRED}${TPUT_WHITE}${TPUT_BOLD}" "${TPUT_RESET}" "${*}"
   echo ""
   exit 1
 }
@@ -136,7 +136,7 @@ fatal () {
 # Use for completed tasks
 done_ () {
   echo ""
-  printf >&2 "%s DONE %s %s" "${TPUT_BGGREEN}${TPUT_WHITE}${TPUT_BOLD}" "${TPUT_RESET}" "${*}"
+  printf >&2 "${m_tab}%s DONE %s %s" "${TPUT_BGGREEN}${TPUT_WHITE}${TPUT_BOLD}" "${TPUT_RESET}" "${*}"
   echo ""
 }
 
@@ -775,19 +775,22 @@ if (( ${#missing_deps[@]} )); then
   if [[ "${distribution}" = "centos" ]]; then
     opts="-yq install"
     repo="update"
-    $my_yum ${repo} >/dev/null 2>&1
+    echo n | $my_yum ${repo} &>/dev/null &
+    my_wait "SYNCING REPOSITORY" && replace_suc "REPOSITORIES SYNCED" || replace_fail "SYNCING REPOSITORY FAILED"
     $my_yum ${opts} "${packages[@]}" &>/dev/null &
     post_ops "INSTALLING PACKAGES"
   elif [[ "${distribution}" = "debian" ]]; then
     opts="-yq install"
     repo="update"
-    $my_apt_get ${repo} >/dev/null 2>&1
+    $my_apt_get ${repo} &>/dev/null &
+    my_wait "SYNCING REPOSITORY" && replace_suc "REPOSITORIES SYNCED" || replace_fail "SYNCING REPOSITORY FAILED"
     $my_apt_get ${opts} "${packages[@]}" &>/dev/null &
     post_ops "INSTALLING PACKAGES"
   elif [[ "${distribution}" = "ubuntu" ]]; then
     opts="-yq install"
     repo="update"
-    $my_apt_get ${repo} >/dev/null 2>&1
+    $my_apt_get ${repo} &>/dev/null &
+    my_wait "SYNCING REPOSITORY" && replace_suc "REPOSITORIES SYNCED" || replace_fail "SYNCING REPOSITORY FAILED"
     $my_apt_get ${opts} "${packages[@]}" &>/dev/null &
     post_ops "INSTALLING PACKAGES"
   elif [[ "${distribution}" = "gentoo" ]]; then
@@ -796,21 +799,23 @@ if (( ${#missing_deps[@]} )); then
     fi
     opts="--ask=n --quiet --quiet-build --quiet-fail"
     repo="--sync"
-    $my_emerge ${repo} >/dev/null 2>&1
+    $my_emerge ${repo} &>/dev/null &
+    my_wait "SYNCING REPOSITORY" && replace_suc "REPOSITORIES SYNCED" || replace_fail "SYNCING REPOSITORY FAILED"
     $my_emerge ${opts} "${packages[@]}" &>/dev/null &
     post_ops "INSTALLING PACKAGES"
   elif [[ "${distribution}" = "arch" ]]; then
     opts="--noconfirm --quiet --needed -S"
-    repo"-Syy"
-    $my_pacman ${repo} >/dev/null 2>&1
+    repo="-Syy"
+    $my_pacman ${repo} &>/dev/null &
+    my_wait "SYNCING REPOSITORY" && replace_suc "REPOSITORIES SYNCED" || replace_fail "SYNCING REPOSITORY FAILED"
     $my_pacman ${opts} "${packages[@]}" &>/dev/null &
     post_ops "INSTALLING PACKAGES"
   elif [[ "${distribution}" = "suse" || "${distribution}" = "opensuse-leap" ]]; then
     opts="--non-interactive --quiet install"
-    repo"refresh"
-    $my_zypper ${repo} >/dev/null 2>&1
+    repo="refresh"
+    $my_zypper ${repo} &>/dev/null &
+    my_wait "SYNCING REPOSITORY" && replace_suc "REPOSITORIES SYNCED" || replace_fail "SYNCING REPOSITORY FAILED"
     $my_zypper ${opts} "${packages[@]}" &>/dev/null &
-    # Wait for bg command finish
     my_wait "INSTALLING PACKAGES"
     if [[ "${missing_deps[*]}" =~ "make" ]]; then
       package="devel_basis"
@@ -820,15 +825,17 @@ if (( ${#missing_deps[@]} )); then
     fi
     validate_suse
   elif [[ "${distribution}" = "fedora" ]]; then
-    opts="install -y --quiet --setopt=strict=0"
-    repo"update"
-    $my_dnf ${repo} >/dev/null 2>&1
+    opts="install -y --quiet"
+    repo="distro-sync"
+    echo n | $my_dnf ${repo} &>/dev/null &
+    my_wait "SYNCING REPOSITORY" && replace_suc "REPOSITORIES SYNCED" || replace_fail "SYNCING REPOSITORY FAILED"
     $my_dnf ${opts} "${packages[@]}" &>/dev/null &
     post_ops "INSTALLING PACKAGES"
   elif [[ "${distribution}" = "rhel" ]]; then
     opts="-yq install"
-    repo"update"
-    $my_yum ${repo} >/dev/null 2>&1
+    repo="update"
+    echo n | $my_yum ${repo} &>/dev/null &
+    my_wait "SYNCING REPOSITORY" && replace_suc "REPOSITORIES SYNCED" || replace_fail "SYNCING REPOSITORY FAILED"
     $my_yum ${opts} "${packages[@]}" &>/dev/null &
     post_ops "INSTALLING PACKAGES"
   fi
