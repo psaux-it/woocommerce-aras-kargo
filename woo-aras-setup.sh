@@ -636,13 +636,16 @@ check_deps () {
       if [[ "${dep}" == "php" ]]; then
         missing_deps+=( "php_soap" )
       elif [[ "${dep}" == "perl" ]]; then
-       missing_deps+=( "perl_text_fuzzy" )
+       missing_deps+=( "perl_text_fuzzy" "perl_app_cpanminus" )
       fi
     elif [[ "${dep}" == "php" ]]; then
       if ! php -m | grep -q "soap"; then
         missing_deps+=( "php_soap" )
       fi
     elif [[ "${dep}" == "perl" ]]; then
+      if ! perl -e 'use App::cpanminus;' >/dev/null 2>&1; then
+        missing_deps+=( "perl_app_cpanminus" )
+      fi
       if ! perl -e 'use Text::Fuzzy;' >/dev/null 2>&1; then
         missing_deps+=( "perl_text_fuzzy" )
       fi
@@ -712,6 +715,18 @@ if (( ${#missing_deps[@]} )); then
     ['default']="jq"
   )
 
+  declare -A pkg_perl_app_cpanminus=(
+    ['centos']="perl-App-cpanminus"
+    ['fedora']="perl-App-cpanminus"
+    ['rhel']="perl-App-cpanminus"
+    ['ubuntu']="cpanminus"
+    ['debian']="cpanminus"
+    ['arch']="cpanminus"
+    ['gentoo']="dev-perl/App-cpanminus"
+    ['suse']="perl-App-cpanminus"
+    ['opensuse-leap']="perl-App-cpanminus"
+  )
+
   declare -A pkg_perl_text_fuzzy=(
     ['default']=""
   )
@@ -776,21 +791,24 @@ if (( ${#missing_deps[@]} )); then
     opts="-yq install"
     repo="update"
     echo n | $my_yum ${repo} &>/dev/null &
-    my_wait "SYNCING REPOSITORY" && replace_suc "REPOSITORIES SYNCED" || replace_fail "SYNCING REPOSITORY FAILED"
+    my_wait "SYNCING REPOSITORY"
+    replace_suc "REPOSITORIES SYNCED"
     $my_yum ${opts} "${packages[@]}" &>/dev/null &
     post_ops "INSTALLING PACKAGES"
   elif [[ "${distribution}" = "debian" ]]; then
     opts="-yq install"
     repo="update"
     $my_apt_get ${repo} &>/dev/null &
-    my_wait "SYNCING REPOSITORY" && replace_suc "REPOSITORIES SYNCED" || replace_fail "SYNCING REPOSITORY FAILED"
+    my_wait "SYNCING REPOSITORY"
+    replace_suc "REPOSITORIES SYNCED"
     $my_apt_get ${opts} "${packages[@]}" &>/dev/null &
     post_ops "INSTALLING PACKAGES"
   elif [[ "${distribution}" = "ubuntu" ]]; then
     opts="-yq install"
     repo="update"
     $my_apt_get ${repo} &>/dev/null &
-    my_wait "SYNCING REPOSITORY" && replace_suc "REPOSITORIES SYNCED" || replace_fail "SYNCING REPOSITORY FAILED"
+    my_wait "SYNCING REPOSITORY"
+    replace_suc "REPOSITORIES SYNCED"
     $my_apt_get ${opts} "${packages[@]}" &>/dev/null &
     post_ops "INSTALLING PACKAGES"
   elif [[ "${distribution}" = "gentoo" ]]; then
@@ -800,21 +818,24 @@ if (( ${#missing_deps[@]} )); then
     opts="--ask=n --quiet --quiet-build --quiet-fail"
     repo="--sync"
     $my_emerge ${repo} &>/dev/null &
-    my_wait "SYNCING REPOSITORY" && replace_suc "REPOSITORIES SYNCED" || replace_fail "SYNCING REPOSITORY FAILED"
+    my_wait "SYNCING REPOSITORY"
+    replace_suc "REPOSITORIES SYNCED"
     $my_emerge ${opts} "${packages[@]}" &>/dev/null &
     post_ops "INSTALLING PACKAGES"
   elif [[ "${distribution}" = "arch" ]]; then
     opts="--noconfirm --quiet --needed -S"
     repo="-Syy"
     $my_pacman ${repo} &>/dev/null &
-    my_wait "SYNCING REPOSITORY" && replace_suc "REPOSITORIES SYNCED" || replace_fail "SYNCING REPOSITORY FAILED"
+    my_wait "SYNCING REPOSITORY"
+    replace_suc "REPOSITORIES SYNCED"
     $my_pacman ${opts} "${packages[@]}" &>/dev/null &
     post_ops "INSTALLING PACKAGES"
   elif [[ "${distribution}" = "suse" || "${distribution}" = "opensuse-leap" ]]; then
     opts="--non-interactive --quiet install"
     repo="refresh"
     $my_zypper ${repo} &>/dev/null &
-    my_wait "SYNCING REPOSITORY" && replace_suc "REPOSITORIES SYNCED" || replace_fail "SYNCING REPOSITORY FAILED"
+    my_wait "SYNCING REPOSITORY"
+    replace_suc "REPOSITORIES SYNCED"
     $my_zypper ${opts} "${packages[@]}" &>/dev/null &
     my_wait "INSTALLING PACKAGES"
     if [[ "${missing_deps[*]}" =~ "make" ]]; then
@@ -828,14 +849,16 @@ if (( ${#missing_deps[@]} )); then
     opts="install -y --quiet"
     repo="distro-sync"
     echo n | $my_dnf ${repo} &>/dev/null &
-    my_wait "SYNCING REPOSITORY" && replace_suc "REPOSITORIES SYNCED" || replace_fail "SYNCING REPOSITORY FAILED"
+    my_wait "SYNCING REPOSITORY"
+    replace_suc "REPOSITORIES SYNCED"
     $my_dnf ${opts} "${packages[@]}" &>/dev/null &
     post_ops "INSTALLING PACKAGES"
   elif [[ "${distribution}" = "rhel" ]]; then
     opts="-yq install"
     repo="update"
     echo n | $my_yum ${repo} &>/dev/null &
-    my_wait "SYNCING REPOSITORY" && replace_suc "REPOSITORIES SYNCED" || replace_fail "SYNCING REPOSITORY FAILED"
+    my_wait "SYNCING REPOSITORY"
+    replace_suc "REPOSITORIES SYNCED"
     $my_yum ${opts} "${packages[@]}" &>/dev/null &
     post_ops "INSTALLING PACKAGES"
   fi
@@ -845,13 +868,8 @@ if (( ${#missing_deps[@]} )); then
   if ! (( ${#fail[@]} )); then
     replace_suc "PACKAGES INSTALLED"
     if [[ "${missing_deps[*]}" =~ "fuzzy" ]]; then
-      if get_cpanm; then
-        /usr/local/bin/cpanm -Sq Text::Fuzzy &>/dev/null &
+        cpanm -Sq Text::Fuzzy &>/dev/null &
         my_wait "INSTALLING PERL MODULES" && replace_suc "PERL MODULES INSTALLED" || replace_fail "INSTALLING PERL MODULES FAILED"
-      else
-        fake_progress "INSTALLING PERL MODULES"
-        replace_fail "INSTALLING PERL MODULES FAILED"
-      fi
     fi
   else
     replace_fail "INSTALLING PACKAGES FAILED"
