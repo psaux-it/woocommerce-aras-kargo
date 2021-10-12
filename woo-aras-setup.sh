@@ -414,23 +414,68 @@ autodetect_distribution () {
   esac
 }
 
-# Install perl App::cpanminus module for further module installation
+# Install perl App::cpanminus module for further perl module installation
 get_cpanm (){
   if ! command -v cpanm >/dev/null 2>&1; then # Check in $PATH
-    if [[ ! -f /usr/local/bin/cpanm ]]; then  # Check in locally
+    if [[ ! -f /usr/local/bin/cpanm ]]; then  # Check in local path
+      {
       cd /tmp
-      curl -sL https://cpanmin.us | perl - --sudo App::cpanminus >/dev/null 2>&1
+      curl -sLk https://cpanmin.us | perl - --sudo App::cpanminus
+      } >/dev/null 2>&1
     fi
     if [[ ! -f /usr/local/bin/cpanm ]]; then
-      curl -sL https://cpanmin.us/ -o cpanm >/dev/null 2>&1
-      chmod +x cpanm >/dev/null 2>&1
-      mkdir -p /usr/local/bin >/dev/null 2>&1
-      mv cpanm /usr/local/bin/cpanm >/dev/null 2>&1
+      {
+      curl -sLk https://cpanmin.us/ -o cpanm
+      chmod +x cpanm
+      mkdir -p /usr/local/bin
+      mv cpanm /usr/local/bin/cpanm
+      } >/dev/null 2>&1
     fi
   fi
 
   CPANM=$(type cpanm | awk '{print $3}')
-  if [[ ! -f "$CPANM" && ! -f /usr/local/bin/cpanm ]]; then
+  if [[ ! -f "${CPANM}" && ! -f /usr/local/bin/cpanm ]]; then
+    return 1
+  fi
+
+  return 0
+}
+
+# It is best to get needed version of jq manually instead of relying distro repos
+# It is portable, doesn't need any runtime dependencies.
+# If something goes wrong here script will try package manager to install it
+get_jq () {
+  if ! command -v jq >/dev/null 2>&1; then                  # Check in $PATH
+    if [[ ! -f /usr/local/bin/jq && ! /usr/bin/jq ]]; then  # Check in local paths
+      local jq_url
+      local my_jq
+
+      if [[ $(uname -m) == "x86_64" ]]; then
+        jq_url="https://github.com/stedolan/jq/releases/download/jq-1.6/jq-linux64"
+      else
+        jq_url="https://github.com/stedolan/jq/releases/download/jq-1.6/jq-linux32"
+      fi
+
+      if command -v wget >/dev/null 2>&1; then
+        {
+        cd /tmp
+        wget -q --no-check-certificate -O jq ${jq_url}
+        chmod +x jq
+        mv jq /usr/local/bin/jq
+        } >/dev/null 2>&1
+      elif command -v curl >/dev/null 2>&1; then
+        {
+        cd /tmp
+        curl -sLk ${jq_url} -o jq
+        chmod +x jq
+        mv jq /usr/local/bin/jq
+        } >/dev/null 2>&1
+      fi
+    fi
+  fi
+
+  my_jq=$(type jq | awk '{print $3}')
+  if [[ ! -f "${my_jq}" && ! -f /usr/local/bin/jq ]]; then
     return 1
   fi
 
@@ -578,7 +623,11 @@ fake_progress () {
 
 # Check hard dependencies that not in bash built-in or pre-installed commonly
 check_deps () {
-  declare -a dependencies=("curl" "openssl" "jq" "php" "perl" "whiptail" "logrotate" "git" "make")
+  declare -a dependencies=("curl" "openssl" "php" "perl" "whiptail" "logrotate" "git" "make" "gawk")
+  if ! get_jq; then
+    dependencies+=( "jq" )
+  fi
+
   missing_deps=()
   for dep in "${dependencies[@]}"
   do
@@ -653,13 +702,18 @@ if (( ${#missing_deps[@]} )); then
     ['default']="openssl"
   )
 
-  declare -A pkg_perl_text_fuzzy=(
-    ['default']=""
+  declare -A pkg_gawk=(
+    ['gentoo']="sys-apps/gawk"
+    ['default']="gawk"
   )
 
   declare -A pkg_jq=(
     ['gentoo']="app-misc/jq"
     ['default']="jq"
+  )
+
+  declare -A pkg_perl_text_fuzzy=(
+    ['default']=""
   )
 
   declare -A pkg_php=(
@@ -720,14 +774,20 @@ if (( ${#missing_deps[@]} )); then
   # Lets start package installation
   if [[ "${distribution}" = "centos" ]]; then
     opts="-yq install"
+    repo="update"
+    $my_yum ${repo} >/dev/null 2>&1
     $my_yum ${opts} "${packages[@]}" &>/dev/null &
     post_ops "INSTALLING PACKAGES"
   elif [[ "${distribution}" = "debian" ]]; then
     opts="-yq install"
+    repo="update"
+    $my_apt_get ${repo} >/dev/null 2>&1
     $my_apt_get ${opts} "${packages[@]}" &>/dev/null &
     post_ops "INSTALLING PACKAGES"
   elif [[ "${distribution}" = "ubuntu" ]]; then
     opts="-yq install"
+    repo="update"
+    $my_apt_get ${repo} >/dev/null 2>&1
     $my_apt_get ${opts} "${packages[@]}" &>/dev/null &
     post_ops "INSTALLING PACKAGES"
   elif [[ "${distribution}" = "gentoo" ]]; then
@@ -735,30 +795,40 @@ if (( ${#missing_deps[@]} )); then
       echo 'dev-lang/php soap' > "${portage_php}"
     fi
     opts="--ask=n --quiet --quiet-build --quiet-fail"
+    repo="--sync"
+    $my_emerge ${repo} >/dev/null 2>&1
     $my_emerge ${opts} "${packages[@]}" &>/dev/null &
     post_ops "INSTALLING PACKAGES"
   elif [[ "${distribution}" = "arch" ]]; then
     opts="--noconfirm --quiet --needed -S"
+    repo"-Syy"
+    $my_pacman ${repo} >/dev/null 2>&1
     $my_pacman ${opts} "${packages[@]}" &>/dev/null &
     post_ops "INSTALLING PACKAGES"
   elif [[ "${distribution}" = "suse" || "${distribution}" = "opensuse-leap" ]]; then
     opts="--non-interactive --quiet install"
+    repo"refresh"
+    $my_zypper ${repo} >/dev/null 2>&1
     $my_zypper ${opts} "${packages[@]}" &>/dev/null &
     # Wait for bg command finish
     my_wait "INSTALLING PACKAGES"
     if [[ "${missing_deps[*]}" =~ "make" ]]; then
       package="devel_basis"
       opts="--non-interactive --quiet install --type pattern"
-      $my_zypper ${opts} "${package}" &>/dev/null &
+      $my_zypper ${opts} ${package} &>/dev/null &
       wait $!
     fi
     validate_suse
   elif [[ "${distribution}" = "fedora" ]]; then
     opts="install -y --quiet --setopt=strict=0"
+    repo"update"
+    $my_dnf ${repo} >/dev/null 2>&1
     $my_dnf ${opts} "${packages[@]}" &>/dev/null &
     post_ops "INSTALLING PACKAGES"
   elif [[ "${distribution}" = "rhel" ]]; then
     opts="-yq install"
+    repo"update"
+    $my_yum ${repo} >/dev/null 2>&1
     $my_yum ${opts} "${packages[@]}" &>/dev/null &
     post_ops "INSTALLING PACKAGES"
   fi
