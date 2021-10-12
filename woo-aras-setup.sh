@@ -854,13 +854,23 @@ if (( ${#missing_deps[@]} )); then
     $my_dnf ${opts} "${packages[@]}" &>/dev/null &
     post_ops "INSTALLING PACKAGES"
   elif [[ "${distribution}" = "rhel" ]]; then
-    opts="-yq install"
-    repo="update"
-    echo n | $my_yum ${repo} &>/dev/null &
-    my_wait "SYNCING REPOSITORY"
-    replace_suc "REPOSITORIES SYNCED"
-    $my_yum ${opts} "${packages[@]}" &>/dev/null &
-    post_ops "INSTALLING PACKAGES"
+    if [[ "${my_yum}" ]]; then
+      opts="-yq install"
+      repo="update"
+      echo n | $my_yum ${repo} &>/dev/null &
+      my_wait "SYNCING REPOSITORY"
+      replace_suc "REPOSITORIES SYNCED"
+      $my_yum ${opts} "${packages[@]}" &>/dev/null &
+      post_ops "INSTALLING PACKAGES"
+    else
+      opts="-yq --setopt=strict=0 install"
+      repo="distro-sync"
+      echo n | $my_dnf ${repo} &>/dev/null &
+      my_wait "SYNCING REPOSITORY"
+      replace_suc "REPOSITORIES SYNCED"
+      $my_dnf ${opts} "${packages[@]}" &>/dev/null &
+      post_ops "INSTALLING PACKAGES"
+    fi
   fi
 
   # Check package installation completed without error &
