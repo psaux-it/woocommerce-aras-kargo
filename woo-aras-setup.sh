@@ -32,8 +32,8 @@ setup_terminal () {
       green="$(tput setaf 2)"; red="$(tput setaf 1)"; reset="$(tput sgr0)"; cyan="$(tput setaf 6)"
       magenta="$(tput setaf 5)"; yellow="$(tput setaf 3)"; TPUT_RESET="$(tput sgr 0)"
       TPUT_GREEN="$(tput setaf 2)"; TPUT_CYAN="$(tput setaf 6)"; TPUT_DIM="$(tput dim)"
-      TPUT_BOLD="$(tput bold)"; TPUT_BGRED="$(tput setab 1)"; TPUT_WHITE="$(tput setaf 7)"
-      TPUT_BGGREEN="$(tput setab 2)"
+      TPUT_BOLD="$(tput bold)"; TPUT_BGRED="$(tput setab 1)"; TPUT_RESET="$(tput sgr 0)"
+      TPUT_WHITE="$(tput setaf 7)"; TPUT_BGGREEN="$(tput setab 2)"; TPUT_RESET="$(tput sgr 0)"
     fi
   fi
   return 0
