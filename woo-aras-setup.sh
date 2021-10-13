@@ -452,7 +452,7 @@ get_jq () {
 
   if command -v jq >/dev/null 2>&1; then
     if command -v sha256sum >/dev/null 2>&1; then
-      [[ "$(sha256sum $(which jq) | awk '{print $1}')" == "${jq_sha256sum}" ]] && return 0 || rm -f /usr/local/bin/jq
+      [[ "$(sha256sum $(which jq) | awk '{print $1}')" == "${jq_sha256sum}" ]] && return 0 || rm -f /usr/local/bin/jq >/dev/null 2>&1
     else
       rm -f /usr/local/bin/jq >/dev/null 2>&1
     fi
@@ -639,18 +639,19 @@ check_deps () {
       if [[ "${dep}" == "php" ]]; then
         missing_deps+=( "php_soap" )
       elif [[ "${dep}" == "perl" ]]; then
-       missing_deps+=( "perl_text_fuzzy" "perl_app_cpanminus" )
+        missing_deps+=( "perl_text_fuzzy" "perl_app_cpanminus" )
       fi
     elif [[ "${dep}" == "php" ]]; then
       if ! php -m | grep -q "soap"; then
         missing_deps+=( "php_soap" )
       fi
     elif [[ "${dep}" == "perl" ]]; then
-      if ! perl -e 'use App::cpanminus;' >/dev/null 2>&1; then
-        missing_deps+=( "perl_app_cpanminus" )
-      fi
       if ! perl -e 'use Text::Fuzzy;' >/dev/null 2>&1; then
-        missing_deps+=( "perl_text_fuzzy" )
+        if ! perl -e 'use App::cpanminus;' >/dev/null 2>&1; then
+          missing_deps+=( "perl_app_cpanminus" "perl_text_fuzzy" )
+        else
+          missing_deps+=( "perl_text_fuzzy" )
+        fi
       fi
     fi
   done
@@ -774,7 +775,15 @@ if (( ${#missing_deps[@]} )); then
 
   echo -e "\n${green}*${reset}${green} I'm about to install following packages for you.${reset}"
   echo "${cyan}${m_tab}#####################################################${reset}"
-  echo "${m_tab}${magenta}${packages[*]}${reset}"
+  if [[ "${missing_deps[*]}" =~ "perl_text_fuzzy" && "${missing_deps[*]}" =~ "perl_app_cpanminus" ]]; then
+    echo "${m_tab}${magenta}${packages[*]} Text::Fuzzy App::cpanminus${reset}"
+  elif [[ "${missing_deps[*]}" =~ "perl_app_cpanminus" ]]; then
+    echo "${m_tab}${magenta}${packages[*]} App::cpanminus${reset}"
+  elif [[ "${missing_deps[*]}" =~ "perl_text_fuzzy" ]]; then
+    echo "${m_tab}${magenta}${packages[*]} Text::Fuzzy${reset}"
+  else
+    echo "${m_tab}${magenta}${packages[*]}${reset}"
+  fi
 
   # User approval
   while :; do
@@ -837,10 +846,10 @@ if (( ${#missing_deps[@]} )); then
     post_ops "INSTALLING PACKAGES"
   elif [[ "${distribution}" = "suse" || "${distribution}" = "opensuse-leap" || "${distribution}" = "opensuse-tumbleweed" ]]; then
     if [[ "${missing_deps[*]}" =~ "make" ]]; then
-      suse_make_package="devel_basis"
-      opts="--ignore-unknown --non-interactive --auto-agree-with-licenses --no-gpg-checks --quiet install pattern:${suse_make_package}"
+      suse_type="devel_basis"
+      opts="--ignore-unknown --non-interactive --no-gpg-checks --quiet install pattern:${suse_type}"
     else
-      opts="--ignore-unknown --non-interactive --auto-agree-with-licenses --no-gpg-checks --quiet install"
+      opts="--ignore-unknown --non-interactive --no-gpg-checks --quiet install"
     fi
     repo="refresh"
     $my_zypper ${repo} &>/dev/null &
