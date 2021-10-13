@@ -862,7 +862,7 @@ if (( ${#missing_deps[@]} )); then
     $my_pacman ${opts} "${packages[@]}" &>/dev/null &
     post_ops "INSTALLING PACKAGES"
   elif [[ "${distribution}" = "suse" || "${distribution}" = "opensuse-leap" || "${distribution}" = "opensuse-tumbleweed" ]]; then
-    if [[ "${missing_deps[*]}" =~ "make" ]]; then
+    if [[ "${missing_deps[@]}" =~ "make" ]]; then
       suse_type="devel_basis"
       opts="--ignore-unknown --non-interactive --no-gpg-checks --quiet install pattern:${suse_type}"
     else
