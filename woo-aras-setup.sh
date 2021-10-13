@@ -446,7 +446,7 @@ get_cpanm (){
 # If something goes wrong here script will try package manager to install it
 get_jq () {
   if ! command -v jq >/dev/null 2>&1; then                  # Check in $PATH
-    if [[ ! -f /usr/local/bin/jq && ! /usr/bin/jq ]]; then  # Check in local paths
+    if [[ ! -f /usr/local/bin/jq ]]; then  # Check in local paths
       local jq_url
       local my_jq
 
@@ -474,8 +474,8 @@ get_jq () {
     fi
   fi
 
-  my_jq=$(type jq | awk '{print $3}')
-  if [[ ! -f "${my_jq}" && ! -f /usr/local/bin/jq ]]; then
+  my_jq=$(which jq 2>/dev/null)
+  if [[ ! "${my_jq}" && ! -f /usr/local/bin/jq ]]; then
     return 1
   fi
 
@@ -562,7 +562,7 @@ validate_ubuntu () {
 }
 
 
-vaidate_gentoo () {
+validate_gentoo () {
   fail=()
   for packagename in "${packages[@]}"
   do
@@ -578,7 +578,7 @@ vaidate_gentoo () {
   done
 }
 
-vaidate_arch () {
+validate_arch () {
   fail=()
   for packagename in "${packages[@]}"
   do
@@ -588,11 +588,12 @@ vaidate_arch () {
   done
 }
 
-vaidate_suse () {
+validate_suse () {
   fail=()
   for packagename in "${packages[@]}"
   do
-    if ! zypper se -i "$packagename" | grep -qw "$packagename" >/dev/null 2>&1; then
+    #if ! zypper se -i "$packagename"  >/dev/null 2>&1; then
+    if ! rpm -q "$packagename"  >/dev/null 2>&1; then
       fail+=( "${packagename}" )
     fi
   done
@@ -831,16 +832,17 @@ if (( ${#missing_deps[@]} )); then
     $my_pacman ${opts} "${packages[@]}" &>/dev/null &
     post_ops "INSTALLING PACKAGES"
   elif [[ "${distribution}" = "suse" || "${distribution}" = "opensuse-leap" ]]; then
-    opts="--non-interactive --quiet install"
+    opts="--ignore-unknown --non-interactive --quiet install"
     repo="refresh"
     $my_zypper ${repo} &>/dev/null &
     my_wait "SYNCING REPOSITORY"
     replace_suc "REPOSITORIES SYNCED"
     $my_zypper ${opts} "${packages[@]}" &>/dev/null &
     my_wait "INSTALLING PACKAGES"
-    if [[ "${missing_deps[*]}" =~ "make" ]]; then
+    inarray=$(echo ${missing_deps[@]} | grep -o "make" | wc -w)
+    if [[ "${inarray}" -ne 0 ]]; then
       package="devel_basis"
-      opts="--non-interactive --quiet install --type pattern"
+      opts="--ignore-unknown --non-interactive --quiet install --type pattern"
       $my_zypper ${opts} ${package} &>/dev/null &
       wait $!
     fi
