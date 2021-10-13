@@ -448,17 +448,20 @@ get_jq () {
       mv jq /usr/local/bin/jq
       } >/dev/null 2>&1
     fi
-  fi
 
-  if command -v jq >/dev/null 2>&1; then
-    if command -v sha256sum >/dev/null 2>&1; then
-      [[ "$(sha256sum $(which jq) | awk '{print $1}')" == "${jq_sha256sum}" ]] && return 0 || rm -f /usr/local/bin/jq >/dev/null 2>&1
+    if command -v jq >/dev/null 2>&1; then
+      if command -v sha256sum >/dev/null 2>&1; then
+        [[ "$(sha256sum $(which jq) | awk '{print $1}')" != "${jq_sha256sum}" ]] && { return 1; rm -f /usr/local/bin/jq >/dev/null 2>&1; }
+      else
+        return 1
+        rm -f /usr/local/bin/jq >/dev/null 2>&1
+      fi
     else
-      rm -f /usr/local/bin/jq >/dev/null 2>&1
+      return 1
     fi
   fi
 
-  return 1
+  return 0
 }
 
 # Wait for bg process stylish also get exit code of the bg process
@@ -775,14 +778,11 @@ if (( ${#missing_deps[@]} )); then
 
   echo -e "\n${green}*${reset}${green} I'm about to install following packages for you.${reset}"
   echo "${cyan}${m_tab}#####################################################${reset}"
-  if [[ "${missing_deps[*]}" =~ "perl_text_fuzzy" && "${missing_deps[*]}" =~ "perl_app_cpanminus" ]]; then
-    echo "${m_tab}${magenta}${packages[*]} Text::Fuzzy App::cpanminus${reset}"
-  elif [[ "${missing_deps[*]}" =~ "perl_app_cpanminus" ]]; then
-    echo "${m_tab}${magenta}${packages[*]} App::cpanminus${reset}"
-  elif [[ "${missing_deps[*]}" =~ "perl_text_fuzzy" ]]; then
-    echo "${m_tab}${magenta}${packages[*]} Text::Fuzzy${reset}"
+  fixed_packages=( "${packages[@]//_/-}" )
+  if [[ "${missing_deps[@]}" =~ "perl_text_fuzzy" ]]; then
+    echo "${m_tab}${magenta}${fixed_packages[*]/perl-App-cpanminus/App::cpanminus} Text::Fuzzy${reset}"
   else
-    echo "${m_tab}${magenta}${packages[*]}${reset}"
+    echo "${m_tab}${magenta}${fixed_packages[*]/perl-App-cpanminus/App::cpanminus}${reset}"
   fi
 
   # User approval
