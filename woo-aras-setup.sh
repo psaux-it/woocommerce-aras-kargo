@@ -578,7 +578,13 @@ validate_suse () {
   fail=()
   for packagename in "${packages[@]}"
   do
-    if ! rpm -q "$packagename"  >/dev/null 2>&1; then
+    if [[ "${packagename}" == "php" ]]; then
+      if ! rpm -qa "$packagename"* >/dev/null 2>&1; then
+        fail+=( "${packagename}" "php-soap" )
+      elif ! rpm -qa "$packagename"* | grep -q "soap" >/dev/null 2>&1; then
+        fail+=( "php-soap" )
+      fi
+    elif ! rpm -q "$packagename"  >/dev/null 2>&1; then
       fail+=( "${packagename}" )
     fi
   done
@@ -588,7 +594,13 @@ validate_opensuse-leap () {
   fail=()
   for packagename in "${packages[@]}"
   do
-    if ! rpm -q "$packagename"  >/dev/null 2>&1; then
+    if [[ "${packagename}" == "php" ]]; then
+      if ! rpm -qa "$packagename"* >/dev/null 2>&1; then
+        fail+=( "${packagename}" "php-soap" )
+      elif ! rpm -qa "$packagename"* | grep -q "soap" >/dev/null 2>&1; then
+        fail+=( "php-soap" )
+      fi
+    elif ! rpm -q "$packagename"  >/dev/null 2>&1; then
       fail+=( "${packagename}" )
     fi
   done
@@ -598,7 +610,13 @@ validate_opensuse-tumbleweed () {
   fail=()
   for packagename in "${packages[@]}"
   do
-    if ! rpm -q "$packagename"  >/dev/null 2>&1; then
+    if [[ "${packagename}" == "php" ]]; then
+      if ! rpm -qa "$packagename"* >/dev/null 2>&1; then
+        fail+=( "${packagename}" "php-soap" )
+      elif ! rpm -qa "$packagename"* | grep -q "soap" >/dev/null 2>&1; then
+        fail+=( "php-soap" )
+      fi
+    elif ! rpm -q "$packagename"  >/dev/null 2>&1; then
       fail+=( "${packagename}" )
     fi
   done
@@ -778,11 +796,10 @@ if (( ${#missing_deps[@]} )); then
 
   echo -e "\n${green}*${reset}${green} I'm about to install following packages for you.${reset}"
   echo "${cyan}${m_tab}#####################################################${reset}"
-  fixed_packages=( "${packages[@]//_/-}" )
   if [[ "${missing_deps[@]}" =~ "perl_text_fuzzy" ]]; then
-    echo "${m_tab}${magenta}${fixed_packages[*]/perl-App-cpanminus/App::cpanminus} Text::Fuzzy${reset}"
+    echo "${m_tab}${magenta}${packages[*]} Text::Fuzzy${reset}"
   else
-    echo "${m_tab}${magenta}${fixed_packages[*]/perl-App-cpanminus/App::cpanminus}${reset}"
+    echo "${m_tab}${magenta}${packages[*]}${reset}"
   fi
 
   # User approval
@@ -886,7 +903,7 @@ if (( ${#missing_deps[@]} )); then
   fi
 
   # Check package installation completed without error &
-  # Install Text::Fuzzy perl module needs App::cpanminus(curl and make)
+  # Installing Text::Fuzzy perl module needs ( App::cpanminus ( make ))
   if ! (( ${#fail[@]} )); then
     replace_suc "PACKAGES INSTALLED"
     if [[ "${missing_deps[*]}" =~ "fuzzy" ]]; then
@@ -905,7 +922,8 @@ if (( ${#missing_deps[@]} )); then
   if ! (( ${#missing_deps[@]} )); then
     done_ "STAGE-1 | PACKAGE INSTALLATION"
   else
-    fatal "STAGE-1 | FAIL --> CANNOT INSTALL: ${missing_deps[*]}"
+    fixed_missing=( "${missing_deps[@]//_/-}" )
+    fatal "STAGE-1 | FAIL --> CANNOT INSTALL: ${fixed_missing[*]/perl-text-fuzzy/Text::Fuzzy}"
   fi
 else
   done_ "STAGE-1 | PACKAGE INSTALLATION"
