@@ -414,75 +414,47 @@ autodetect_distribution () {
   esac
 }
 
-# Install perl App::cpanminus module for further perl module installation
-get_cpanm (){
-  if ! command -v cpanm >/dev/null 2>&1; then # Check in $PATH
-    if [[ ! -f /usr/local/bin/cpanm ]]; then  # Check in local path
-      {
-      cd /tmp
-      curl -sLk https://cpanmin.us | perl - --sudo App::cpanminus
-      } >/dev/null 2>&1
-    fi
-    if [[ ! -f /usr/local/bin/cpanm ]]; then
-      {
-      curl -sLk https://cpanmin.us/ -o cpanm
-      chmod +x cpanm
-      mkdir -p /usr/local/bin
-      mv cpanm /usr/local/bin/cpanm
-      } >/dev/null 2>&1
-    fi
-  fi
-
-  CPANM=$(type cpanm | awk '{print $3}')
-  if [[ ! -f "${CPANM}" && ! -f /usr/local/bin/cpanm ]]; then
-    return 1
-  fi
-
-  return 0
-}
-
 # It is best to get needed version of jq manually instead of relying distro repos
 # It is portable, doesn't need any runtime dependencies.
 # If something goes wrong here script will try package manager to install it
 get_jq () {
-  if ! command -v jq >/dev/null 2>&1; then # Check in $PATH
-    if [[ ! -f /usr/local/bin/jq ]]; then  # Check in local path
-      local jq_url
-      local my_jq
-      local jq_sha256sum
+  if ! command -v jq >/dev/null 2>&1; then
+    local jq_url
+    local my_jq
+    local jq_sha256sum
 
-      if [[ $(uname -m) == "x86_64" ]]; then
-        jq_url="https://github.com/stedolan/jq/releases/download/jq-1.6/jq-linux64"
-        jq_sha256sum="af986793a515d500ab2d35f8d2aecd656e764504b789b66d7e1a0b727a124c44"
-      else
-        jq_url="https://github.com/stedolan/jq/releases/download/jq-1.6/jq-linux32"
-        jq_sha256sum="319af6123aaccb174f768a1a89fb586d471e891ba217fe518f81ef05af51edd9"
-      fi
+    if [[ $(uname -m) == "x86_64" ]]; then
+      jq_url="https://github.com/stedolan/jq/releases/download/jq-1.6/jq-linux64"
+      jq_sha256sum="af986793a515d500ab2d35f8d2aecd656e764504b789b66d7e1a0b727a124c44"
+    else
+      jq_url="https://github.com/stedolan/jq/releases/download/jq-1.6/jq-linux32"
+      jq_sha256sum="319af6123aaccb174f768a1a89fb586d471e891ba217fe518f81ef05af51edd9"
+    fi
 
-      if command -v wget >/dev/null 2>&1; then
-        {
-        cd /tmp
-        wget -q --no-check-certificate -O jq ${jq_url}
-        chmod +x jq
-        mkdir -p /usr/local/bin
-        mv jq /usr/local/bin/jq
-        } >/dev/null 2>&1
-      elif command -v curl >/dev/null 2>&1; then
-        {
-        cd /tmp
-        curl -sLk ${jq_url} -o jq
-        chmod +x jq
-        mkdir -p /usr/local/bin
-        mv jq /usr/local/bin/jq
-        } >/dev/null 2>&1
-      fi
+    if command -v wget >/dev/null 2>&1; then
+      {
+      cd /tmp
+      wget -q --no-check-certificate -O jq ${jq_url}
+      chmod +x jq
+      mkdir -p /usr/local/bin
+      mv jq /usr/local/bin/jq
+      } >/dev/null 2>&1
+    elif command -v curl >/dev/null 2>&1; then
+      {
+      cd /tmp
+      curl -sLk ${jq_url} -o jq
+      chmod +x jq
+      mkdir -p /usr/local/bin
+      mv jq /usr/local/bin/jq
+      } >/dev/null 2>&1
     fi
   fi
 
-  if [[ -f /usr/local/bin/jq ]]; then
-    # Validate the binary
-    if [[ "$(sha256sum /usr/local/bin/jq | awk '{print $1}')" == "${jq_sha256sum}" ]]; then
-      return 0
+  if command -v jq >/dev/null 2>&1; then
+    if command -v sha256sum >/dev/null 2>&1; then
+      [[ "$(sha256sum $(which jq) | awk '{print $1}')" == "${jq_sha256sum}" ]] && return 0 || rm -f /usr/local/bin/jq
+    else
+      rm -f /usr/local/bin/jq >/dev/null 2>&1
     fi
   fi
 
