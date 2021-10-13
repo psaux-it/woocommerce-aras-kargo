@@ -262,9 +262,9 @@ uniquepath
 # Unsupported os&pm pretty error
 un_supported () {
   if [[ "${1}" == "--pm" ]]; then
-    fatal "Unsupported package manager"
+    fatal "Unsupported Linux distribution"
   elif [[ "${1}" == "--os" ]]; then
-    fatal "Unsupported linux distribution"
+    fatal "Could not identify your Linux distribution"
   fi
 }
 
@@ -344,7 +344,7 @@ get_os_release () {
   eval "$(grep -E "^(NAME|ID|ID_LIKE|VERSION|VERSION_ID)=" "${os_release_file}")"
   for x in "${ID}" ${ID_LIKE}; do
     case "${x,,}" in
-      arch | centos | debian | fedora | gentoo | opensuse-leap | rhel | suse | ubuntu)
+      arch | centos | debian | fedora | gentoo | opensuse-leap | rhel | suse | ubuntu | opensuse-tumbleweed | manjaro | alpine)
         distribution="${x}"
         version="${VERSION_ID}"
         codename="${VERSION}"
@@ -445,15 +445,18 @@ get_cpanm (){
 # It is portable, doesn't need any runtime dependencies.
 # If something goes wrong here script will try package manager to install it
 get_jq () {
-  if ! command -v jq >/dev/null 2>&1; then                  # Check in $PATH
-    if [[ ! -f /usr/local/bin/jq ]]; then  # Check in local paths
+  if ! command -v jq >/dev/null 2>&1; then # Check in $PATH
+    if [[ ! -f /usr/local/bin/jq ]]; then  # Check in local path
       local jq_url
       local my_jq
+      local jq_sha256sum
 
       if [[ $(uname -m) == "x86_64" ]]; then
         jq_url="https://github.com/stedolan/jq/releases/download/jq-1.6/jq-linux64"
+        jq_sha256sum="af986793a515d500ab2d35f8d2aecd656e764504b789b66d7e1a0b727a124c44"
       else
         jq_url="https://github.com/stedolan/jq/releases/download/jq-1.6/jq-linux32"
+        jq_sha256sum="319af6123aaccb174f768a1a89fb586d471e891ba217fe518f81ef05af51edd9"
       fi
 
       if command -v wget >/dev/null 2>&1; then
@@ -461,6 +464,7 @@ get_jq () {
         cd /tmp
         wget -q --no-check-certificate -O jq ${jq_url}
         chmod +x jq
+        mkdir -p /usr/local/bin
         mv jq /usr/local/bin/jq
         } >/dev/null 2>&1
       elif command -v curl >/dev/null 2>&1; then
@@ -468,18 +472,21 @@ get_jq () {
         cd /tmp
         curl -sLk ${jq_url} -o jq
         chmod +x jq
+        mkdir -p /usr/local/bin
         mv jq /usr/local/bin/jq
         } >/dev/null 2>&1
       fi
     fi
   fi
 
-  my_jq=$(which jq 2>/dev/null)
-  if [[ ! "${my_jq}" && ! -f /usr/local/bin/jq ]]; then
-    return 1
+  if [[ -f /usr/local/bin/jq ]]; then
+    # Validate the binary
+    if [[ "$(sha256sum /usr/local/bin/jq | awk '{print $1}')" == "${jq_sha256sum}" ]]; then
+      return 0
+    fi
   fi
 
-  return 0
+  return 1
 }
 
 # Wait for bg process stylish also get exit code of the bg process
@@ -525,8 +532,12 @@ validate_rhel () {
   fail=()
   for packagename in "${packages[@]}"
   do
-    if ! $my_yum list installed ${packagename} >/dev/null 2>&1; then
-      fail+=( "${packagename}" )
+    if [[ "${my_yum}" ]]; then
+      if ! $my_yum list installed ${packagename} >/dev/null 2>&1; then
+        fail+=( "${packagename}" )
+      fi
+    elif ! $my_dnf list installed ${packagename} >/dev/null 2>&1; then
+        fail+=( "${packagename}" )
     fi
   done
 }
@@ -592,7 +603,26 @@ validate_suse () {
   fail=()
   for packagename in "${packages[@]}"
   do
-    #if ! zypper se -i "$packagename"  >/dev/null 2>&1; then
+    if ! rpm -q "$packagename"  >/dev/null 2>&1; then
+      fail+=( "${packagename}" )
+    fi
+  done
+}
+
+validate_opensuse-leap () {
+  fail=()
+  for packagename in "${packages[@]}"
+  do
+    if ! rpm -q "$packagename"  >/dev/null 2>&1; then
+      fail+=( "${packagename}" )
+    fi
+  done
+}
+
+validate_opensuse-tumbleweed () {
+  fail=()
+  for packagename in "${packages[@]}"
+  do
     if ! rpm -q "$packagename"  >/dev/null 2>&1; then
       fail+=( "${packagename}" )
     fi
@@ -693,6 +723,7 @@ if (( ${#missing_deps[@]} )); then
     ['arch']="base-devel"
     ['suse']=""
     ['opensuse-leap']=""
+    ['opensuse-tumbleweed']=""
     ['gentoo']=""
   )
 
@@ -726,6 +757,7 @@ if (( ${#missing_deps[@]} )); then
     ['gentoo']="dev-perl/App-cpanminus"
     ['suse']="perl-App-cpanminus"
     ['opensuse-leap']="perl-App-cpanminus"
+    ['opensuse-tumbleweed']="perl-App-cpanminus"
   )
 
   declare -A pkg_perl_text_fuzzy=(
@@ -831,22 +863,19 @@ if (( ${#missing_deps[@]} )); then
     replace_suc "REPOSITORIES SYNCED"
     $my_pacman ${opts} "${packages[@]}" &>/dev/null &
     post_ops "INSTALLING PACKAGES"
-  elif [[ "${distribution}" = "suse" || "${distribution}" = "opensuse-leap" ]]; then
-    opts="--ignore-unknown --non-interactive --quiet install"
+  elif [[ "${distribution}" = "suse" || "${distribution}" = "opensuse-leap" || "${distribution}" = "opensuse-tumbleweed" ]]; then
+    if [[ "${missing_deps[*]}" =~ "make" ]]; then
+      suse_make_package="devel_basis"
+      opts="--ignore-unknown --non-interactive --auto-agree-with-licenses --no-gpg-checks --quiet install pattern:${suse_make_package}"
+    else
+      opts="--ignore-unknown --non-interactive --auto-agree-with-licenses --no-gpg-checks --quiet install"
+    fi
     repo="refresh"
     $my_zypper ${repo} &>/dev/null &
     my_wait "SYNCING REPOSITORY"
     replace_suc "REPOSITORIES SYNCED"
     $my_zypper ${opts} "${packages[@]}" &>/dev/null &
-    my_wait "INSTALLING PACKAGES"
-    inarray=$(echo ${missing_deps[@]} | grep -o "make" | wc -w)
-    if [[ "${inarray}" -ne 0 ]]; then
-      package="devel_basis"
-      opts="--ignore-unknown --non-interactive --quiet install --type pattern"
-      $my_zypper ${opts} ${package} &>/dev/null &
-      wait $!
-    fi
-    validate_suse
+    post_ops "INSTALLING PACKAGES"
   elif [[ "${distribution}" = "fedora" ]]; then
     opts="-yq --setopt=strict=0 install"
     repo="distro-sync"
