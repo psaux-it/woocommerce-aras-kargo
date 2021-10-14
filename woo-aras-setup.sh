@@ -581,10 +581,12 @@ validate_suse () {
     if [[ "${packagename}" == "php" ]]; then
       if ! rpm -qa "$packagename"* >/dev/null 2>&1; then
         fail+=( "${packagename}" "php-soap" )
-      elif ! rpm -qa "$packagename"* | grep -q "soap" >/dev/null 2>&1; then
+      fi
+    elif [[ "${packagename}" == "php-soap" ]]; then
+      if ! rpm -qa php* | grep -q "soap" >/dev/null 2>&1; then
         fail+=( "php-soap" )
       fi
-    elif ! rpm -q "$packagename"  >/dev/null 2>&1; then
+    elif ! rpm -q "$packagename" >/dev/null 2>&1; then
       fail+=( "${packagename}" )
     fi
   done
@@ -597,10 +599,12 @@ validate_opensuse-leap () {
     if [[ "${packagename}" == "php" ]]; then
       if ! rpm -qa "$packagename"* >/dev/null 2>&1; then
         fail+=( "${packagename}" "php-soap" )
-      elif ! rpm -qa "$packagename"* | grep -q "soap" >/dev/null 2>&1; then
+      fi
+    elif [[ "${packagename}" == "php-soap" ]]; then
+      if ! rpm -qa php* | grep -q "soap" >/dev/null 2>&1; then
         fail+=( "php-soap" )
       fi
-    elif ! rpm -q "$packagename"  >/dev/null 2>&1; then
+    elif ! rpm -q "$packagename" >/dev/null 2>&1; then
       fail+=( "${packagename}" )
     fi
   done
@@ -613,10 +617,12 @@ validate_opensuse-tumbleweed () {
     if [[ "${packagename}" == "php" ]]; then
       if ! rpm -qa "$packagename"* >/dev/null 2>&1; then
         fail+=( "${packagename}" "php-soap" )
-      elif ! rpm -qa "$packagename"* | grep -q "soap" >/dev/null 2>&1; then
+      fi
+    elif [[ "${packagename}" == "php-soap" ]]; then
+      if ! rpm -qa php* | grep -q "soap" >/dev/null 2>&1; then
         fail+=( "php-soap" )
       fi
-    elif ! rpm -q "$packagename"  >/dev/null 2>&1; then
+    elif ! rpm -q "$packagename" >/dev/null 2>&1; then
       fail+=( "${packagename}" )
     fi
   done
