@@ -476,7 +476,7 @@ my_wait () {
   while kill -0 $my_pid 2>/dev/null # (ps | grep $my_pid) is alternative
   do
     mi=$(( (mi+1) %4 ))
-    printf "\r${m_tab}${green}${spin:$mi:1}${magenta} ${1}${reset}"
+    printf "\r${m_tab}${green}[ ${spin:$mi:1} ]${magenta} ${1}${reset}"
     sleep .1
   done
   # Get bg process exit code
