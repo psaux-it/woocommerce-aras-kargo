@@ -902,7 +902,7 @@ if (( ${#missing_deps[@]} )); then
       repo="distro-sync"
       echo n | $my_dnf ${repo} &>/dev/null &
       my_wait "SYNCING REPOSITORY"
-      replace_suc "REPOSITORIES SYNCED"
+      replace_suc "REPOSITORIES SYNCED "
       $my_dnf ${opts} "${packages[@]}" &>/dev/null &
       post_ops "INSTALLING PACKAGES"
     fi
@@ -911,10 +911,10 @@ if (( ${#missing_deps[@]} )); then
   # Check package installation completed without error &
   # Installing Text::Fuzzy perl module needs ( App::cpanminus ( make ))
   if ! (( ${#fail[@]} )); then
-    replace_suc "PACKAGES INSTALLED"
+    replace_suc "PACKAGES INSTALLED "
     if [[ "${missing_deps[*]}" =~ "fuzzy" ]]; then
         cpanm -Sq Text::Fuzzy &>/dev/null &
-        my_wait "INSTALLING PERL MODULES" && replace_suc "PERL MODULES INSTALLED" || replace_fail "INSTALLING PERL MODULES FAILED"
+        my_wait "INSTALLING PERL MODULES" && replace_suc "PERL MODULES INSTALLED " || replace_fail "INSTALLING PERL MODULES FAILED"
     fi
   else
     replace_fail "INSTALLING PACKAGES FAILED"
