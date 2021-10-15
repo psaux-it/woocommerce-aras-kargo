@@ -741,7 +741,7 @@ clean_up () {
 	# Removes debug data that keeped in /tmp, older than user defined setting --> keep_debug
 	if ! [[ -e "${this_script_path}/.woo.aras.set" ]]; then
 		# Setup not completed so we need to check find version here
-		find_ver="$(find --version | grep GNU | $m_perl -pe '($_)=/([0-9]+([.][0-9]+)+)/')"
+		find_ver="$(find --version | grep GNU | perl -pe '($_)=/([0-9]+([.][0-9]+)+)/')"
 		find_ver="${find_ver%.*}"
 		if [[ "${find_ver//.}" -ge 45 ]]; then
 			find "${this_script_path:?}/tmp" -maxdepth 1 -type f -mtime +"${keep_debug}" -print0 2>/dev/null | xargs -r0 rm --
@@ -1792,7 +1792,7 @@ hard_reset () {
 		fi
 	fi
 
-	if grep -q "woo-aras" "/etc/rc.local"; then
+	if grep -q "woo-aras" "/etc/rc.local" >/dev/null 2>&1; then
 		if [[ -w "/etc/rc.local" ]]; then
 			$m_sed -i '/woo-aras/d' "/etc/rc.local" || { echo "rc.local rule couldn't  removed, as sed failed"; exit 1; }
 			echo -e "\n${yellow}*${reset} ${yellow}rc.local rule removed from:${reset}"
@@ -1812,7 +1812,7 @@ disable () {
 	if [[ -e "${this_script_path}/.woo.aras.set" ]]; then
 		if [[ -e "${this_script_path}/.woo.aras.enb" ]]; then
 			if [[ -w "${this_script_path}" ]]; then
-				rm -f "${this_script_path:?}/.woo.aras.enb" >/dev/null 2>&1 &&
+				rm -f "${this_script_path:?}/.woo.aras.enb" >/dev/null 2>&1
 				echo -e "\n${green}*${reset} ${green}Aras-WooCommerce integration disabled.${reset}"
 				echo -e "${cyan}${m_tab}#####################################################${reset}\n"
 			else
@@ -1884,7 +1884,7 @@ un_install () {
 		-e "${systemd_dir}/${timer_filename}" ||
 		-e "${tmpfiles_d}/${tmpfiles_f}" ||
 		-e "${cron_dir}/${cron_filename_update}" ]] ||
-		grep -q "ARAS Cargo" "${logrotate_conf}" || grep -q "woo-aras" "/etc/rc.local"; then
+		grep -q "ARAS Cargo" "${logrotate_conf}" >/dev/null 2>&1 || grep -q "woo-aras" "/etc/rc.local" >/dev/null 2>&1; then
 		hard_reset
 	fi
 
@@ -1928,7 +1928,7 @@ on_fly_enable () {
 			-e "${systemd_dir}/${timer_filename}" ||
 			-e "${tmpfiles_d}/${tmpfiles_f}" ||
 			-e "${cron_dir}/${cron_filename_update}" ]] ||
-			grep -q "ARAS Cargo" "${logrotate_conf}" || grep -q "woo-aras" "/etc/rc.local"; then
+			grep -q "ARAS Cargo" "${logrotate_conf}" >/dev/null 2>&1 || grep -q "woo-aras" "/etc/rc.local" >/dev/null 2>&1; then
 
 			while true
 			do
