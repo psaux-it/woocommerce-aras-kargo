@@ -1010,13 +1010,13 @@ echo ""
 if [[ "$(whoami)" != "${new_user}" ]]; then
   if [[ "${1}" == "--force" || "${1}" == "-f" ]]; then
     if ! [[ -f "${working_path}"/.lck/.env.ready ]]; then
-      sudo -i -u "${new_user}" --preserve-env="${my_env}" -s /bin/bash -c 'sudo --preserve-env='"${my_env}"' ./woocommerce-aras-cargo.sh --setup'
+      sudo -u "${new_user}" --preserve-env="${my_env}" -s /bin/bash -c 'sudo --preserve-env='"${my_env}"' ./woocommerce-aras-cargo.sh --setup'
     else
       env_info; exit 1
     fi
   elif ! [[ -f "${working_path}/.two.way.set" ]]; then
     if ! [[ -f "${working_path}"/.lck/.env.ready ]]; then
-      sudo -i -u "${new_user}" --preserve-env="${my_env}" -s /bin/bash -c 'sudo --preserve-env='"${my_env}"' ./woocommerce-aras-cargo.sh --setup'
+      sudo -u "${new_user}" --preserve-env="${my_env}" -s /bin/bash -c 'sudo --preserve-env='"${my_env}"' ./woocommerce-aras-cargo.sh --setup'
     else
      env_info; exit 1
     fi
