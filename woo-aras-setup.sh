@@ -953,7 +953,7 @@ if ! grep -qE "^${new_user}" "${pass_file}"; then
   # Create user
   useradd -U -m -p "${enc_pass}" -s /bin/bash "${new_user}" >/dev/null 2>&1 || { replace_fail "USER OPERATIONS FAILED"; error=add; }
   # Limited sudoer for only execute setup and main
-  echo "${new_user} ALL=(ALL) NOPASSWD: ${working_path}/woocommerce-aras-cargo.sh,${working_path}/woo-aras-setup.sh" | sudo EDITOR='tee -a' visudo >/dev/null 2>&1 || { replace_fail "USER OPERATIONS FAILED"; error=sudo; }
+  echo "${new_user} ALL=(ALL) NOPASSWD:SETENV: ${working_path}/woocommerce-aras-cargo.sh,${working_path}/woo-aras-setup.sh" | sudo EDITOR='tee -a' visudo >/dev/null 2>&1 || { replace_fail "USER OPERATIONS FAILED"; error=sudo; }
   if [[ "${error}" ]]; then
     if [[ "${error}" == "enc" ]]; then
       fatal "STAGE-2 | FAIL --> PASSWORD ENCRYPTION ERROR"
