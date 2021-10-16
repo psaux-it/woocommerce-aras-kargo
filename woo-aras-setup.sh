@@ -998,34 +998,37 @@ fi
 # =====================================================================
 # Change directory to working path
 my_env="new_user,setup_key,working_path,temporary_path_x"
-if [[ "$(pwd)" != "${working_path}" ]]; then
-  cd "${working_path}" || fatal "FINAL STAGE | FAIL --> Could not change directory to ${working_path}"
-fi
+env_info () {
 
-echo ""
+}
 
-if [[ "$(whoami)" != "${new_user}" ]]; then
-  if [[ "${1}" == "--force" || "${1}" == "-f" ]]; then
-    if ! [[ -f "${working_path}"/.lck/.env.ready ]]; then
-      sudo -u "${new_user}" --preserve-env="${my_env}" -s /bin/bash -c 'sudo --preserve-env='"${my_env}"' ./woocommerce-aras-cargo.sh --setup'
+
+if [[ "$SUDO_USER" ]]; then
+  if [[ "$SUDO_USER" != "${new_user}" ]]; then
+    if [[ "${1}" == "--force" || "${1}" == "-f" ]]; then
+      if ! [[ -f "${working_path}/.env.ready" ]]; then
+        sudo -u "${new_user}" --preserve-env="${my_env}" -s /bin/bash -c 'sudo --preserve-env='"${my_env}"' '"${working_path}"'/woocommerce-aras-cargo.sh --setup'
+      else
+        env_info; exit 1
+      fi
+    elif ! [[ -f "${working_path}/.woo.aras.set" ]]; then
+      if ! [[ -f "${working_path}/.env.ready" ]]; then
+        sudo -u "${new_user}" --preserve-env="${my_env}" -s /bin/bash -c 'sudo --preserve-env='"${my_env}"' '"${working_path}"'/woocommerce-aras-cargo.sh --setup'
+      else
+        env_info; exit 1
+      fi
     else
-      env_info; exit 1
+      setup_info
     fi
-  elif ! [[ -f "${working_path}/.two.way.set" ]]; then
-    if ! [[ -f "${working_path}"/.lck/.env.ready ]]; then
-      sudo -u "${new_user}" --preserve-env="${my_env}" -s /bin/bash -c 'sudo --preserve-env='"${my_env}"' ./woocommerce-aras-cargo.sh --setup'
-    else
-     env_info; exit 1
-    fi
+  elif [[ "${1}" == "--force" || "${1}" == "-f" ]]; then
+    "${working_path}"/woocommerce-aras-cargo.sh --setup
+  elif ! [[ -f "${working_path}/.woo.aras.set" ]]; then
+    "${working_path}"/woocommerce-aras-cargo.sh --setup
   else
     setup_info
   fi
-elif [[ "${1}" == "--force" || "${1}" == "-f" ]]; then
-  sudo --preserve-env="${my_env}" ./woocommerce-aras-cargo.sh --setup
-elif ! [[ -f "${working_path}/.two.way.set" ]]; then
-  sudo --preserve-env="${my_env}" ./woocommerce-aras-cargo.sh --setup
 else
-  setup_info
+  sudo -u "${new_user}" --preserve-env="${my_env}" -s /bin/bash -c 'sudo --preserve-env='"${my_env}"' '"${working_path}"'/woocommerce-aras-cargo.sh --setup'
 fi
 
 # And lastly we exit
