@@ -293,8 +293,9 @@ fi
 if [[ "${1}" == "-s" || "${1}" == "--setup" ]]; then
 	if [[ "${setup_key}" ]]; then
 		if [[ "$SUDO_USER" == "${new_user}" ]]; then
-			if ! [[ -e "${working_path}"/.lck/.env.ready ]]; then
-				touch "${working_path}"/.lck/.env.ready
+			if ! [[ -e "${working_path}/.env.ready" ]]; then
+				touch "${working_path}/.env.ready"
+                                chmod 600 "${working_path}/.env.ready"
 			fi
 		fi
 	else
@@ -507,7 +508,7 @@ depriv () {
 	for file in "${@}"
 	do
 		if [[ ! -f "${file}" ]]; then
-			[[ "${file}" =~ ".lck" ]] && umask 066 || umask 022
+			[[ "${file}" =~ "lck" ]] && umask 066 || umask 022
 			if [[ $SUDO_USER ]]; then
 				touch "${file}"
 				chown "${user}":"${user}" "${file}"
