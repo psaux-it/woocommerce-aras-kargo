@@ -1002,13 +1002,13 @@ env_info () {
   echo -e "\n${yellow}* ENVIRONMENT IS ALREADY SET..${reset}"
   echo "${cyan}${m_tab}#####################################################${reset}"
   echo "${m_tab}${magenta}Please switch user to ${new_user} and run the setup${reset}"
-  echo "${m_tab}${green}su - wooaras; sudo ./woo-aras-setup.sh${reset}"
+  echo ""
   echo "${m_tab}${green}User:              ${new_user}${reset}"
   echo "${m_tab}${green}Working Path:      ${working_path}${reset}"
   echo "${m_tab}${green}Setup_Script Path: ${working_path}/woo-aras-setup.sh${reset}"
   echo "${m_tab}${green}Main_Script Path:  ${working_path}/woocommerce-aras-cargo.sh${reset}"
   echo ""
-  echo "${m_tab}${green}USAGE: su - wooaras; sudo ./woo-aras-setup.sh${reset}"
+  echo "${m_tab}${magenta}USAGE: su - ${new_user}; sudo ./woo-aras-setup.sh${reset}"
   exit 1
 }
 
