@@ -999,9 +999,18 @@ fi
 # Change directory to working path
 my_env="new_user,setup_key,working_path,temporary_path_x"
 env_info () {
-
+  echo -e "\n${yellow}* ENVIRONMENT IS ALREADY SET..${reset}"
+  echo "${cyan}${m_tab}#####################################################${reset}"
+  echo "${m_tab}${magenta}Please switch user to ${new_user} and run the setup${reset}"
+  echo "${m_tab}${green}su - wooaras; sudo ./woo-aras-setup.sh${reset}"
+  echo "${m_tab}${green}User:              ${new_user}${reset}"
+  echo "${m_tab}${green}Working Path:      ${working_path}${reset}"
+  echo "${m_tab}${green}Setup_Script Path: ${working_path}/woo-aras-setup.sh${reset}"
+  echo "${m_tab}${green}Main_Script Path:  ${working_path}/woocommerce-aras-cargo.sh${reset}"
+  echo ""
+  echo "${m_tab}${green}USAGE: su - wooaras; sudo ./woo-aras-setup.sh${reset}"
+  exit 1
 }
-
 
 if [[ "$SUDO_USER" ]]; then
   if [[ "$SUDO_USER" != "${new_user}" ]]; then
@@ -1009,13 +1018,13 @@ if [[ "$SUDO_USER" ]]; then
       if ! [[ -f "${working_path}/.env.ready" ]]; then
         sudo -u "${new_user}" --preserve-env="${my_env}" -s /bin/bash -c 'sudo --preserve-env='"${my_env}"' '"${working_path}"'/woocommerce-aras-cargo.sh --setup'
       else
-        env_info; exit 1
+        env_info
       fi
     elif ! [[ -f "${working_path}/.woo.aras.set" ]]; then
       if ! [[ -f "${working_path}/.env.ready" ]]; then
         sudo -u "${new_user}" --preserve-env="${my_env}" -s /bin/bash -c 'sudo --preserve-env='"${my_env}"' '"${working_path}"'/woocommerce-aras-cargo.sh --setup'
       else
-        env_info; exit 1
+        env_info
       fi
     else
       setup_info
