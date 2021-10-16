@@ -112,15 +112,7 @@ sudoers_file="/etc/sudoers"
 pass_file="/etc/passwd"
 portage_php="/etc/portage/package.use/woo_php"
 
-# Use for env operations errors
-die () {
-  printf >&2 "%s ABORTED %s %s \n\n" "${TPUT_BGRED}${TPUT_WHITE}${TPUT_BOLD}" "${TPUT_RESET}" "${*}"
-  userdel "${new_user}" >/dev/null 2>&1
-  rm -r "${working_path:?}"
-  exit 1
-}
-
-# Use for other errors
+# Fatal exit
 fatal () {
   echo ""
   printf >&2 "${m_tab}%s ABORTED %s %s \n\n" "${TPUT_BGRED}${TPUT_WHITE}${TPUT_BOLD}" "${TPUT_RESET}" "${*}"
@@ -128,10 +120,10 @@ fatal () {
   exit 1
 }
 
-# Use for completed tasks
-done_ () {
+# Collected errors
+error () {
   echo ""
-  printf >&2 "${m_tab}%s DONE %s %s" "${TPUT_BGGREEN}${TPUT_WHITE}${TPUT_BOLD}" "${TPUT_RESET}" "${*}"
+  printf >&2 "${m_tab}%s ABORTED %s %s \n\n" "${TPUT_BGRED}${TPUT_WHITE}${TPUT_BOLD}" "${TPUT_RESET}" "${*}"
   echo ""
 }
 
@@ -237,9 +229,9 @@ uniquepath
 # Unsupported os&pm pretty error
 un_supported () {
   if [[ "${1}" == "--pm" ]]; then
-    fatal "Unsupported Linux distribution"
+    fatal "FAIL --> UNSUPPORTED LINUX DISTRIBUTION"
   elif [[ "${1}" == "--os" ]]; then
-    fatal "Could not identify your Linux distribution"
+    fatal "FAIL --> CANNOT IDENTIFY YOUR LINUX DISTRIBUTION"
   fi
 }
 
@@ -469,7 +461,7 @@ get_package_list () {
     ['default']="newt"
   )
 
-  # Collect missing dependencies for distribution
+  # Get package names from missing dependencies for running  distribution
   for dep in "${missing_deps[@]}"
   do
     eval "p=\${pkg_${dep}['${distribution,,}']}"
@@ -944,21 +936,26 @@ fi
 # =====================================================================
 # Check user exist, if not create
 if ! grep -qE "^${new_user}:" "${pass_file}"; then
+  u_error=()
   fake_progress "USER OPERATIONS"
   #Encrypt password
-  enc_pass=$(perl -e 'print crypt($ARGV[0], "password")' $new_user || { replace_fail "USER OPERATIONS FAILED"; error=enc; })
+  enc_pass=$(perl -e 'print crypt($ARGV[0], "password")' $new_user || { replace_fail "USER OPERATIONS FAILED"; u_error+=( "enc" ); })
   # Create user
-  useradd -K UMASK=0077 -U -m -p "${enc_pass}" -s /bin/bash "${new_user}" >/dev/null 2>&1 || { replace_fail "USER OPERATIONS FAILED"; error=add; }
+  useradd -K UMASK=0077 -U -m -p "${enc_pass}" -s /bin/bash "${new_user}" >/dev/null 2>&1 || { replace_fail "USER OPERATIONS FAILED"; u_error+=( "add" ); }
   # Grant sudo priv. for only execute setup and main script
-  echo "${new_user} ALL=(ALL) NOPASSWD:SETENV: ${working_path}/woocommerce-aras-cargo.sh,${working_path}/woo-aras-setup.sh" | sudo EDITOR='tee -a' visudo >/dev/null 2>&1 || { replace_fail "USER OPERATIONS FAILED"; error=sudo; }
-  if [[ "${error}" ]]; then
-    if [[ "${error}" == "enc" ]]; then
-      fatal "STAGE-2 | FAIL --> PASSWORD ENCRYPTION ERROR"
-    elif [[ "${error}" == "add" ]]; then
-      fatal "STAGE-2 | FAIL --> CANNOT CREATE USER"
-    elif [[ "${error}" == "sudo" ]]; then
-      fatal "STAGE-2 | FAIL --> CANNOT GRANT SUDO"
-    fi
+  echo "${new_user} ALL=(ALL) NOPASSWD:SETENV: ${working_path}/woocommerce-aras-cargo.sh,${working_path}/woo-aras-setup.sh" | sudo EDITOR='tee -a' visudo >/dev/null 2>&1 || { replace_fail "USER OPERATIONS FAILED"; u_error+=( "sudo" ); }
+  if (( ${#u_error[@]} )); then
+    for err in "${u_error[@]}"
+    do
+      if [[ "${err}" == "enc" ]]; then
+        error "FAIL --> PASSWORD ENCRYPTION ERROR"
+      elif [[ "${err}" == "add" ]]; then
+        error "FAIL --> CANNOT CREATE USER"
+      elif [[ "${err}" == "sudo" ]]; then
+        error "FAIL --> CANNOT GRANT SUDO"
+      fi
+    done
+    exit 1
   else
     replace_suc "USER OPERATIONS COMPLETED"
   fi
@@ -967,21 +964,36 @@ fi
 # STAGE-3 @ENVIRONMENT OPERATIONS
 # =====================================================================
 if ! [[ -d "${working_path}" ]]; then
+  e_error=()
+  fake_progress "ENVIRONMENT OPERATIONS"
   if [[ ! -d "${working_path%/*}" ]]; then
-    mkdir -p "${working_path%/*}" || die "STAGE-3 | FAIL --> Could not create directory ${working_path}"
+    mkdir -p "${working_path%/*}" >/dev/null 2>&1 || { replace_fail "ENVIRONMENT OPERATIONS FAILED"; e_error+=( "mdir" ); }
   fi
-
-  # Clone repo to working path & change permissions
-  cd "${working_path%/*}" || die "STAGE-3 | FAIL --> Could not change directory to ${working_path%/*}"
-  git clone --quiet "${git_repo}" &>/dev/null &
-  my_wait "ENVIRONMENT OPERATIONS" || die "STAGE-3 | FAIL --> Could not git clone into ${working_path%/*}"
-  chown -R "${new_user}":"${new_user}" "${working_path%/*}" >/dev/null 2>&1 || die "STAGE-3 | FAIL --> Could not change ownership of ${working_path%/*}"
-  chmod 750 "${working_path}"/woocommerce-aras-cargo.sh >/dev/null 2>&1 || die "STAGE-3 | FAIL --> Could not change mod woocommerce-aras-cargo.sh"
-fi
-
-# This prints once when env created first time
-if [[ "${password}" ]]; then
-  read -n 1 -s -r -p "${green}> Pre operations completed press any key to start setup..${reset}" reply < /dev/tty; echo
+  # Clone repo to working path
+  cd "${working_path%/*}" >/dev/null 2>&1 || { replace_fail "ENVIRONMENT OPERATIONS FAILED"; e_error+=( "cdir" ); }
+  git clone --quiet "${git_repo}" >/dev/null 2>&1 || { replace_fail "ENVIRONMENT OPERATIONS FAILED"; e_error+=( "git" ); }
+  # Set permissions
+  chown -R "${new_user}":"${new_user}" "${working_path%/*}" >/dev/null 2>&1 || { replace_fail "ENVIRONMENT OPERATIONS FAILED"; e_error+=( "own" ); }
+  chmod 700 "${working_path}"/woocommerce-aras-cargo.sh >/dev/null 2>&1 || { replace_fail "ENVIRONMENT OPERATIONS FAILED"; e_error+=( "mod" ); }
+  if (( ${#e_error[@]} )); then
+    for err in "${e_error[@]}"
+    do
+      if [[ "${err}" == "mdir" ]]; then
+        error "FAIL --> CANNOT MAKE DIRECTORY"
+      elif [[ "${err}" == "cdir" ]]; then
+        error "FAIL --> CANNOT CHANGE DIRECTORY"
+      elif [[ "${err}" == "git" ]]; then
+        error "FAIL --> CANNOT CLONE REPOSITORY"
+      elif [[ "${err}" == "own" ]]; then
+        error "FAIL --> CANNOT OWN DIRECTORY"
+      elif [[ "${err}" == "mod" ]]; then
+        error "FAIL --> CANNOT SET PERMISSION"
+      fi
+    done
+    exit 1
+  else
+    replace_suc "ENVIRONMENT OPERATIONS COMPLETED"
+  fi
 fi
 
 # @START THE SETUP
