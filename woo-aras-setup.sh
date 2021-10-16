@@ -471,7 +471,7 @@ get_package_list () {
 }
 
 pre_start () {
-  if [[ (( ${#missing_deps[@]} )) || ! -d "${working_path}" ]] || ! grep -qE "^${new_user}" "${pass_file}"; then
+  if [[ ! "$(id -u $new_user)" || "${#missing_deps[@]}" -ne 0 || ! -d "${working_path}" ]]; then
     autodetect_distribution &&
     {
     autodetect_package_manager || un_supported --pm
@@ -480,60 +480,58 @@ pre_start () {
 
     wooaras_banner "GETTING THINGS READY :)"
 
-    echo -e "\n${m_tab}${magenta}# WOOCOMMERCE - ARAS CARGO INTEGRATION PRE-SETUP${reset}"
-    echo "${m_tab}${cyan}# ---------------------------------------------------------------------${reset}"
-
     if [[ "${distribution}" ]]; then
       echo -e "\n${green}* ${magenta}OS INFORMATION${reset}"
-      echo "${cyan}${m_tab}#####################################################${reset}"
+      echo "${cyan}${m_tab}##############################################################################################${reset}"
       {
       echo "${green}Operating_System: $(uname -s)${reset}"
       echo "${green}Distribution: ${distribution}${reset}"
       echo "${green}Version: ${version}${reset}"
-      echo "${green}Codename: ${codename}${reset}"
+      echo "${green}Codename: ${codename// /_}${reset}"
       echo "${green}Package_Manager: ${package_installer}${reset}"
       echo "${green}Detection_Method: ${detection}${reset}"
-      } column -t -s ' ' | sed 's/^/  /'
+      } | column -o '       ' -t -s ' ' | sed 's/^/  /'
     fi
 
     if (( ${#missing_deps[@]} )); then
       get_package_list
-      echo -e "\n${green}* ${magenta}PACKAGE INSTALLATION${reset}"
-      echo "${cyan}${m_tab}#####################################################${reset}"
+      echo -e "\n${green}* ${magenta}STAGE-1 > PACKAGE INSTALLATION${reset}"
+      echo "${cyan}${m_tab}##############################################################################################${reset}"
+      fixed_packages="${packages[@]}"
       {
       if [[ "${missing_deps[@]}" =~ "perl_text_fuzzy" ]]; then
-        echo "${green}Missing_Packages: ${packages[*]} Text::Fuzzy${reset}"
+        echo "${green}Missing_Packages: ${fixed_packages//${IFS:0:1}/,},Text::Fuzzy${reset}"
       else
-        echo "${green}Missing_Packages: ${packages[*]}${reset}"
+        echo "${green}Missing_Packages: ${fixed_packages//${IFS:0:1}/,}${reset}"
       fi
-      } column -t -s ' ' | sed 's/^/  /'
+      } | column -o '       ' -t -s ' ' | sed 's/^/  /'
     fi
 
-    if ! grep -qE "^${new_user}" "${pass_file}"; then
-      echo -e "\n${green}* ${magenta}USER OPERATIONS${reset}"
-      echo "${cyan}${m_tab}#####################################################${reset}"
+    if ! grep -qE "^${new_user}:" "${pass_file}"; then
+      echo -e "\n${green}* ${magenta}STAGE-2 > USER OPERATIONS${reset}"
+      echo "${cyan}${m_tab}##############################################################################################${reset}"
       {
       echo "${green}New_System_User: ${new_user}${reset}"
       echo "${green}Default_User_Password: ${new_user}${reset}"
       echo "${green}User_Home_Folder: /home/${new_user}${reset}"
       echo "${green}Home_Permission: 700${reset}"
       echo "${green}UserWillBeSudoerFor: woo-aras-setup.sh,woocommerce-aras-cargo.sh${reset}"
-      } column -t -s ' ' | sed 's/^/  /'
+      } | column -t -s ' ' | sed 's/^/  /'
     fi
 
     if ! [[ -d "${working_path}" ]]; then
-      echo -e "\n${green}* ${magenta}ENVIRONMENT OPERATIONS${reset}"
-      echo "${cyan}${m_tab}#####################################################${reset}"
+      echo -e "\n${green}* ${magenta}STAGE-3 > ENVIRONMENT OPERATIONS${reset}"
+      echo "${cyan}${m_tab}##############################################################################################${reset}"
       {
       echo "${green}New_Working_Path: ${working_path}${reset}"
       echo "${green}Setup_Script_Path: ${working_path}/woo-aras-setup.sh${reset}"
       echo "${green}Main_Script_Path: ${working_path}/woocommerce-aras-cargo.sh${reset}"
-      } | column -t -s ' ' | sed 's/^/  /'
+      } | column -o '      ' -t -s ' ' | sed 's/^/  /'
     fi
 
     while :; do
-      echo -e "\n${cyan}${m_tab}#####################################################${reset}"
-      read -r -n 1 -p "${m_tab}${BC}Do you want to continue? --> (Y)es | (N)o${EC} " yn < /dev/tty
+      echo -e "\n${cyan}${m_tab}###################################################${reset}"
+      read -r -n 1 -p "${m_tab}${BC}Do you want to continue pre-setup? --> (Y)es | (N)o${EC} " yn < /dev/tty
       echo ""
       case "${yn}" in
         [Yy]* ) break;;
