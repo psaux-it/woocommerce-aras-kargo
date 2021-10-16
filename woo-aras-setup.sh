@@ -21,7 +21,6 @@
 # -This script prepares environment for ARAS cargo integration.
 
 # Set color
-# =====================================================================
 setup_terminal () {
   green=""; red=""; reset=""; cyan=""; magenta=""; yellow=""; TPUT_RESET="";
   TPUT_GREEN=""; TPUT_CYAN=""; TPUT_DIM=""; TPUT_BOLD=""; m_tab='  '; BC=$'\e[32m'
@@ -40,8 +39,6 @@ setup_terminal () {
 }
 setup_terminal || echo > /dev/null
 
-# @EARLY CRITICAL CONTROLS
-# =====================================================================
 # Early check bash exists and met version requirement
 # This function written in POSIX for portability but rest of script is bashify
 detect_bash5 () {
@@ -107,8 +104,6 @@ usage () {
 # Display usage for necessary privileges
 [[ ! $SUDO_USER && $EUID -ne 0 ]] && { usage; exit 1; }
 
-# @GLOBAL VARIABLES
-# =====================================================================
 export new_user="wooaras"
 export setup_key="gajVVK2zXo"
 export working_path="/home/${new_user}/scripts/woocommerce-aras-kargo"
@@ -188,24 +183,6 @@ setup_info () {
   exit 1
 }
 
-env_info () {
-  echo -e "\n${m_tab}${cyan}# WOOCOMMERCE - ARAS CARGO INTEGRATION ENVIRONMENT DETAILS${reset}"
-  echo "${m_tab}${cyan}# ---------------------------------------------------------------------${reset}"
-  echo -e "${m_tab}${magenta}# ATTENTION: Always run under system user --> ${new_user}${reset}\n"
-  { # Start redirection
-  echo "${green}System_User: ${new_user}${reset}"
-  echo "${green}Home_Folder: /home/${new_user}${reset}"
-  echo "${green}Sudoer: Limited${reset}"
-  [[ "${password}" ]] && echo "${green}Password: ${password}${reset}" || echo "${green}Password: HIDDEN${reset}"
-  echo "${green}Working_Path: ${working_path}${reset}"
-  echo "${green}Setup_Script: ${working_path}/woo-aras-setup.sh${reset}"
-  echo "${green}Main_Script: ${working_path}/woocommerce-aras-cargo.sh${reset}"
-  } | column -t -s ' ' | sed 's/^/  /' # End redirection
-  echo ""
-}
-
-# @DETERMINE SCRIPT PATH
-# =====================================================================
 script_path_pretty_error () {
   echo -e "\n${red}*${reset} ${red}Could not determine script name and fullpath${reset}"
   echo -e "${cyan}${m_tab}#####################################################${reset}\n"
@@ -241,8 +218,6 @@ this_script_path="${this_script_path%%+(/)}"
 # Export for main executable
 export temporary_path_x="${this_script_path}"
 
-# STAGE-1 @PACKAGE INSTALLATION
-# =====================================================================
 # Add /usr // /usr/local to PATH
 export PATH="${PATH}:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin"
 uniquepath () {
@@ -414,6 +389,172 @@ autodetect_distribution () {
   esac
 }
 
+# Package lists for distributions
+get_package_list () {
+  declare -A pkg_make=(
+    ['centos']="@'Development Tools'"
+    ['fedora']="@'Development Tools'"
+    ['rhel']="@'Development Tools'"
+    ['ubuntu']="build-essential"
+    ['debian']="build-essential"
+    ['arch']="base-devel"
+    ['suse']=""
+    ['opensuse-leap']=""
+    ['opensuse-tumbleweed']=""
+    ['gentoo']=""
+  )
+
+  declare -A pkg_curl=(
+    ['gentoo']="net-misc/curl"
+    ['default']="curl"
+  )
+
+  declare -A pkg_openssl=(
+    ['gentoo']="dev-libs/openssl"
+    ['default']="openssl"
+  )
+
+  declare -A pkg_gawk=(
+    ['gentoo']="sys-apps/gawk"
+    ['default']="gawk"
+  )
+
+  declare -A pkg_jq=(
+    ['gentoo']="app-misc/jq"
+    ['default']="jq"
+  )
+
+  declare -A pkg_perl_app_cpanminus=(
+    ['centos']="perl-App-cpanminus"
+    ['fedora']="perl-App-cpanminus"
+    ['rhel']="perl-App-cpanminus"
+    ['ubuntu']="cpanminus"
+    ['debian']="cpanminus"
+    ['arch']="cpanminus"
+    ['gentoo']="dev-perl/App-cpanminus"
+    ['suse']="perl-App-cpanminus"
+    ['opensuse-leap']="perl-App-cpanminus"
+    ['opensuse-tumbleweed']="perl-App-cpanminus"
+  )
+
+  declare -A pkg_perl_text_fuzzy=(
+    ['default']=""
+  )
+
+  declare -A pkg_php=(
+    ['gentoo']="dev-lang/php"
+    ['default']="php"
+  )
+
+  declare -A pkg_php_soap=(
+    ['gentoo']=""
+    ['default']="php-soap"
+  )
+
+  declare -A pkg_git=(
+    ['gentoo']="dev-vcs/git"
+    ['default']="git"
+  )
+
+  declare -A pkg_logrotate=(
+    ['gentoo']="app-admin/logrotate"
+    ['default']="logrotate"
+  )
+
+  declare -A pkg_whiptail=(
+    ['gentoo']="dev-util/dialog"
+    ['ubuntu']="whiptail"
+    ['debian']="whiptail"
+    ['arch']="libnewt"
+    ['default']="newt"
+  )
+
+  # Collect missing dependencies for distribution
+  for dep in "${missing_deps[@]}"
+  do
+    eval "p=\${pkg_${dep}['${distribution,,}']}"
+    [[ ! "${p}" ]] && eval "p=\${pkg_${dep}['default']}"
+    [[ "${p}" ]] && packages+=( "${p}" )
+  done
+}
+
+pre_start () {
+  if [[ (( ${#missing_deps[@]} )) || ! -d "${working_path}" ]] || ! grep -qE "^${new_user}" "${pass_file}"; then
+    autodetect_distribution &&
+    {
+    autodetect_package_manager || un_supported --pm
+    } ||
+    un_supported --os
+
+    wooaras_banner "GETTING THINGS READY :)"
+
+    echo -e "\n${m_tab}${magenta}# WOOCOMMERCE - ARAS CARGO INTEGRATION PRE-SETUP${reset}"
+    echo "${m_tab}${cyan}# ---------------------------------------------------------------------${reset}"
+
+    if [[ "${distribution}" ]]; then
+      echo -e "\n${green}* ${magenta}OS INFORMATION${reset}"
+      echo "${cyan}${m_tab}#####################################################${reset}"
+      {
+      echo "${green}Operating_System: $(uname -s)${reset}"
+      echo "${green}Distribution: ${distribution}${reset}"
+      echo "${green}Version: ${version}${reset}"
+      echo "${green}Codename: ${codename}${reset}"
+      echo "${green}Package_Manager: ${package_installer}${reset}"
+      echo "${green}Detection_Method: ${detection}${reset}"
+      } column -t -s ' ' | sed 's/^/  /'
+    fi
+
+    if (( ${#missing_deps[@]} )); then
+      get_package_list
+      echo -e "\n${green}* ${magenta}PACKAGE INSTALLATION${reset}"
+      echo "${cyan}${m_tab}#####################################################${reset}"
+      {
+      if [[ "${missing_deps[@]}" =~ "perl_text_fuzzy" ]]; then
+        echo "${green}Missing_Packages: ${packages[*]} Text::Fuzzy${reset}"
+      else
+        echo "${green}Missing_Packages: ${packages[*]}${reset}"
+      fi
+      } column -t -s ' ' | sed 's/^/  /'
+    fi
+
+    if ! grep -qE "^${new_user}" "${pass_file}"; then
+      echo -e "\n${green}* ${magenta}USER OPERATIONS${reset}"
+      echo "${cyan}${m_tab}#####################################################${reset}"
+      {
+      echo "${green}New_System_User: ${new_user}${reset}"
+      echo "${green}Default_User_Password: ${new_user}${reset}"
+      echo "${green}User_Home_Folder: /home/${new_user}${reset}"
+      echo "${green}Home_Permission: 700${reset}"
+      echo "${green}UserWillBeSudoerFor: woo-aras-setup.sh,woocommerce-aras-cargo.sh${reset}"
+      } column -t -s ' ' | sed 's/^/  /'
+    fi
+
+    if ! [[ -d "${working_path}" ]]; then
+      echo -e "\n${green}* ${magenta}ENVIRONMENT OPERATIONS${reset}"
+      echo "${cyan}${m_tab}#####################################################${reset}"
+      {
+      echo "${green}New_Working_Path: ${working_path}${reset}"
+      echo "${green}Setup_Script_Path: ${working_path}/woo-aras-setup.sh${reset}"
+      echo "${green}Main_Script_Path: ${working_path}/woocommerce-aras-cargo.sh${reset}"
+      } | column -t -s ' ' | sed 's/^/  /'
+    fi
+
+    while :; do
+      echo -e "\n${cyan}${m_tab}#####################################################${reset}"
+      read -r -n 1 -p "${m_tab}${BC}Do you want to continue? --> (Y)es | (N)o${EC} " yn < /dev/tty
+      echo ""
+      case "${yn}" in
+        [Yy]* ) break;;
+        [Nn]* ) exit 1;;
+        * ) echo -e "\n${m_tab}${magenta}Please answer yes or no.${reset}";;
+      esac
+    done
+
+    echo -e "\n${m_tab}${magenta}${TPUT_BOLD}< THIS MAY TAKE A WHILE >${reset}"
+    echo -e "${m_tab}${cyan}-------------------------${reset}\n"
+  fi
+}
+
 # It is best to get needed version of jq manually instead of relying distro repos
 # It is portable, doesn't need any runtime dependencies.
 # If something goes wrong here script will try package manager to install it
@@ -492,7 +633,6 @@ my_wait () {
 }
 
 # Validate installed packages silently
-# =====================================================================
 validate_centos () {
   fail=()
   for packagename in "${packages[@]}"
@@ -627,7 +767,6 @@ validate_opensuse-tumbleweed () {
     fi
   done
 }
-# =====================================================================
 
 # Merge ops.
 post_ops () {
@@ -683,145 +822,15 @@ check_deps () {
     fi
   done
 }
+
 check_deps
+pre_start
 
+# STAGE-1 @PACKAGE INSTALLATION
+# =====================================================================
 if (( ${#missing_deps[@]} )); then
-  # Check distribution & package_manager are supported
-  autodetect_distribution &&
-  {
-  autodetect_package_manager || un_supported --pm
-  } ||
-  un_supported --os
-
   # Test connection for package installation
   test_connection
-
-  # STAGE-1
-  wooaras_banner "STAGE-1: PACKAGE INSTALLATION"
-
-  echo -e "\n${green}* ${magenta}OS Information${reset}"
-  echo "${cyan}${m_tab}#####################################################${reset}"
-  printf "${green}"
-
-	cat <<-EOF | sed 's/^/  /'
-	Distribution    : ${distribution}
-	Version         : ${version}
-	Codename        : ${codename}
-	Package Manager : ${package_installer}
-	Detection Method: ${detection}
-	EOF
-
-  printf "${reset}"
-
-  # Package lists for distributions
-  declare -A pkg_make=(
-    ['centos']="@'Development Tools'"
-    ['fedora']="@'Development Tools'"
-    ['rhel']="@'Development Tools'"
-    ['ubuntu']="build-essential"
-    ['debian']="build-essential"
-    ['arch']="base-devel"
-    ['suse']=""
-    ['opensuse-leap']=""
-    ['opensuse-tumbleweed']=""
-    ['gentoo']=""
-  )
-
-  declare -A pkg_curl=(
-    ['gentoo']="net-misc/curl"
-    ['default']="curl"
-  )
-
-  declare -A pkg_openssl=(
-    ['gentoo']="dev-libs/openssl"
-    ['default']="openssl"
-  )
-
-  declare -A pkg_gawk=(
-    ['gentoo']="sys-apps/gawk"
-    ['default']="gawk"
-  )
-
-  declare -A pkg_jq=(
-    ['gentoo']="app-misc/jq"
-    ['default']="jq"
-  )
-
-  declare -A pkg_perl_app_cpanminus=(
-    ['centos']="perl-App-cpanminus"
-    ['fedora']="perl-App-cpanminus"
-    ['rhel']="perl-App-cpanminus"
-    ['ubuntu']="cpanminus"
-    ['debian']="cpanminus"
-    ['arch']="cpanminus"
-    ['gentoo']="dev-perl/App-cpanminus"
-    ['suse']="perl-App-cpanminus"
-    ['opensuse-leap']="perl-App-cpanminus"
-    ['opensuse-tumbleweed']="perl-App-cpanminus"
-  )
-
-  declare -A pkg_perl_text_fuzzy=(
-    ['default']=""
-  )
-
-  declare -A pkg_php=(
-    ['gentoo']="dev-lang/php"
-    ['default']="php"
-  )
-
-  declare -A pkg_php_soap=(
-    ['gentoo']=""
-    ['default']="php-soap"
-  )
-
-  declare -A pkg_git=(
-    ['gentoo']="dev-vcs/git"
-    ['default']="git"
-  )
-
-  declare -A pkg_logrotate=(
-    ['gentoo']="app-admin/logrotate"
-    ['default']="logrotate"
-  )
-
-  declare -A pkg_whiptail=(
-    ['gentoo']="dev-util/dialog"
-    ['ubuntu']="whiptail"
-    ['debian']="whiptail"
-    ['arch']="libnewt"
-    ['default']="newt"
-  )
-
-  # Collect missing dependencies for distribution
-  for dep in "${missing_deps[@]}"
-  do
-    eval "p=\${pkg_${dep}['${distribution,,}']}"
-    [[ ! "${p}" ]] && eval "p=\${pkg_${dep}['default']}"
-    [[ "${p}" ]] && packages+=( "${p}" )
-  done
-
-  echo -e "\n${green}*${reset}${green} I'm about to install following packages for you.${reset}"
-  echo "${cyan}${m_tab}#####################################################${reset}"
-  if [[ "${missing_deps[@]}" =~ "perl_text_fuzzy" ]]; then
-    echo "${m_tab}${magenta}${packages[*]} Text::Fuzzy${reset}"
-  else
-    echo "${m_tab}${magenta}${packages[*]}${reset}"
-  fi
-
-  # User approval
-  while :; do
-    echo -e "\n${cyan}${m_tab}#####################################################${reset}"
-    read -r -n 1 -p "${m_tab}${BC}Do you want to continue? --> (Y)es | (N)o${EC} " yn < /dev/tty
-    echo ""
-    case "${yn}" in
-      [Yy]* ) break;;
-      [Nn]* ) exit 1;;
-      * ) echo -e "\n${m_tab}${magenta}Please answer yes or no.${reset}";;
-    esac
-  done
-
-  echo -e "\n${m_tab}${magenta}${TPUT_BOLD}< THIS MAY TAKE A WHILE >${reset}"
-  echo -e "${m_tab}${cyan}-------------------------${reset}\n"
 
   # Lets start package installation
   if [[ "${distribution}" = "centos" ]]; then
@@ -925,34 +934,22 @@ if (( ${#missing_deps[@]} )); then
   # Re-check deps to validate whole package installation
   check_deps
 
-  if ! (( ${#missing_deps[@]} )); then
-    done_ "STAGE-1 | PACKAGE INSTALLATION"
-  else
+  if (( ${#missing_deps[@]} )); then
     fixed_missing=( "${missing_deps[@]//_/-}" )
-    fatal "STAGE-1 | FAIL --> CANNOT INSTALL: ${fixed_missing[*]/perl-text-fuzzy/Text::Fuzzy}"
+    fatal "FAIL --> CANNOT INSTALL: ${fixed_missing[*]/perl-text-fuzzy/Text::Fuzzy}"
   fi
-else
-  done_ "STAGE-1 | PACKAGE INSTALLATION"
 fi
 
 # STAGE-2 @USER OPERATIONS
 # =====================================================================
 # Check user exist, if not create
-if ! grep -qE "^${new_user}" "${pass_file}"; then
-  wooaras_banner "STAGE-2: USER OPERATIONS"
-  echo -e "\n${green}*${reset} ${magenta}Setting ${new_user} user password, type q for quit${reset}"
-  echo "${cyan}${m_tab}#####################################################${reset}"
-  read -r -p "${m_tab}${BC}Enter new system user password:${EC} " password < /dev/tty
-  if [[ "${password}" == "q" || "${password}" == "quit" ]]; then exit 1; fi
-  echo "${cyan}${m_tab}#####################################################${reset}"
-  echo -e "\n${m_tab}${magenta}${TPUT_BOLD}< THIS MAY TAKE A WHILE >${reset}"
-  echo -e "${m_tab}${cyan}-------------------------${reset}\n"
+if ! grep -qE "^${new_user}:" "${pass_file}"; then
   fake_progress "USER OPERATIONS"
-  # Encrypt password
-  enc_pass=$(perl -e 'print crypt($ARGV[0], "password")' $password || { replace_fail "USER OPERATIONS FAILED"; error=enc; })
+  #Encrypt password
+  enc_pass=$(perl -e 'print crypt($ARGV[0], "password")' $new_user || { replace_fail "USER OPERATIONS FAILED"; error=enc; })
   # Create user
-  useradd -U -m -p "${enc_pass}" -s /bin/bash "${new_user}" >/dev/null 2>&1 || { replace_fail "USER OPERATIONS FAILED"; error=add; }
-  # Limited sudoer for only execute setup and main
+  useradd -K UMASK=0077 -U -m -p "${enc_pass}" -s /bin/bash "${new_user}" >/dev/null 2>&1 || { replace_fail "USER OPERATIONS FAILED"; error=add; }
+  # Grant sudo priv. for only execute setup and main script
   echo "${new_user} ALL=(ALL) NOPASSWD:SETENV: ${working_path}/woocommerce-aras-cargo.sh,${working_path}/woo-aras-setup.sh" | sudo EDITOR='tee -a' visudo >/dev/null 2>&1 || { replace_fail "USER OPERATIONS FAILED"; error=sudo; }
   if [[ "${error}" ]]; then
     if [[ "${error}" == "enc" ]]; then
@@ -964,18 +961,12 @@ if ! grep -qE "^${new_user}" "${pass_file}"; then
     fi
   else
     replace_suc "USER OPERATIONS COMPLETED"
-    done_ "STAGE-2 | USER OPERATIONS"
   fi
-else
-  done_ "STAGE-2 | USER OPERATIONS"
 fi
 
 # STAGE-3 @ENVIRONMENT OPERATIONS
 # =====================================================================
 if ! [[ -d "${working_path}" ]]; then
-  wooaras_banner "STAGE-3: ENVIRONMENT OPERATIONS"
-  echo -e "\n${m_tab}${magenta}${TPUT_BOLD}< THIS MAY TAKE A WHILE >${reset}"
-  echo -e "${m_tab}${cyan}-------------------------${reset}\n"
   if [[ ! -d "${working_path%/*}" ]]; then
     mkdir -p "${working_path%/*}" || die "STAGE-3 | FAIL --> Could not create directory ${working_path}"
   fi
@@ -986,10 +977,6 @@ if ! [[ -d "${working_path}" ]]; then
   my_wait "ENVIRONMENT OPERATIONS" || die "STAGE-3 | FAIL --> Could not git clone into ${working_path%/*}"
   chown -R "${new_user}":"${new_user}" "${working_path%/*}" >/dev/null 2>&1 || die "STAGE-3 | FAIL --> Could not change ownership of ${working_path%/*}"
   chmod 750 "${working_path}"/woocommerce-aras-cargo.sh >/dev/null 2>&1 || die "STAGE-3 | FAIL --> Could not change mod woocommerce-aras-cargo.sh"
-  env_info
-  done_ "STAGE-3 | ENVIRONMENT OPERATIONS"
-else
-  done_ "STAGE-3 | ENVIRONMENT OPERATIONS"
 fi
 
 # This prints once when env created first time
