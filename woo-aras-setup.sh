@@ -1006,9 +1006,9 @@ env_info () {
   echo "${m_tab}${green}User:              ${new_user}${reset}"
   echo "${m_tab}${green}Working Path:      ${working_path}${reset}"
   echo "${m_tab}${green}Setup_Script Path: ${working_path}/woo-aras-setup.sh${reset}"
-  echo -e "\n${m_tab}${green}Main_Script Path:  ${working_path}/woocommerce-aras-cargo.sh${reset}"
+  echo -e "${m_tab}${green}Main_Script Path:  ${working_path}/woocommerce-aras-cargo.sh${reset}\n"
   echo "${m_tab}${magenta}USAGE: su - ${new_user}; sudo ./woo-aras-setup.sh${reset}"
-  echo -e "${m_tab}${cyan}^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^${reset}\n"
+  echo -e "${m_tab}${cyan}^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^${reset}\n"
   exit 1
 }
 
@@ -1030,9 +1030,9 @@ if [[ "$SUDO_USER" ]]; then
       setup_info
     fi
   elif [[ "${1}" == "--force" || "${1}" == "-f" ]]; then
-    sudo "${working_path}"/woocommerce-aras-cargo.sh --setup
+    "${working_path}"/woocommerce-aras-cargo.sh --setup
   elif ! [[ -f "${working_path}/.woo.aras.set" ]]; then
-    sudo "${working_path}"/woocommerce-aras-cargo.sh --setup
+    "${working_path}"/woocommerce-aras-cargo.sh --setup
   else
     setup_info
   fi
