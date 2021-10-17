@@ -1030,9 +1030,9 @@ if [[ "$SUDO_USER" ]]; then
       setup_info
     fi
   elif [[ "${1}" == "--force" || "${1}" == "-f" ]]; then
-    "${working_path}"/woocommerce-aras-cargo.sh --setup
+    sudo "${working_path}"/woocommerce-aras-cargo.sh --setup
   elif ! [[ -f "${working_path}/.woo.aras.set" ]]; then
-    "${working_path}"/woocommerce-aras-cargo.sh --setup
+    sudo "${working_path}"/woocommerce-aras-cargo.sh --setup
   else
     setup_info
   fi
