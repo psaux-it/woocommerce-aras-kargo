@@ -3021,6 +3021,7 @@ encrypt_aras_qry () {
 	hide_me --disable
 }
 
+hide_me --enable
 encrypt_wc_auth && encrypt_wc_end && encrypt_aras_auth && encrypt_aras_end && encrypt_aras_qry ||
 {
 echo -e "\n${red}*${reset} ${red}Encrypt Error: ${reset}"
@@ -3028,6 +3029,7 @@ echo -e "${cyan}${m_tab}#####################################################${r
 echo "$(timestamp): Encrypt error." >> "${wooaras_log}"
 exit 1
 }
+hide_me --disable
 
 # decrypt ARAS SOAP API credentials
 decrypt_aras_auth () {
@@ -3057,6 +3059,7 @@ decrypt_wc_end () {
 	hide_me --disable
 }
 
+hide_me --enable
 decrypt_aras_auth && decrypt_aras_end && decrypt_wc_auth && decrypt_wc_end ||
 {
 echo -e "\n${red}*${reset} ${red}Decrypt Error: ${reset}"
@@ -3064,6 +3067,7 @@ echo -e "${cyan}${m_tab}#####################################################${r
 echo "$(timestamp): Decrypt error." >> "${wooaras_log}"
 exit 1
 }
+hide_me --disable
 
 # Double check any sensetive data written to history
 history -w
