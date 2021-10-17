@@ -295,7 +295,8 @@ if [[ "${1}" == "-s" || "${1}" == "--setup" ]]; then
 		if [[ "$SUDO_USER" == "${new_user}" ]]; then
 			if ! [[ -e "${working_path}/.env.ready" ]]; then
 				touch "${working_path}/.env.ready"
-                                chmod 600 "${working_path}/.env.ready"
+				chown "${user}":"${user}" "${working_path}/.env.ready"
+				chmod 600 "${working_path}/.env.ready"
 			fi
 		fi
 	else
@@ -649,7 +650,9 @@ dynamic_vars () {
 # Check dependencies
 declare -a dependencies=("iconv" "awk" "sed" "stat" "${send_mail_command}"
 			 "paste" "column" "mapfile" "readarray" "locale"
-			 "find" "sort" "true" "false" "join" "systemctl")
+			 "find" "sort" "true" "false" "join" "systemctl"
+                         "curl" "php" "jq" "perl" "openssl" "logrotate"
+                         "whiptail")
 
 for i in "${dependencies[@]}"
 do
