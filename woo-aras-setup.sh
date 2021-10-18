@@ -1005,6 +1005,28 @@ if ! [[ -d "${working_path}" ]]; then
   fi
 fi
 
+# STAGE-4 @LOCALIZATION OPERATIONS
+# =====================================================================
+# Try to generate needed locale kindly
+if command -v locale >/dev/null 2>&1; then
+  m_ctype=$(locale | grep LC_CTYPE | cut -d= -f2 | cut -d_ -f1 | tr -d '"')
+  if [[ "${m_ctype}" != "en" ]]; then
+    if ! locale -a | grep -iq "en_US.utf8"; then
+      if command -v locale-gen >/dev/null 2>&1; then
+        locale-gen en_US.UTF-8 &>/dev/null &
+        my_wait "INSTALLING LOCALE" && replace_suc "LOCALE INSTALLED " || replace_fail "INSTALLING LOCALE FAILED"
+        if ! locale -a | grep -iq "en_US.utf8"; then
+          fatal "FAIL --> CANNOT INSTALL en_US.UTF-8 LOCALE"
+        fi
+      else
+        fake_progress "INSTALLING LOCALE"
+        replace_fail "INSTALLING LOCALE FAILED"
+        fatal "FAIL --> CANNOT INSTALL en_US.UTF-8 LOCALE"
+      fi
+    fi
+  fi
+fi
+
 # @START THE SETUP
 # =====================================================================
 my_env="new_user,setup_key,working_path,temporary_path_x"
