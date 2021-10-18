@@ -122,7 +122,7 @@ fatal () {
 
 done_ () {
   echo ""
-  printf >&2 "${m_tab}${TPUT_BGGREEN}${TPUT_WHITE}${TPUT_BOLD} DONE ${TPUT_RESET} ${1}\n\n"
+  printf >&2 "${m_tab}${TPUT_BGGREEN}${TPUT_WHITE}${TPUT_BOLD} DONE ${TPUT_RESET} ${1}\n"
 }
 
 # Collected errors
@@ -475,8 +475,19 @@ get_package_list () {
   done
 }
 
+check_locale () {
+  if command -v locale >/dev/null 2>&1; then
+    m_ctype=$(locale | grep LC_CTYPE | cut -d= -f2 | cut -d_ -f1 | tr -d '"')
+    if [[ "${m_ctype}" != "en" ]]; then
+      if ! locale -a | grep -iq "en_US.utf8"; then
+        locale_missing=1
+      fi
+    fi
+  fi
+}
+
 pre_start () {
-  if [[ ! "$(id -u $new_user 2>/dev/null)" || "${#missing_deps[@]}" -ne 0 || ! -d "${working_path}" ]]; then
+  if [[ ! "$(id -u $new_user 2>/dev/null)" || "${#missing_deps[@]}" -ne 0 || ! -d "${working_path}" || -n "${locale_missing}" ]]; then
     autodetect_distribution &&
     {
     autodetect_package_manager || un_supported --pm
@@ -538,6 +549,16 @@ pre_start () {
       } | column -o '      ' -t -s ' ' | sed 's/^/  /'
     else
       done_ "STAGE-3 > ENVIRONMENT OPERATIONS"
+    fi
+
+    if [[ "${locale_missing}" ]]; then
+      echo -e "\n${green}* ${magenta}STAGE-4 > LOCALIZATION OPERATIONS${reset}"
+      echo "${cyan}${m_tab}##############################################################################################${reset}"
+      {
+      echo "${green}New_Locale: en_US.UTF-8${reset}"
+      } | column -o '      ' -t -s ' ' | sed 's/^/  /'
+    else
+      done_ "STAGE-4 > LOCALIZATION OPERATIONS"
     fi
 
     while :; do
@@ -825,6 +846,7 @@ check_deps () {
 }
 
 check_deps
+check_locale
 pre_start
 
 # STAGE-1 @PACKAGE INSTALLATION
@@ -1007,23 +1029,28 @@ fi
 
 # STAGE-4 @LOCALIZATION OPERATIONS
 # =====================================================================
+locale_gen () {
+  locale-gen &>/dev/null &
+  my_wait "INSTALLING LOCALE" && replace_suc "LOCALE INSTALLED " || replace_fail "INSTALLING LOCALE FAILED"
+  if ! locale -a | grep -iq "en_US.utf8"; then
+    fatal "FAIL --> CANNOT INSTALL en_US.UTF-8 LOCALE"
+  fi
+}
+
 # Try to generate needed locale kindly
-if command -v locale >/dev/null 2>&1; then
-  m_ctype=$(locale | grep LC_CTYPE | cut -d= -f2 | cut -d_ -f1 | tr -d '"')
-  if [[ "${m_ctype}" != "en" ]]; then
-    if ! locale -a | grep -iq "en_US.utf8"; then
-      if command -v locale-gen >/dev/null 2>&1; then
-        locale-gen en_US.UTF-8 &>/dev/null &
-        my_wait "INSTALLING LOCALE" && replace_suc "LOCALE INSTALLED " || replace_fail "INSTALLING LOCALE FAILED"
-        if ! locale -a | grep -iq "en_US.utf8"; then
-          fatal "FAIL --> CANNOT INSTALL en_US.UTF-8 LOCALE"
-        fi
-      else
-        fake_progress "INSTALLING LOCALE"
-        replace_fail "INSTALLING LOCALE FAILED"
-        fatal "FAIL --> CANNOT INSTALL en_US.UTF-8 LOCALE"
-      fi
+if [[ "${locale_missing}" ]]; then
+  if command -v locale-gen >/dev/null 2>&1; then
+    if grep -iq "en_US.UTF-8" /etc/locale.gen; then
+      sed -i -e 's/^#en_US\.UTF-8/en_US\.UTF-8/' /etc/locale.gen
+      locale_gen
+    else
+      echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen
+      locale_gen
     fi
+  else
+    fake_progress "INSTALLING LOCALE"
+    replace_fail "INSTALLING LOCALE FAILED"
+    fatal "FAIL --> CANNOT INSTALL en_US.UTF-8 LOCALE"
   fi
 fi
 
