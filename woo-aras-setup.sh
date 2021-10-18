@@ -120,6 +120,11 @@ fatal () {
   exit 1
 }
 
+done_ () {
+  echo ""
+  printf >&2 "${m_tab}${TPUT_BGGREEN}${TPUT_WHITE}${TPUT_BOLD} DONE ${TPUT_RESET} ${1}\n\n"
+}
+
 # Collected errors
 error () {
   echo ""
@@ -505,6 +510,8 @@ pre_start () {
         echo "${green}Missing_Packages: ${fixed_packages//${IFS:0:1}/,}${reset}"
       fi
       } | column -o '       ' -t -s ' ' | sed 's/^/  /'
+    else
+      done_ "STAGE-1 > PACKAGE INSTALLATION"
     fi
 
     if ! grep -qE "^${new_user}:" "${pass_file}"; then
@@ -517,6 +524,8 @@ pre_start () {
       echo "${green}Home_Permission: 700${reset}"
       echo "${green}UserWillBeSudoerFor: woo-aras-setup.sh,woocommerce-aras-cargo.sh${reset}"
       } | column -t -s ' ' | sed 's/^/  /'
+    else
+      done_ "STAGE-2 > USER OPERATIONS"
     fi
 
     if ! [[ -d "${working_path}" ]]; then
@@ -527,6 +536,8 @@ pre_start () {
       echo "${green}Setup_Script_Path: ${working_path}/woo-aras-setup.sh${reset}"
       echo "${green}Main_Script_Path: ${working_path}/woocommerce-aras-cargo.sh${reset}"
       } | column -o '      ' -t -s ' ' | sed 's/^/  /'
+    else
+      done_ "STAGE-3 > ENVIRONMENT OPERATIONS"
     fi
 
     while :; do
@@ -996,20 +1007,19 @@ fi
 
 # @START THE SETUP
 # =====================================================================
-# Change directory to working path
 my_env="new_user,setup_key,working_path,temporary_path_x"
 env_info () {
-  echo -e "\n${yellow}* ENVIRONMENT IS ALREADY SET..${reset}"
+  echo -e "\n${yellow}* ENVIRONMENT IS ALREADY SET !${reset}"
   echo "${cyan}${m_tab}#####################################################${reset}"
-  echo "${m_tab}${magenta}Please switch user to ${new_user} and run the setup${reset}"
+  echo "${m_tab}${magenta}You can work under user ${new_user} for the further operations${reset}"
   echo "${m_tab}${cyan}^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^${reset}"
   echo "${m_tab}${green}User:              ${new_user}${reset}"
   echo "${m_tab}${green}Working Path:      ${working_path}${reset}"
   echo "${m_tab}${green}Setup_Script Path: ${working_path}/woo-aras-setup.sh${reset}"
   echo -e "${m_tab}${green}Main_Script Path:  ${working_path}/woocommerce-aras-cargo.sh${reset}\n"
-  echo "${m_tab}${magenta}USAGE: su - ${new_user}; sudo ./woo-aras-setup.sh${reset}"
+  echo "${m_tab}${magenta}SIMPLY: su - ${new_user}; sudo ./woo-aras-setup.sh${reset}"
   echo -e "${m_tab}${cyan}^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^${reset}\n"
-  exit 1
+  spinner
 }
 
 if [[ "$SUDO_USER" ]]; then
@@ -1019,12 +1029,14 @@ if [[ "$SUDO_USER" ]]; then
         sudo -u "${new_user}" --preserve-env="${my_env}" -s /bin/bash -c 'sudo --preserve-env='"${my_env}"' '"${working_path}"'/woocommerce-aras-cargo.sh --setup'
       else
         env_info
+        sudo -u "${new_user}" --preserve-env="${my_env}" -s /bin/bash -c 'sudo --preserve-env='"${my_env}"' '"${working_path}"'/woocommerce-aras-cargo.sh --setup'
       fi
     elif ! [[ -f "${working_path}/.woo.aras.set" ]]; then
       if ! [[ -f "${working_path}/.env.ready" ]]; then
         sudo -u "${new_user}" --preserve-env="${my_env}" -s /bin/bash -c 'sudo --preserve-env='"${my_env}"' '"${working_path}"'/woocommerce-aras-cargo.sh --setup'
       else
         env_info
+        sudo -u "${new_user}" --preserve-env="${my_env}" -s /bin/bash -c 'sudo --preserve-env='"${my_env}"' '"${working_path}"'/woocommerce-aras-cargo.sh --setup'
       fi
     else
       setup_info
@@ -1036,7 +1048,10 @@ if [[ "$SUDO_USER" ]]; then
   else
     setup_info
   fi
-else # Pure root
+elif ! [[ -f "${working_path}/.env.ready" ]]; then # Pure root
+  sudo -u "${new_user}" --preserve-env="${my_env}" -s /bin/bash -c 'sudo --preserve-env='"${my_env}"' '"${working_path}"'/woocommerce-aras-cargo.sh --setup'
+else
+  env_info
   sudo -u "${new_user}" --preserve-env="${my_env}" -s /bin/bash -c 'sudo --preserve-env='"${my_env}"' '"${working_path}"'/woocommerce-aras-cargo.sh --setup'
 fi
 
