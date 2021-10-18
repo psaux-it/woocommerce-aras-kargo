@@ -507,6 +507,7 @@ depriv () {
 	touched=0
 	for file in "${@}"
 	do
+                [[ "${file}" =~ "lck" ]] && { chown "${user}":"${user}" "${file}"; chmod 600 "${file}"; }
 		if [[ ! -f "${file}" ]]; then
 			touch "${file}"
 			chown "${user}":"${user}" "${file}"
@@ -2580,9 +2581,6 @@ add_cron () {
 			# Set status
 			on_fly_disable
 
-                        # Harden encrypted file permission
-                        chmod -R 600 "${this_script_lck_path}"
-
 			echo -e "\n${green}*${reset} ${green}Installation completed.${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
 			if [[ "${auto_update}" -eq 1 ]]; then
@@ -2707,9 +2705,6 @@ add_systemd () {
 
 						# Set status
 						on_fly_disable
-
-						# Harden encrypted file permission
-						chmod -R 600 "${this_script_lck_path}"
 					else
 						echo -e "\n${red}*${reset} ${green}Installation failed.${reset}"
 						echo "${cyan}${m_tab}#####################################################${reset}"
