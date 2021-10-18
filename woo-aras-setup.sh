@@ -1031,9 +1031,12 @@ fi
 # =====================================================================
 locale_gen () {
   locale-gen &>/dev/null &
-  my_wait "INSTALLING LOCALE" && replace_suc "LOCALE INSTALLED " || replace_fail "INSTALLING LOCALE FAILED"
+  my_wait "INSTALLING LOCALE"
   if ! locale -a | grep -iq "en_US.utf8"; then
+    replace_fail "INSTALLING LOCALE FAILED"
     fatal "FAIL --> CANNOT INSTALL en_US.UTF-8 LOCALE"
+  else
+    replace_suc "LOCALE INSTALLED "
   fi
 }
 
@@ -1041,6 +1044,7 @@ locale_gen () {
 if [[ "${locale_missing}" ]]; then
   if command -v locale-gen >/dev/null 2>&1; then
     if grep -iq "en_US.UTF-8" /etc/locale.gen; then
+      sed -i -e 's/^# en_US\.UTF-8/en_US\.UTF-8/' /etc/locale.gen
       sed -i -e 's/^#en_US\.UTF-8/en_US\.UTF-8/' /etc/locale.gen
       locale_gen
     else
@@ -1059,9 +1063,8 @@ fi
 my_env="new_user,setup_key,working_path,temporary_path_x"
 env_info () {
   echo -e "\n${yellow}* ENVIRONMENT IS ALREADY SET !${reset}"
-  echo "${cyan}${m_tab}#####################################################${reset}"
-  echo "${m_tab}${magenta}You can work under user ${new_user} for the further operations${reset}"
-  echo "${m_tab}${cyan}^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^${reset}"
+  echo "${m_tab}${magenta}Working under user ${new_user} is highly recommended${reset}"
+  echo "${m_tab}${cyan}^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^${reset}"
   echo "${m_tab}${green}User:              ${new_user}${reset}"
   echo "${m_tab}${green}Working Path:      ${working_path}${reset}"
   echo "${m_tab}${green}Setup_Script Path: ${working_path}/woo-aras-setup.sh${reset}"
