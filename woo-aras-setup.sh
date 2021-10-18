@@ -395,6 +395,7 @@ get_package_list () {
     ['ubuntu']="build-essential"
     ['debian']="build-essential"
     ['arch']="base-devel"
+    ['manjaro']="base-devel"
     ['suse']=""
     ['opensuse-leap']=""
     ['opensuse-tumbleweed']=""
@@ -428,6 +429,7 @@ get_package_list () {
     ['ubuntu']="cpanminus"
     ['debian']="cpanminus"
     ['arch']="cpanminus"
+    ['manjaro']="cpanminus"
     ['gentoo']="dev-perl/App-cpanminus"
     ['suse']="perl-App-cpanminus"
     ['opensuse-leap']="perl-App-cpanminus"
@@ -463,6 +465,7 @@ get_package_list () {
     ['ubuntu']="whiptail"
     ['debian']="whiptail"
     ['arch']="libnewt"
+    ['manjaro']="libnewt"
     ['default']="newt"
   )
 
@@ -892,6 +895,14 @@ if (( ${#missing_deps[@]} )); then
     $my_emerge ${opts} "${packages[@]}" &>/dev/null &
     post_ops "INSTALLING PACKAGES"
   elif [[ "${distribution}" = "arch" ]]; then
+    opts="--noconfirm --quiet --needed -S"
+    repo="-Syy"
+    $my_pacman ${repo} &>/dev/null &
+    my_wait "SYNCING REPOSITORY"
+    replace_suc "REPOSITORIES SYNCED"
+    $my_pacman ${opts} "${packages[@]}" &>/dev/null &
+    post_ops "INSTALLING PACKAGES"
+  elif [[ "${distribution}" = "manjaro" ]]; then
     opts="--noconfirm --quiet --needed -S"
     repo="-Syy"
     $my_pacman ${repo} &>/dev/null &
