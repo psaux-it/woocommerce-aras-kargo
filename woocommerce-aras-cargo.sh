@@ -507,7 +507,7 @@ depriv () {
 	touched=0
 	for file in "${@}"
 	do
-                [[ "${file}" =~ "lck" ]] && { chown "${user}":"${user}" "${file}"; chmod 600 "${file}"; }
+		[[ "${file}" =~ "lck" ]] && { chown "${user}":"${user}" "${file}"; chmod 600 "${file}"; }
 		if [[ ! -f "${file}" ]]; then
 			touch "${file}"
 			chown "${user}":"${user}" "${file}"
