@@ -46,9 +46,9 @@
 # Follow detailed installation instructions on github.
 # =====================================================================
 
-# @PERFORMANCE
+# @MISCELLANEOUS SETTINGS
 # =====================================================================
-# Be nice on production
+export TZ='Europe/Istanbul'
 renice 19 $$ > /dev/null 2> /dev/null
 
 # Need for upgrade - DON'T EDIT MANUALLY
