@@ -940,6 +940,8 @@ install_arch () {
 install_manjaro () {
   opts="--noconfirm --quiet --needed -S"
   repo="-Syy"
+  pacman-mirrors --fasttrack 5 &>/dev/null &
+  my_wait "SETTING FASTEST MIRRORS" && replace_suc "FASTEST MIRROR SELECTED"
   $my_pacman ${repo} &>/dev/null &
   my_wait "SYNCING REPOSITORY"
   replace_suc "REPOSITORIES SYNCED"
