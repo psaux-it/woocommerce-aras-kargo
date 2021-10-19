@@ -953,7 +953,7 @@ install_manjaro () {
   opts="--noconfirm --quiet --needed -S"
   repo="-Syy"
   pacman-mirrors --fasttrack 5 &>/dev/null &
-  my_wait "SETTING FASTEST MIRRORS" && replace_suc "FASTEST MIRROR SELECTED"
+  my_wait "SEARCHING FASTEST MIRRORS" && replace_suc "FASTEST MIRROR SELECTED"
   $my_pacman ${repo} &>/dev/null &
   my_wait "SYNCING REPOSITORY"
   replace_suc "REPOSITORIES SYNCED"
@@ -1076,7 +1076,7 @@ if ! grep -qE "^${new_user}:" "${pass_file}"; then
   #Encrypt password
   enc_pass=$(perl -e 'print crypt($ARGV[0], "password")' $new_user || { replace_fail "USER OPERATIONS FAILED"; u_error+=( "enc" ); })
   # Create user
-  useradd -K UMASK=0077 -U -m -p "${enc_pass}" --gecos "User for WooCommerce-Aras Cargo Automation" -s /bin/bash "${new_user}" >/dev/null 2>&1 || { replace_fail "USER OPERATIONS FAILED"; u_error+=( "add" ); }
+  useradd -K UMASK=0077 -U -m -p "${enc_pass}" -s /bin/bash "${new_user}" >/dev/null 2>&1 || { replace_fail "USER OPERATIONS FAILED"; u_error+=( "add" ); }
   # Grant sudo priv. for only execute setup and main script
   [[ ! -d /etc/sudoers.d ]] && mkdir /etc/sudoers.d
   if grep -q "@includedir.*/etc/sudoers.d" /etc/sudoers; then
