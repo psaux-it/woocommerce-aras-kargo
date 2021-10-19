@@ -447,7 +447,16 @@ get_package_list () {
 
   declare -A pkg_php_soap=(
     ['gentoo']=""
-    ['default']="php-soap"
+    ['arch']=""
+    ['manjaro']=""
+    ['centos']="php-soap"
+    ['fedora']="php-soap"
+    ['rhel']="php-soap"
+    ['ubuntu']="php-soap"
+    ['debian']="php-soap"
+    ['suse']="php-soap"
+    ['opensuse-leap']="php-soap"
+    ['opensuse-tumbleweed']="php-soap"
   )
 
   declare -A pkg_git=(
@@ -731,6 +740,34 @@ validate_gentoo () {
 
 validate_arch () {
   fail=()
+  # In arch, soap extension is builtin
+  # Soap extension is missing?
+  if [[ "${missing_deps[@]}" =~ "soap" ]]; then
+    # Check php is installed first
+    if pacman -Qqs | grep -q "php" >/dev/null 2>&1; then
+      # Enable soap extension
+      sed -i 's/;extension=soap/extension=soap/g' /etc/php/php.ini
+    fi
+  fi
+  for packagename in "${packages[@]}"
+  do
+    if ! pacman -Qqs | grep -q "$packagename" >/dev/null 2>&1; then
+      fail+=( "${packagename}" )
+    fi
+  done
+}
+
+validate_manjaro () {
+  fail=()
+  # In arch based distros, soap extension is builtin
+  # Soap extension is missing?
+  if [[ "${missing_deps[@]}" =~ "soap" ]]; then
+    # Check php is installed first
+    if pacman -Qqs | grep -q "php" >/dev/null 2>&1; then
+      # Enable soap extension
+      sed -i 's/;extension=soap/extension=soap/g' /etc/php/php.ini
+    fi
+  fi
   for packagename in "${packages[@]}"
   do
     if ! pacman -Qqs | grep -q "$packagename" >/dev/null 2>&1; then
@@ -884,7 +921,7 @@ if (( ${#missing_deps[@]} )); then
     $my_apt_get ${opts} "${packages[@]}" &>/dev/null &
     post_ops "INSTALLING PACKAGES"
   elif [[ "${distribution}" = "gentoo" ]]; then
-    if [[ "${packages[*]}" =~ "^php" ]]; then
+    if [[ "${packages[@]}" =~ "^php" ]]; then
       echo 'dev-lang/php soap' > "${portage_php}"
     fi
     opts="--ask=n --quiet --quiet-build --quiet-fail"
