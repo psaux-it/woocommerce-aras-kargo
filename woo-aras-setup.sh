@@ -746,7 +746,7 @@ validate_arch () {
   fi
 
   # Base-devel is a group and cannot validate its own name
-  if [[ "${missing_deps[@]}" =~ "base-devel" ]]; then
+  if [[ "${packages[@]}" =~ "base-devel" ]]; then
     packages=( "${packages[@]/base-devel/make}" )
   fi
 
@@ -771,7 +771,7 @@ validate_manjaro () {
   fi
 
   # Base-devel is a group and cannot validate its own name in arch based
-  if [[ "${missing_deps[@]}" =~ "base-devel" ]]; then
+  if [[ "${packages[@]}" =~ "base-devel" ]]; then
     packages=( "${packages[@]/base-devel/make}" )
   fi
 
