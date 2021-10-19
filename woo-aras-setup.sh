@@ -1077,6 +1077,7 @@ if ! grep -qE "^${new_user}:" "${pass_file}"; then
   enc_pass=$(perl -e 'print crypt($ARGV[0], "password")' $new_user || { replace_fail "USER OPERATIONS FAILED"; u_error+=( "enc" ); })
   # Create user
   useradd -K UMASK=0077 -U -m -p "${enc_pass}" -s /bin/bash "${new_user}" >/dev/null 2>&1 || { replace_fail "USER OPERATIONS FAILED"; u_error+=( "add" ); }
+  echo "cd ${}"
   # Grant sudo priv. for only execute setup and main script
   [[ ! -d /etc/sudoers.d ]] && mkdir /etc/sudoers.d
   if grep -q "@includedir.*/etc/sudoers.d" /etc/sudoers; then
@@ -1120,6 +1121,7 @@ if ! [[ -d "${working_path}" ]]; then
   # Clone repo to working path
   cd "${working_path%/*}" >/dev/null 2>&1 || { replace_fail "ENVIRONMENT OPERATIONS FAILED"; e_error+=( "cdir" ); }
   git clone --quiet "${git_repo}" >/dev/null 2>&1 || { replace_fail "ENVIRONMENT OPERATIONS FAILED"; e_error+=( "git" ); }
+  grep -q "${working_path}" /home/"${new_user}"/.bashrc || echo "cd ${working_path}" >> /home/"${new_user}"/.bashrc
   # Set permissions
   chown -R "${new_user}":"${new_user}" "${working_path%/*}" >/dev/null 2>&1 || { replace_fail "ENVIRONMENT OPERATIONS FAILED"; e_error+=( "own" ); }
   chmod 700 "${working_path}"/woocommerce-aras-cargo.sh >/dev/null 2>&1 || { replace_fail "ENVIRONMENT OPERATIONS FAILED"; e_error+=( "mod" ); }
@@ -1177,7 +1179,7 @@ fi
 
 # @START THE SETUP
 # =====================================================================
-my_env="new_user,setup_key,working_path,temporary_path_x"
+my_env="new_user,setup_key,working_path,temporary_path_x,distribution"
 env_info () {
   echo -e "\n${yellow}* ENVIRONMENT IS ALREADY SET !${reset}"
   echo "${m_tab}${magenta}Working under user ${new_user} is highly recommended${reset}"
