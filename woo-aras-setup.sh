@@ -114,22 +114,17 @@ portage_php="/etc/portage/package.use/woo_php"
 
 # Fatal exit
 fatal () {
-  echo ""
-  printf >&2 "${m_tab}%s ABORTED %s %s \n\n" "${TPUT_BGRED}${TPUT_WHITE}${TPUT_BOLD}" "${TPUT_RESET}" "${*}"
-  echo ""
+  printf >&2 "\n${m_tab}%s ABORTED %s %s \n\n" "${TPUT_BGRED}${TPUT_WHITE}${TPUT_BOLD}" "${TPUT_RESET}" "${*}"
   exit 1
 }
 
 done_ () {
-  echo ""
-  printf >&2 "${m_tab}${TPUT_BGGREEN}${TPUT_WHITE}${TPUT_BOLD} DONE ${TPUT_RESET} ${1}\n"
+  printf >&2 "\n${m_tab}${TPUT_BGGREEN}${TPUT_WHITE}${TPUT_BOLD} DONE ${TPUT_RESET} ${*}\n"
 }
 
 # Collected errors
 error () {
-  echo ""
-  printf >&2 "${m_tab}%s ABORTED %s %s \n\n" "${TPUT_BGRED}${TPUT_WHITE}${TPUT_BOLD}" "${TPUT_RESET}" "${*}"
-  echo ""
+  printf >&2 "\n${m_tab}%s ABORTED %s %s \n\n" "${TPUT_BGRED}${TPUT_WHITE}${TPUT_BOLD}" "${TPUT_RESET}" "${*}"
 }
 
 # Fake progress
@@ -478,7 +473,7 @@ get_package_list () {
     ['default']="newt"
   )
 
-  # Get package names from missing dependencies for running  distribution
+  # Get package names from missing dependencies for running distribution
   for dep in "${missing_deps[@]}"
   do
     eval "p=\${pkg_${dep}['${distribution,,}']}"
@@ -510,7 +505,7 @@ pre_start () {
 
     if [[ "${distribution}" ]]; then
       echo -e "\n${green}* ${magenta}OS INFORMATION${reset}"
-      echo "${cyan}${m_tab}##############################################################################################${reset}"
+      echo "${cyan}${m_tab}+----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+--->${reset}"
       {
       echo "${green}Operating_System: $(uname -s)${reset}"
       echo "${green}Distribution: ${distribution}${reset}"
@@ -524,7 +519,7 @@ pre_start () {
     if (( ${#missing_deps[@]} )); then
       get_package_list
       echo -e "\n${green}* ${magenta}STAGE-1 > PACKAGE INSTALLATION${reset}"
-      echo "${cyan}${m_tab}##############################################################################################${reset}"
+      echo "${cyan}${m_tab}+----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+--->${reset}"
       fixed_packages="${packages[@]}"
       {
       if [[ "${missing_deps[@]}" =~ "perl_text_fuzzy" ]]; then
@@ -539,7 +534,7 @@ pre_start () {
 
     if ! grep -qE "^${new_user}:" "${pass_file}"; then
       echo -e "\n${green}* ${magenta}STAGE-2 > USER OPERATIONS${reset}"
-      echo "${cyan}${m_tab}##############################################################################################${reset}"
+      echo "${cyan}${m_tab}+----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+--->${reset}"
       {
       echo "${green}New_System_User: ${new_user}${reset}"
       echo "${green}Default_User_Password: ${new_user}${reset}"
@@ -553,7 +548,7 @@ pre_start () {
 
     if ! [[ -d "${working_path}" ]]; then
       echo -e "\n${green}* ${magenta}STAGE-3 > ENVIRONMENT OPERATIONS${reset}"
-      echo "${cyan}${m_tab}##############################################################################################${reset}"
+      echo "${cyan}${m_tab}+----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+--->${reset}"
       {
       echo "${green}New_Working_Path: ${working_path}${reset}"
       echo "${green}Setup_Script_Path: ${working_path}/woo-aras-setup.sh${reset}"
@@ -565,10 +560,10 @@ pre_start () {
 
     if [[ "${locale_missing}" ]]; then
       echo -e "\n${green}* ${magenta}STAGE-4 > LOCALIZATION OPERATIONS${reset}"
-      echo "${cyan}${m_tab}##############################################################################################${reset}"
+      echo "${cyan}${m_tab}+----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+--->${reset}"
       {
       echo "${green}New_Locale: en_US.UTF-8${reset}"
-      } | column -o '      ' -t -s ' ' | sed 's/^/  /'
+      } | column -o '             ' -t -s ' ' | sed 's/^/  /'
     else
       done_ "STAGE-4 > LOCALIZATION OPERATIONS"
     fi
@@ -585,7 +580,7 @@ pre_start () {
     done
 
     echo -e "\n${m_tab}${magenta}${TPUT_BOLD}< THIS MAY TAKE A WHILE >${reset}"
-    echo -e "${m_tab}${cyan}-------------------------${reset}\n"
+    echo -e "${m_tab}${cyan}--+--+--+--+--+--+--+--->${reset}\n"
   fi
 }
 
@@ -889,14 +884,126 @@ check_deps
 check_locale
 pre_start
 
-# STAGE-1 @PACKAGE INSTALLATION
-# =====================================================================
-if (( ${#missing_deps[@]} )); then
-  # Test connection for package installation
-  test_connection
+install_centos () {
+  opts="-yq install"
+  repo="update"
+  echo n | $my_yum ${repo} &>/dev/null &
+  my_wait "SYNCING REPOSITORY"
+  replace_suc "REPOSITORIES SYNCED"
+  $my_yum ${opts} "${packages[@]}" &>/dev/null &
+  post_ops "INSTALLING PACKAGES"
+}
 
-  # Lets start package installation
-  if [[ "${distribution}" = "centos" ]]; then
+install_debian () {
+  opts="-yq install"
+  repo="update"
+  $my_apt_get ${repo} &>/dev/null &
+  my_wait "SYNCING REPOSITORY"
+  replace_suc "REPOSITORIES SYNCED"
+  $my_apt_get ${opts} "${packages[@]}" &>/dev/null &
+  post_ops "INSTALLING PACKAGES"
+}
+
+install_ubuntu () {
+  opts="-yq install"
+  repo="update"
+  $my_apt_get ${repo} &>/dev/null &
+  my_wait "SYNCING REPOSITORY"
+  replace_suc "REPOSITORIES SYNCED"
+  $my_apt_get ${opts} "${packages[@]}" &>/dev/null &
+  post_ops "INSTALLING PACKAGES"
+}
+
+install_gentoo () {
+  if [[ "${packages[@]}" =~ "^php" ]]; then
+    echo 'dev-lang/php soap' > "${portage_php}"
+  fi
+  opts="--ask=n --quiet --quiet-build --quiet-fail"
+  repo="--sync"
+  $my_emerge ${repo} &>/dev/null &
+  my_wait "SYNCING REPOSITORY"
+  replace_suc "REPOSITORIES SYNCED"
+  $my_emerge ${opts} "${packages[@]}" &>/dev/null &
+  post_ops "INSTALLING PACKAGES"
+}
+
+install_arch () {
+  opts="--noconfirm --quiet --needed -S"
+  repo="-Syy"
+  $my_pacman ${repo} &>/dev/null &
+  my_wait "SYNCING REPOSITORY"
+  replace_suc "REPOSITORIES SYNCED"
+  $my_pacman ${opts} "${packages[@]}" &>/dev/null &
+  post_ops "INSTALLING PACKAGES"
+}
+
+install_manjaro () {
+  opts="--noconfirm --quiet --needed -S"
+  repo="-Syy"
+  $my_pacman ${repo} &>/dev/null &
+  my_wait "SYNCING REPOSITORY"
+  replace_suc "REPOSITORIES SYNCED"
+  $my_pacman ${opts} "${packages[@]}" &>/dev/null &
+  post_ops "INSTALLING PACKAGES"
+}
+
+install_suse () {
+  if [[ "${missing_deps[@]}" =~ "make" ]]; then
+    suse_type="devel_basis"
+    opts="--ignore-unknown --non-interactive --no-gpg-checks --quiet install pattern:${suse_type}"
+  else
+    opts="--ignore-unknown --non-interactive --no-gpg-checks --quiet install"
+  fi
+  repo="refresh"
+  $my_zypper ${repo} &>/dev/null &
+  my_wait "SYNCING REPOSITORY"
+  replace_suc "REPOSITORIES SYNCED"
+  $my_zypper ${opts} "${packages[@]}" &>/dev/null &
+  post_ops "INSTALLING PACKAGES"
+}
+
+install_opensuse-leap () {
+  if [[ "${missing_deps[@]}" =~ "make" ]]; then
+    suse_type="devel_basis"
+    opts="--ignore-unknown --non-interactive --no-gpg-checks --quiet install pattern:${suse_type}"
+  else
+    opts="--ignore-unknown --non-interactive --no-gpg-checks --quiet install"
+  fi
+  repo="refresh"
+  $my_zypper ${repo} &>/dev/null &
+  my_wait "SYNCING REPOSITORY"
+  replace_suc "REPOSITORIES SYNCED"
+  $my_zypper ${opts} "${packages[@]}" &>/dev/null &
+  post_ops "INSTALLING PACKAGES"
+}
+
+install_opensuse-tumbleweed () {
+  if [[ "${missing_deps[@]}" =~ "make" ]]; then
+    suse_type="devel_basis"
+    opts="--ignore-unknown --non-interactive --no-gpg-checks --quiet install pattern:${suse_type}"
+  else
+    opts="--ignore-unknown --non-interactive --no-gpg-checks --quiet install"
+  fi
+  repo="refresh"
+  $my_zypper ${repo} &>/dev/null &
+  my_wait "SYNCING REPOSITORY"
+  replace_suc "REPOSITORIES SYNCED"
+  $my_zypper ${opts} "${packages[@]}" &>/dev/null &
+  post_ops "INSTALLING PACKAGES"
+}
+
+install_fedora () {
+  opts="-yq --setopt=strict=0 install"
+  repo="distro-sync"
+  echo n | $my_dnf ${repo} &>/dev/null &
+  my_wait "SYNCING REPOSITORY"
+  replace_suc "REPOSITORIES SYNCED"
+  $my_dnf ${opts} "${packages[@]}" &>/dev/null &
+  post_ops "INSTALLING PACKAGES"
+}
+
+install_rhel () {
+  if [[ "${my_yum}" ]]; then
     opts="-yq install"
     repo="update"
     echo n | $my_yum ${repo} &>/dev/null &
@@ -904,89 +1011,24 @@ if (( ${#missing_deps[@]} )); then
     replace_suc "REPOSITORIES SYNCED"
     $my_yum ${opts} "${packages[@]}" &>/dev/null &
     post_ops "INSTALLING PACKAGES"
-  elif [[ "${distribution}" = "debian" ]]; then
-    opts="-yq install"
-    repo="update"
-    $my_apt_get ${repo} &>/dev/null &
-    my_wait "SYNCING REPOSITORY"
-    replace_suc "REPOSITORIES SYNCED"
-    $my_apt_get ${opts} "${packages[@]}" &>/dev/null &
-    post_ops "INSTALLING PACKAGES"
-  elif [[ "${distribution}" = "ubuntu" ]]; then
-    opts="-yq install"
-    repo="update"
-    $my_apt_get ${repo} &>/dev/null &
-    my_wait "SYNCING REPOSITORY"
-    replace_suc "REPOSITORIES SYNCED"
-    $my_apt_get ${opts} "${packages[@]}" &>/dev/null &
-    post_ops "INSTALLING PACKAGES"
-  elif [[ "${distribution}" = "gentoo" ]]; then
-    if [[ "${packages[@]}" =~ "^php" ]]; then
-      echo 'dev-lang/php soap' > "${portage_php}"
-    fi
-    opts="--ask=n --quiet --quiet-build --quiet-fail"
-    repo="--sync"
-    $my_emerge ${repo} &>/dev/null &
-    my_wait "SYNCING REPOSITORY"
-    replace_suc "REPOSITORIES SYNCED"
-    $my_emerge ${opts} "${packages[@]}" &>/dev/null &
-    post_ops "INSTALLING PACKAGES"
-  elif [[ "${distribution}" = "arch" ]]; then
-    opts="--noconfirm --quiet --needed -S"
-    repo="-Syy"
-    $my_pacman ${repo} &>/dev/null &
-    my_wait "SYNCING REPOSITORY"
-    replace_suc "REPOSITORIES SYNCED"
-    $my_pacman ${opts} "${packages[@]}" &>/dev/null &
-    post_ops "INSTALLING PACKAGES"
-  elif [[ "${distribution}" = "manjaro" ]]; then
-    opts="--noconfirm --quiet --needed -S"
-    repo="-Syy"
-    $my_pacman ${repo} &>/dev/null &
-    my_wait "SYNCING REPOSITORY"
-    replace_suc "REPOSITORIES SYNCED"
-    $my_pacman ${opts} "${packages[@]}" &>/dev/null &
-    post_ops "INSTALLING PACKAGES"
-  elif [[ "${distribution}" = "suse" || "${distribution}" = "opensuse-leap" || "${distribution}" = "opensuse-tumbleweed" ]]; then
-    if [[ "${missing_deps[@]}" =~ "make" ]]; then
-      suse_type="devel_basis"
-      opts="--ignore-unknown --non-interactive --no-gpg-checks --quiet install pattern:${suse_type}"
-    else
-      opts="--ignore-unknown --non-interactive --no-gpg-checks --quiet install"
-    fi
-    repo="refresh"
-    $my_zypper ${repo} &>/dev/null &
-    my_wait "SYNCING REPOSITORY"
-    replace_suc "REPOSITORIES SYNCED"
-    $my_zypper ${opts} "${packages[@]}" &>/dev/null &
-    post_ops "INSTALLING PACKAGES"
-  elif [[ "${distribution}" = "fedora" ]]; then
+  else
     opts="-yq --setopt=strict=0 install"
     repo="distro-sync"
     echo n | $my_dnf ${repo} &>/dev/null &
     my_wait "SYNCING REPOSITORY"
-    replace_suc "REPOSITORIES SYNCED"
+    replace_suc "REPOSITORIES SYNCED "
     $my_dnf ${opts} "${packages[@]}" &>/dev/null &
     post_ops "INSTALLING PACKAGES"
-  elif [[ "${distribution}" = "rhel" ]]; then
-    if [[ "${my_yum}" ]]; then
-      opts="-yq install"
-      repo="update"
-      echo n | $my_yum ${repo} &>/dev/null &
-      my_wait "SYNCING REPOSITORY"
-      replace_suc "REPOSITORIES SYNCED"
-      $my_yum ${opts} "${packages[@]}" &>/dev/null &
-      post_ops "INSTALLING PACKAGES"
-    else
-      opts="-yq --setopt=strict=0 install"
-      repo="distro-sync"
-      echo n | $my_dnf ${repo} &>/dev/null &
-      my_wait "SYNCING REPOSITORY"
-      replace_suc "REPOSITORIES SYNCED "
-      $my_dnf ${opts} "${packages[@]}" &>/dev/null &
-      post_ops "INSTALLING PACKAGES"
-    fi
   fi
+}
+
+# STAGE-1 @PACKAGE INSTALLATION
+# =====================================================================
+if (( ${#missing_deps[@]} )); then
+  # Test connection for package installation
+  test_connection
+
+  install_${distribution}
 
   # Check package installation completed without error &
   # Installing Text::Fuzzy perl module needs ( App::cpanminus ( make ))
@@ -1007,7 +1049,7 @@ if (( ${#missing_deps[@]} )); then
 
   if (( ${#missing_deps[@]} )); then
     fixed_missing=( "${missing_deps[@]//_/-}" )
-    fatal "FAIL --> CANNOT INSTALL: ${fixed_missing[*]/perl-text-fuzzy/Text::Fuzzy}"
+    fatal "FAIL_STAGE-1 --> CANNOT INSTALL: ${fixed_missing[*]/perl-text-fuzzy/Text::Fuzzy}"
   fi
 fi
 
@@ -1027,11 +1069,11 @@ if ! grep -qE "^${new_user}:" "${pass_file}"; then
     for err in "${u_error[@]}"
     do
       if [[ "${err}" == "enc" ]]; then
-        error "FAIL --> PASSWORD ENCRYPTION ERROR"
+        error "FAIL_STAGE-2 --> USER PASSWORD ENCRYPTION ERROR"
       elif [[ "${err}" == "add" ]]; then
-        error "FAIL --> CANNOT CREATE USER"
+        error "FAIL_STAGE-2 --> CANNOT CREATE USER"
       elif [[ "${err}" == "sudo" ]]; then
-        error "FAIL --> CANNOT GRANT SUDO"
+        error "FAIL_STAGE-2 --> CANNOT GRANT SUDO"
       fi
     done
     exit 1
@@ -1058,15 +1100,15 @@ if ! [[ -d "${working_path}" ]]; then
     for err in "${e_error[@]}"
     do
       if [[ "${err}" == "mdir" ]]; then
-        error "FAIL --> CANNOT MAKE DIRECTORY"
+        error "FAIL_STAGE-3 --> CANNOT MAKE DIRECTORY"
       elif [[ "${err}" == "cdir" ]]; then
-        error "FAIL --> CANNOT CHANGE DIRECTORY"
+        error "FAIL_STAGE-3 --> CANNOT CHANGE DIRECTORY"
       elif [[ "${err}" == "git" ]]; then
-        error "FAIL --> CANNOT CLONE REPOSITORY"
+        error "FAIL_STAGE-3 --> CANNOT CLONE REPOSITORY"
       elif [[ "${err}" == "own" ]]; then
-        error "FAIL --> CANNOT OWN DIRECTORY"
+        error "FAIL_STAGE-3 --> CANNOT OWN DIRECTORY"
       elif [[ "${err}" == "mod" ]]; then
-        error "FAIL --> CANNOT SET PERMISSION"
+        error "FAIL_STAGE-3 --> CANNOT SET PERMISSION"
       fi
     done
     exit 1
@@ -1082,7 +1124,7 @@ locale_gen () {
   my_wait "INSTALLING LOCALE"
   if ! locale -a | grep -iq "en_US.utf8"; then
     replace_fail "INSTALLING LOCALE FAILED"
-    fatal "FAIL --> CANNOT INSTALL en_US.UTF-8 LOCALE"
+    fatal "FAIL_STAGE-4 --> CANNOT INSTALL en_US.UTF-8 LOCALE"
   else
     replace_suc "LOCALE INSTALLED "
   fi
@@ -1102,7 +1144,7 @@ if [[ "${locale_missing}" ]]; then
   else
     fake_progress "INSTALLING LOCALE"
     replace_fail "INSTALLING LOCALE FAILED"
-    fatal "FAIL --> CANNOT INSTALL en_US.UTF-8 LOCALE"
+    fatal "FAIL_STAGE-4 --> CANNOT INSTALL en_US.UTF-8 LOCALE"
   fi
 fi
 
