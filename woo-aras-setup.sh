@@ -744,6 +744,12 @@ validate_arch () {
       sed -i 's/;extension=soap/extension=soap/g' /etc/php/php.ini
     fi
   fi
+
+  # Base-devel is a group and cannot validate its own name
+  if [[ "${missing_deps[@]}" =~ "base-devel" ]]; then
+    packages=( "${packages[@]/base-devel/make}" )
+  fi
+
   for packagename in "${packages[@]}"
   do
     if ! pacman -Qqs | grep -q "$packagename" >/dev/null 2>&1; then
@@ -763,6 +769,12 @@ validate_manjaro () {
       sed -i 's/;extension=soap/extension=soap/g' /etc/php/php.ini
     fi
   fi
+
+  # Base-devel is a group and cannot validate its own name in arch based
+  if [[ "${missing_deps[@]}" =~ "base-devel" ]]; then
+    packages=( "${packages[@]/base-devel/make}" )
+  fi
+
   for packagename in "${packages[@]}"
   do
     if ! pacman -Qqs | grep -q "$packagename" >/dev/null 2>&1; then
@@ -1036,7 +1048,7 @@ if (( ${#missing_deps[@]} )); then
   # Installing Text::Fuzzy perl module needs ( App::cpanminus ( make ))
   if ! (( ${#fail[@]} )); then
     replace_suc "PACKAGES INSTALLED "
-    if [[ "${missing_deps[*]}" =~ "fuzzy" ]]; then
+    if [[ "${missing_deps[@]}" =~ "fuzzy" ]]; then
         cpanm -Sq Text::Fuzzy &>/dev/null &
         my_wait "INSTALLING PERL MODULES" && replace_suc "PERL MODULES INSTALLED " || replace_fail "INSTALLING PERL MODULES FAILED"
     fi
