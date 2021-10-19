@@ -1064,9 +1064,20 @@ if ! grep -qE "^${new_user}:" "${pass_file}"; then
   #Encrypt password
   enc_pass=$(perl -e 'print crypt($ARGV[0], "password")' $new_user || { replace_fail "USER OPERATIONS FAILED"; u_error+=( "enc" ); })
   # Create user
-  useradd -K UMASK=0077 -U -m -p "${enc_pass}" -s /bin/bash "${new_user}" >/dev/null 2>&1 || { replace_fail "USER OPERATIONS FAILED"; u_error+=( "add" ); }
+  useradd -K UMASK=0077 -U -m -p "${enc_pass}" --gecos "User for WooCommerce-Aras Cargo Automation" -s /bin/bash "${new_user}" >/dev/null 2>&1 || { replace_fail "USER OPERATIONS FAILED"; u_error+=( "add" ); }
   # Grant sudo priv. for only execute setup and main script
-  echo "${new_user} ALL=(ALL) NOPASSWD:SETENV: ${working_path}/woocommerce-aras-cargo.sh,${working_path}/woo-aras-setup.sh" | sudo EDITOR='tee -a' visudo >/dev/null 2>&1 || { replace_fail "USER OPERATIONS FAILED"; u_error+=( "sudo" ); }
+  [[ ! -d /etc/sudoers.d ]] && mkdir /etc/sudoers.d
+  if grep -q "@includedir.*/etc/sudoers.d" /etc/sudoers; then
+    if grep '^ *#' /etc/sudoers | grep -q "@includedir /etc/sudoers.d"; then
+      sed -i '/@includedir \/etc\/sudoers.d/s/^#*\s*//g' /etc/sudoers || { replace_fail "USER OPERATIONS FAILED"; u_error+=( "sed" ); }
+    fi
+  else
+     echo "@includedir /etc/sudoers.d" >> /etc/sudoers
+  fi
+  d_umask=$(umask)
+  umask 226 && echo "${new_user} ALL=(ALL) NOPASSWD:SETENV: ${working_path}/woocommerce-aras-cargo.sh,${working_path}/woo-aras-setup.sh" | (sudo su -c 'EDITOR="tee" visudo -f /etc/sudoers.d/wooaras') >/dev/null 2>&1 ||
+  { replace_fail "USER OPERATIONS FAILED"; u_error+=( "sudo" ); }
+  umask "${d_umask}"
   if (( ${#u_error[@]} )); then
     for err in "${u_error[@]}"
     do
@@ -1075,6 +1086,8 @@ if ! grep -qE "^${new_user}:" "${pass_file}"; then
       elif [[ "${err}" == "add" ]]; then
         error "FAIL_STAGE-2 --> CANNOT CREATE USER"
       elif [[ "${err}" == "sudo" ]]; then
+        error "FAIL_STAGE-2 --> CANNOT GRANT SUDO"
+      elif [[ "${err}" == "sed" ]]; then
         error "FAIL_STAGE-2 --> CANNOT GRANT SUDO"
       fi
     done
