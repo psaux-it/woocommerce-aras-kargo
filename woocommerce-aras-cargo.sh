@@ -293,8 +293,8 @@ if [[ "${1}" == "-s" || "${1}" == "--setup" ]]; then
 	if [[ "${setup_key}" ]]; then
 		if [[ "$SUDO_USER" == "${new_user}" ]]; then
 			if ! [[ -e "${working_path}/.env.ready" ]]; then
-				touch "${working_path}/.env.ready"
-				chown "${user}":"${user}" "${working_path}/.env.ready"
+				echo "${distribution} ${setup_key}" > "${working_path}/.env.ready"
+				chown "${new_user}":"${new_user}" "${working_path}/.env.ready"
 				chmod 600 "${working_path}/.env.ready"
 			fi
 		fi
@@ -858,9 +858,9 @@ check_delivered () {
 curl_helper () {
 	hide_me --enable
 	if [[ ! "${api_key}" || ! "${api_secret}" || ! "${api_endpoint}" ]]; then
-		api_key=$(< "${this_script_lck_path}/.key.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
-		api_secret=$(< "${this_script_lck_path}/.secret.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
-		api_endpoint=$(< "${this_script_lck_path}/.end.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:garbageKey 2>/dev/null)
+		api_key=$(< "${this_script_lck_path}/.key.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:wooaras 2>/dev/null)
+		api_secret=$(< "${this_script_lck_path}/.secret.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:wooaras 2>/dev/null)
+		api_endpoint=$(< "${this_script_lck_path}/.end.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:wooaras 2>/dev/null)
 	fi
 	hide_me --disable
 }
@@ -1125,10 +1125,10 @@ pre_check () {
 		sed_not_gnu=1
 	fi
 
-	if [[ "${o_s,,}" == "gentoo" || "${o_s,,}" == "debian" || "${o_s,,}" == "ubuntu" ]]; then
-		echo "${green}Operating_System: ${o_s} ✓${reset}"
+	if [[ -e "${this_script_path}/.env.ready" ]]; then
+		echo "${green}Operating_System: $(< ${this_script_path}/.env.ready $m_awk '{print $1}') ✓${reset}"
 	else
-		echo "${yellow}Operating_System: ${o_s}_not_tested ?${reset}"
+		echo "${yellow}Operating_System: UNKNOWN ?${reset}"
 	fi
 
 	echo "${green}Dependencies: Ok ✓${reset}"
@@ -1173,10 +1173,13 @@ my_status () {
 	echo "${green}*${reset} ${magenta}Automation Status:${reset}"
 	echo "${cyan}${m_tab}#####################################################${reset}"
 
-	# Early exit if setup not completed
-	if ! [[ -e "${this_script_path}/.woo.aras.set" ]]; then
+	# Early exit if pre-setup not completed
+	if ! [[ -e "${this_script_path}/.env.ready" ]]; then
 		{
-		echo "${green}Default-Setup: ${red}Not_Completed${reset}"
+		echo "${green}Pre-Setup: ${red}Not_Completed${reset}"
+		if ! [[ -e "${this_script_path}/.woo.aras.set" ]]; then
+			echo "${green}Default-Setup: ${red}Not_Completed${reset}"
+		fi
 		echo "${green}Two-way_Workflow-Setup: ${yellow}Null${reset}"
 		} | column -t -s ' ' | $m_sed 's/^/  /'
 		echo -e "\n${m_tab}${cyan}# ---------------------------------------------------------------------${reset}"
@@ -1188,6 +1191,7 @@ my_status () {
 	# Setup status
 	if [[ -e "${this_script_path}/.woo.aras.set" ]]; then
 		s_status="Completed"
+		echo "${green}Pre-Setup: $s_status${reset}"
 		echo "${green}Default-Setup: $s_status${reset}"
 
 		w_delivered=$($m_curl -s -X GET -K- <<< "-u ${api_key}:${api_secret}" -H "Content-Type: application/json" "https://$api_endpoint/wp-json/wc/v3/orders?status=delivered")
