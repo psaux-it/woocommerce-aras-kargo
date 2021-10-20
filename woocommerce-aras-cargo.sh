@@ -497,9 +497,7 @@ if [[ -e "${this_script_path}/.woo.aras.set" ]]; then
 			echo -e "${red}${m_tab}Please re-start setup..${reset}\n"
 			# Remove sensetive data immediately
 			rm -rf "${this_script_path:?}"/.lck/.*lck >/dev/null 2>&1
-			rm -f "${this_script_path:?}/.woo.aras.set" >/dev/null 2>&1
-			rm -f "${this_script_path:?}/.woo.aras.enb" >/dev/null 2>&1
-			rm -f "${this_script_path:?}/.env.ready" >/dev/null 2>&1
+			rm -rf "${this_script_path:?}"/{.woo.aras.set,.woo.aras.enb,.env.ready} >/dev/null 2>&1
 			broken_installation "Runtime protection, the UUID which set during installation has changed, please re-start setup"
 			check_log && echo "$(timestamp): Runtime protection, the UUID which set during installation has changed, please re-start setup" >> "${wooaras_log}"
 			exit 1
