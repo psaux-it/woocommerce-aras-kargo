@@ -893,9 +893,16 @@ check_deps () {
   done
 }
 
+# +-----+-----+--->
 check_deps
 check_locale
+autodetect_distribution &&
+{
+autodetect_package_manager || un_supported --pm
+} ||
+un_supported --os
 pre_start
+# +-----+-----+--->
 
 install_centos () {
   opts="-yq install"
