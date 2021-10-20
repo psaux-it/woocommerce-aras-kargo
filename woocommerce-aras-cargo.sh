@@ -134,6 +134,73 @@ send_mail_suc () {
 # Check shell is interactive or non-interactive
 if [ -t 0 ]; then my_shell="interactive"; else my_shell="non-interactive"; fi
 
+# Check smtp ports are listening to determine mail server running
+if command -v lsof >/dev/null 2>&1; then
+	if lsof -Pi :587 -sTCP:LISTEN -t >/dev/null; then
+		check_mail_server=0
+	elif lsof -Pi :465 -sTCP:LISTEN -t >/dev/null; then
+		check_mail_server=0
+	elif lsof -Pi :2525 -sTCP:LISTEN -t >/dev/null; then
+		check_mail_server=0
+	elif lsof -Pi :25 -sTCP:LISTEN -t >/dev/null; then
+		check_mail_server=0
+	else
+		send_mail_err=0
+		send_mail_suc=0
+		check_mail_server=1
+        fi
+elif command -v netstat >/dev/null 2>&1; then
+	if netstat -tulpn | grep -q ":25\|:587\|:465\|:2525"; then
+		check_mail_server=0
+	else
+		send_mail_err=0
+		send_mail_suc=0
+		check_mail_server=1
+	fi
+elif command -v ss >/dev/null 2>&1; then
+	if ss -tulpn | grep -q ":25\|:587\|:465\|:2525"; then
+		check_mail_server=0
+	else
+		send_mail_err=0
+		send_mail_suc=0
+		check_mail_server=1
+	fi
+fi
+
+# Test connection & get public ip
+if ! : >/dev/tcp/8.8.8.8/53; then
+	connection_error=1
+else
+	# Get public IP
+	exec 3<> /dev/tcp/checkip.amazonaws.com/80
+	printf "GET / HTTP/1.1\r\nHost: checkip.amazonaws.com\r\nConnection: close\r\n\r\n" >&3
+	read -r my_ip < <(tail -n1 <&3)
+fi
+
+# Pretty send mail function
+send_mail () {
+	if [[ "${send_mail_err}" -eq 1 && ! "${connection_error}" ]]; then
+		send_mail_err <<< "${1}" >/dev/null 2>&1
+	fi
+}
+
+check_log () {
+        [[ -f "${wooaras_log}" ]] && return 0
+        return 1
+}
+
+# Notify broken installations via email
+broken_installation () {
+	if [[ "${my_shell}" == "non-interactive" ]]; then
+		send_mail "${1}"
+	fi
+}
+
+# Log timestamp
+timestamp () {
+        date +"%Y-%m-%d %T"
+}
+
 # Set terminal colors
 setup_terminal () {
 	green=""; red=""; reset=""; cyan=""; magenta=""; yellow=""
@@ -260,26 +327,19 @@ options () {
 if [[ "$(tail -n 1 "${0}" | head -n 1 | cut -c 1-7)" != "exit \$?" ]]; then
 	echo -e "\n${red}*${reset} ${red}Script is incomplete, please force upgrade manually${reset}"
 	echo -e "${cyan}${m_tab}#####################################################${reset}\n"
+	help
+	broken_installation "Script is incomplete, please force upgrade manually"
+	check_log && echo "$(timestamp): Script is incomplete, please force upgrade manually" >> "${wooaras_log}"
 	exit 1
 fi
 
 # Check OS is supported
-if [[ "${OSTYPE}" != "linux-gnu"* ]]; then
+if [[ "$(uname -s)" != "Linux" ]]; then
 	echo -e "\n${red}*${reset} ${red}Unsupported operating system: $OSTYPE${reset}"
 	echo -e "${cyan}${m_tab}#####################################################${reset}\n"
+	broken_installation "Unsupported operating system: $OSTYPE"
+	check_log && echo "$(timestamp): Unsupported operating system: $OSTYPE" >> "${wooaras_log}"
 	exit 1
-fi
-
-# Test connection & get public ip
-if ! : >/dev/tcp/8.8.8.8/53; then
-	echo -e "\n${red}*${reset} ${red}There is no internet connection.${reset}"
-	echo -e "${cyan}${m_tab}#####################################################${reset}\n"
-        exit 1
-else
-	# Get public IP
-	exec 3<> /dev/tcp/checkip.amazonaws.com/80
-	printf "GET / HTTP/1.1\r\nHost: checkip.amazonaws.com\r\nConnection: close\r\n\r\n" >&3
-	read -r my_ip < <(tail -n1 <&3)
 fi
 
 # Accept only one argument except debug arguments
@@ -292,10 +352,11 @@ fi
 if [[ "${1}" == "-s" || "${1}" == "--setup" ]]; then
 	if [[ "${setup_key}" ]]; then
 		if [[ "$SUDO_USER" == "${new_user}" ]]; then
-			if ! [[ -e "${working_path}/.env.ready" ]]; then
+			if ! [[ -s "${working_path}/.env.ready" ]]; then
 				echo "${distribution} ${setup_key}" > "${working_path}/.env.ready"
 				chown "${new_user}":"${new_user}" "${working_path}/.env.ready"
 				chmod 600 "${working_path}/.env.ready"
+				check_log && echo "$(timestamp): Pre-Setup completed." >> "${wooaras_log}"
 			fi
 		fi
 	else
@@ -303,6 +364,7 @@ if [[ "${1}" == "-s" || "${1}" == "--setup" ]]; then
 		echo "${cyan}${m_tab}#####################################################${reset}"
 		echo "${red}${m_tab}You cannot directly call main script with --setup${reset}"
 		echo -e "${red}${m_tab}Instead use setup script ${magenta}sudo ./woo-aras-setup.sh${reset}\n"
+		check_log && echo "$(timestamp): You cannot directly call main script with --setup" >> "${wooaras_log}"
 		exit 1
 	fi
 fi
@@ -312,13 +374,14 @@ fi
 if [[ "${1}" == "-s" || "${1}" == "--setup" || "${1}" == "-d" || "${1}" == "--uninstall" ]]; then
 	if [[ ! $SUDO_USER && $EUID -ne 0 ]]; then
 		usage
+		check_log && echo "$(timestamp): You need root privileges for setup" >> "${wooaras_log}"
 		exit 1
 	fi
 fi
 # =====================================================================
 
 # Guides placed at the beginning of the script
-# User able to reach them without any break, sure after critical controls passed
+# User able to reach them without any break as much as possible
 while :; do
 	case "${1}" in
 	-o|--options          ) options
@@ -340,51 +403,6 @@ while :; do
 	esac
 	shift
 done
-
-# Check smtp ports are listening to determine mail server running
-if command -v lsof >/dev/null 2>&1; then
-	if lsof -Pi :587 -sTCP:LISTEN -t >/dev/null; then
-		check_mail_server=0
-	elif lsof -Pi :465 -sTCP:LISTEN -t >/dev/null; then
-		check_mail_server=0
-	elif lsof -Pi :2525 -sTCP:LISTEN -t >/dev/null; then
-		check_mail_server=0
-	elif lsof -Pi :25 -sTCP:LISTEN -t >/dev/null; then
-		check_mail_server=0
-	else
-		send_mail_err=0
-		send_mail_suc=0
-		check_mail_server=1
-        fi
-elif command -v netstat >/dev/null 2>&1; then
-	if netstat -tulpn | grep -q ":25\|:587\|:465\|:2525"; then
-		check_mail_server=0
-	else
-		send_mail_err=0
-		send_mail_suc=0
-		check_mail_server=1
-	fi
-elif command -v ss >/dev/null 2>&1; then
-	if ss -tulpn | grep -q ":25\|:587\|:465\|:2525"; then
-		check_mail_server=0
-	else
-		send_mail_err=0
-		send_mail_suc=0
-		check_mail_server=1
-	fi
-fi
-
-# Pretty send mail function
-send_mail () {
-	if [[ $send_mail_err -eq 1 ]]; then
-		send_mail_err <<< "${1}" >/dev/null 2>&1
-	fi
-}
-
-# Log timestamp
-timestamp () {
-        date +"%Y-%m-%d %T"
-}
 
 # Early add local PATHS to deal with cron errors.
 # We will also set explicit paths for binaries later.
@@ -408,7 +426,8 @@ uniquepath
 script_path_pretty_error () {
 	echo -e "\n${red}*${reset} ${red}Could not determine script name and fullpath${reset}"
 	echo -e "${cyan}${m_tab}#####################################################${reset}\n"
-	send_mail "Could not determine script name and fullpath"
+	broken_installation "Could not determine script name and fullpath"
+	check_log && echo "$(timestamp): Could not determine script name and fullpath" >> "${wooaras_log}"
 	exit 1
 }
 
@@ -440,28 +459,16 @@ fi
 shopt -s extglob
 this_script_path="${this_script_path%%+(/)}"
 
-# If cloned, remove git history to get bare working copy
-# Keep folder layout clean
-if [[ -d "${this_script_path}/.git" ]]; then
-	rm -rf "${this_script_path:?}/.git"
-fi
-
 # PID File
 PIDFILE="/var/run/woo-aras/woocommerce-aras-cargo.pid"
-
-# Notify broken installations via email
-broken_installation () {
-	if [[ "${my_shell}" == "interactive" ]]; then
-		send_mail "${1}"
-	fi
-}
 
 # Path pretty error
 path_pretty_error () {
 	echo -e "\n${red}*${reset} ${red}Path not writable: ${1}${reset}"
 	echo "${cyan}${m_tab}#####################################################${reset}"
 	echo -e "${red}${m_tab}Run once with sudo privileges to create path${reset}\n"
-	broken_installation "Broken installation, path not writable: ${1}, please re-start setup"
+	broken_installation "Broken installation, path not writable: ${1}, run once with sudo privileges to create path"
+	check_log && echo "$(timestamp): Path not writable: ${1}, run once with sudo privileges to create path" >> "${wooaras_log}"
 	exit 1
 }
 
@@ -470,10 +477,39 @@ if [[ $# -eq 0 ]]; then
 	if [[ ! -e "${this_script_path}/.woo.aras.set" ]]; then
 		echo -e "\n${red}*${reset} ${red}Broken/Uncompleted installation:${reset}"
 		echo "${cyan}${m_tab}#####################################################${reset}"
-		echo "${m_tab}${red}Missing runtime file or possibly you run the script first time${reset}"
-		echo -e "${m_tab}${red}Check below instructions for basic usage${reset}\n"
+		echo "${m_tab}${red}Missing runtime file or you run the script first time${reset}"
+		echo -e "${m_tab}${red}Please re-start setup..${reset}\n"
 		usage
 		broken_installation "Broken/Uncompleted installation, please re-start setup"
+		check_log && echo "$(timestamp): Broken/Uncompleted installation, missing runtime file or you run the script first time" >> "${wooaras_log}"
+		exit 1
+	fi
+fi
+
+# Runtime protection
+if [[ -e "${this_script_path}/.woo.aras.set" ]]; then
+	if [[ -e "${this_script_path}/.env.ready" ]]; then
+		uniq_id="$(findmnt --output=UUID --noheadings --target=/ | tr -d '-')"
+		if [[ "${uniq_id}" != "$(< ${this_script_path}/.env.ready awk '{print $2}')" ]]; then
+			echo -e "\n${red}*${reset} ${red}Runtime protection!${reset}"
+			echo "${cyan}${m_tab}#####################################################${reset}"
+			echo "${red}${m_tab}The UUID which setted during installation has changed.${reset}"
+			echo -e "${red}${m_tab}Please re-start setup..${reset}\n"
+			# Remove sensetive data immediately
+			rm -rf "${this_script_path:?}"/.lck/.*lck >/dev/null 2>&1
+			rm -f "${this_script_path:?}/.woo.aras.set" >/dev/null 2>&1
+			rm -f "${this_script_path:?}/.woo.aras.enb" >/dev/null 2>&1
+			rm -f "${this_script_path:?}/.env.ready" >/dev/null 2>&1
+			broken_installation "Runtime protection, the UUID which set during installation has changed, please re-start setup"
+			check_log && echo "$(timestamp): Runtime protection, the UUID which set during installation has changed, please re-start setup" >> "${wooaras_log}"
+			exit 1
+		fi
+	else
+		echo -e "\n${red}*${reset} ${red}Missing runtime file:${reset}"
+		echo "${cyan}${m_tab}#####################################################${reset}"
+		echo -e "${m_tab}${red}Please re-start setup..${reset}\n"
+		broken_installation "Missing runtime file, please re-start setup"
+		check_log && echo "$(timestamp): Missing runtime file, please re-start setup" >> "${wooaras_log}"
 		exit 1
 	fi
 fi
@@ -481,20 +517,23 @@ fi
 # Verify twoway installation content
 if [[ "${1}" == "-s" || "${1}" == "--setup" ]]; then
 	if [[ "$(ls -A "${this_script_path}/custom-order-status-package" 2>/dev/null | wc -l)" -eq 0 ]]; then
-		echo -e "\n${red}*${reset} ${red}Missing installation contents found:${reset}"
+		echo -e "\n${red}*${reset} ${red}Missing installation content:${reset}"
 		echo "${cyan}${m_tab}#####################################################${reset}"
-		echo -e "${m_tab}${red}Check usage details below and git clone repo again${reset}\n"
+		echo -e "${m_tab}${red}Please re-start setup..${reset}\n"
 		usage
+		check_log && echo "$(timestamp): Missing installation content, please re-start setup" >> "${wooaras_log}"
 		exit 1
 	fi
 fi
 
 # Verify shop manager html email templates
 if [[ "$(ls -A "${this_script_path}/emails" 2>/dev/null | wc -l)" -eq 0 ]]; then
-	echo -e "\n${red}*${reset} ${red}Missing html email templates:${reset}"
+	echo -e "\n${red}*${reset} ${red}Missing runtime file:${reset}"
 	echo "${cyan}${m_tab}#####################################################${reset}"
-	echo -e "${m_tab}${red}Check usage details below and git clone repo again${reset}\n"
+	echo -e "${m_tab}${red}Please re-start setup..${reset}\n"
 	usage
+	broken_installation "Missing runtime file, please re-start setup"
+	check_log && echo "$(timestamp): Missing runtime file, please re-start setup" >> "${wooaras_log}"
 	exit 1
 fi
 
@@ -592,7 +631,7 @@ my_rotate () {
 # Reply the logrotate call
 if [[ "${1}" == "--rotate" ]]; then my_rotate; fi
 
-# Check & create lock,tmp (local) & log (system) path
+# Check & create .lck,tmp (local) & log (system) path
 depriv_f "${wooaras_log%/*}" "${this_script_path}/tmp" "${this_script_path}/.lck"
 depriv "${wooaras_log}"; [[ "${touched}" -eq 1 ]] && echo "$(timestamp): Log path created: Logging started.." >> "${wooaras_log}"
 
@@ -738,7 +777,7 @@ clean_up () {
 	# Removes debug data that keeped in /tmp, older than user defined setting --> keep_debug
 	if ! [[ -e "${this_script_path}/.woo.aras.set" ]]; then
 		# Setup not completed so we need to check find version here
-		find_ver="$(find --version | grep GNU | perl -pe '($_)=/([0-9]+([.][0-9]+)+)/')"
+		find_ver="$(find --version | grep GNU | $m_perl -pe '($_)=/([0-9]+([.][0-9]+)+)/')"
 		find_ver="${find_ver%.*}"
 		if [[ "${find_ver//.}" -ge 45 ]]; then
 			find "${this_script_path:?}/tmp" -maxdepth 1 -type f -mtime +"${keep_debug}" -print0 2>/dev/null | xargs -r0 rm --
