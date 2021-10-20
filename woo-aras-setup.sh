@@ -493,13 +493,6 @@ check_locale () {
   fi
 }
 
-# Find distribution
-autodetect_distribution &&
-{
-autodetect_package_manager || un_supported --pm
-} ||
-un_supported --os
-
 pre_start () {
   if [[ ! "$(id -u $new_user 2>/dev/null)" || "${#missing_deps[@]}" -ne 0 || ! -d "${working_path}" || -n "${locale_missing}" ]]; then
     wooaras_banner "GETTING THINGS READY :)"
