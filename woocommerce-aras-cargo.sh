@@ -757,6 +757,14 @@ if [[ "${m_ctype}" != "en" ]]; then
 fi
 # =====================================================================
 
+# Late call connection error
+if [[ "${connection_error}" ]]; then
+	echo -e "\n${red}*${reset} ${red}There is no internet connection.${reset}"
+	echo -e "${cyan}${m_tab}#####################################################${reset}\n"
+	echo "$(timestamp): There is no internet connection" >> "${wooaras_log}"
+	exit 1
+}
+
 # Create temporary files
 my_tmp=$(mktemp)
 my_tmp_del=$(mktemp)
