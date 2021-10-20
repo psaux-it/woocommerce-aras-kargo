@@ -105,7 +105,7 @@ usage () {
 [[ ! $SUDO_USER && $EUID -ne 0 ]] && { usage; exit 1; }
 
 export new_user="wooaras"
-export setup_key="gajVVK2zXo"
+export setup_key=$(findmnt --output=UUID --noheadings --target=/ | tr -d '-')
 export working_path="/home/${new_user}/scripts/woocommerce-aras-kargo"
 git_repo="https://github.com/hsntgm/woocommerce-aras-kargo.git"
 sudoers_file="/etc/sudoers"
