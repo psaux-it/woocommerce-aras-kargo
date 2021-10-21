@@ -2241,7 +2241,7 @@ download () {
 	U_USER_OWNER="$(stat --format "%U" "${cron_script_full_path}" 2> /dev/null)"
 
 	# Generate the update script
-	cat > "${this_script_path}/${update_script}" <<- EOF
+	cat > "${this_script_path}/${update_script}" <<- WOOARAS
 	#!/usr/bin/env bash
 
 	# Overwrite old file with new
@@ -2310,7 +2310,7 @@ download () {
 
 	#remove the tmp script before exit
 	rm -f \$0
-	EOF
+	WOOARAS
 
 	# Replaced with $0, so code will update
 	exec "$my_bash" "${this_script_path}/${update_script}"
@@ -2570,119 +2570,103 @@ done
 
 # Installation
 #=====================================================================
-add_cron () {
-	if [[ ! -e "${cron_dir}/${cron_filename}" ]]; then
-		if [[ ! -d "${cron_dir}" ]]; then
-			mkdir "${cron_dir}" >/dev/null 2>&1 &&
-			touch "${cron_dir}/${cron_filename}" >/dev/null 2>&1 ||
-			{
-			echo -e "\n${red}*${reset} ${red}Cron install aborted, couldn't create directory: ${cron_dir}${reset}"
-			echo -e "${cyan}${m_tab}#####################################################${reset}\n"
-			echo "$(timestamp): Installation aborted, couldn't create cron directory: ${cron_dir}" >> "${wooaras_log}"
-			exit 1
-			}
-		else
-			touch "${cron_dir}/${cron_filename}" >/dev/null 2>&1 ||
-			{
-                        echo -e "\n${red}*${reset} ${red}Cron install aborted, couldn't create file: ${cron_dir}/${cron_filename}${reset}"
-			echo -e "${cyan}${m_tab}#####################################################${reset}\n"
-                        echo "$(timestamp): Installation aborted, couldn't create cron file: ${cron_dir}/${cron_filename}" >> "${wooaras_log}"
-                        exit 1
-                        }
-		fi
-	fi
-
-	if [[ ! -w "${cron_dir}/${cron_filename}" ]]; then
-		echo -e "\n${red}*${reset} ${red}Cron install aborted, as file not writable: ${cron_dir}/${cron_filename}${reset}"
-		echo "${cyan}${m_tab}#####################################################${reset}"
-		echo -e "${m_tab}${red}Try to run script with sudo privileges.${reset}\n"
-		echo "$(timestamp): Installation aborted, as file not writable: ${cron_dir}/${cron_filename}." >> "${wooaras_log}"
-		exit 1
-	else
-		local good
-		local good_update
-		local good_main
-		good_main=0
-		good_update=0
-		good=true
-
-		if [[ "${auto_update}" -eq 1 && ! -e "${cron_dir}/${cron_filename_update}" ]]; then
-			cat <<- EOF > "${cron_dir}/${cron_filename_update}"
-			# At 09:19 on Sunday.
-			# Via WooCommerce - ARAS Cargo Integration Script
-			# Copyright 2021 Hasan ÇALIŞIR
-			# MAILTO=$mail_to
-			SHELL=/bin/bash
-			$cron_minute_update ${cron_user} [ -x ${cron_script_full_path} ] && ${my_bash} ${cron_script_full_path} -u
-			EOF
-			[[ $? -ne 0 ]] && good_update=1
-		fi
-
-		if [[ ! -e "${cron_dir}/${cron_filename}" ]]; then
-			cat <<- EOF > "${cron_dir}/${cron_filename}"
-			# At every 24th minute past every hour from 9 through 19 on every day-of-week from Monday through Saturday.
-			# Via WooCommerce - ARAS Cargo Integration Script
-			# Copyright 2021 Hasan ÇALIŞIR
-			# MAILTO=$mail_to
-			SHELL=/bin/bash
-			$cron_minute ${cron_user} [ -x ${cron_script_full_path} ] && ${my_bash} ${cron_script_full_path}
-			EOF
-			[[ $? -ne 0 ]] && good_main=1
-		fi
-
-		[[ "${good_main}" -ne 0 || "${good_update}" -ne 0 ]] && good=false
-
-		if $good; then
-			# Install systemd_tmpfiles
-			systemd_tmpfiles
-
-			# Add logrotate
-			add_logrotate
-
-			# Set status
-			on_fly_disable
-
-			echo -e "\n${green}*${reset} ${green}Installation completed.${reset}"
-			echo "${cyan}${m_tab}#####################################################${reset}"
-			if [[ "${auto_update}" -eq 1 ]]; then
-				echo "${m_tab}${green}Main cron installed to ${cyan}${cron_dir}/${cron_filename}${reset}"
-				echo "${m_tab}${green}Updater cron installed to ${cyan}${cron_dir}/${cron_filename_update}${reset}"
-			else
-				echo "${m_tab}${green}Main cron installed to ${cyan}${cron_dir}/${cron_filename}${reset}"
-			fi
-			if [[ "${logrotate_installed}" ]]; then
-				if [[ "${logrotate_installed}" == "asfile" ]]; then
-					echo "${m_tab}${green}Logrotate installed to ${cyan}${logrotate_dir}/${logrotate_filename}${reset}"
-				elif [[ "${logrotate_installed}" == "conf" ]]; then
-					echo "${m_tab}${green}Logrotate rules inserted to ${cyan}${logrotate_conf}${reset}"
-				fi
-			fi
-			if [[ "${tmpfiles_installed}" ]]; then
-				if [[ "${tmpfiles_installed}" == "systemd" ]]; then
-					echo -e "${m_tab}${green}Runtime path deployed via ${cyan}${tmpfiles_d}/${tmpfiles_f}${reset}\n"
-				elif [[ "${tmpfiles_installed}" == "rclocal" ]]; then
-					echo -e "${m_tab}${green}Runtime path deployed via ${cyan}/etc/rc.local${reset}\n"
-				fi
-			fi
-			echo "$(timestamp): Installation completed." >> "${wooaras_log}"
-		else
-			echo -e "\n${red}*${reset} ${red}Installation failed.${reset}"
-			echo "${cyan}${m_tab}#####################################################${reset}"
-			echo -e "${m_tab}${red}Could not create cron {cron_dir}/${cron_filename}.${reset}\n"
-			echo "$(timestamp): Installation failed, could not create cron {cron_dir}/${cron_filename}" >> "${wooaras_log}"
-			exit 1
-		fi
-	fi
-	exit 0
-}
-
-systemd_installation_err () {
+installation_err () {
 	echo -e "\n${red}*${reset} ${red}Installation aborted${reset}"
 	echo "${cyan}${m_tab}#####################################################${reset}"
 	echo "${m_tab}${red}As file not writable: ${*}${reset}"
 	echo -e "${m_tab}${red}Try to run script with sudo privileges.${reset}\n"
 	echo "$(timestamp): Installation aborted, as file not writable: ${*}." >> "${wooaras_log}"
 	exit 1
+}
+
+add_cron () {
+	local good good_update good_main
+	good_main=0; good_update=0; good=true
+
+	if [[ ! -e "${cron_dir}/${cron_filename}" ]]; then
+		if [[ ! -d "${cron_dir}" ]]; then
+			mkdir "${cron_dir}" >/dev/null 2>&1 
+		fi
+
+		if ! grep -qi 'Permission denied' <<< "$(touch ${cron_dir}/${cron_filename} 2>&1)"; then
+			cat <<- WOOARAS > "${cron_dir}/${cron_filename}"
+			# At every 30th minute past every hour from 9 through 19 on every day-of-week from Monday through Saturday.
+			# Via WooCommerce - ARAS Cargo Integration Script
+			# Copyright 2021 Hasan ÇALIŞIR
+			# MAILTO=$mail_to
+			SHELL=/bin/bash
+			$cron_minute ${cron_user} [ -x ${cron_script_full_path} ] && ${my_bash} ${cron_script_full_path}
+			WOOARAS
+			[[ $? -ne 0 ]] && good_main=1
+		else
+			installation_err "${cron_dir}/${cron_filename}"
+		fi
+	fi
+
+	if [[ ! -e "${cron_dir}/${cron_filename_update}" ]]; then
+		if [[ ! -d "${cron_dir}" ]]; then
+			mkdir "${cron_dir}" >/dev/null 2>&1
+		fi
+
+		if ! grep -qi 'Permission denied' <<< "$(touch ${cron_dir}/${cron_filename_update} 2>&1)"; then
+			if [[ "${auto_update}" -eq 1 ]]; then
+				cat <<- WOOARAS > "${cron_dir}/${cron_filename_update}"
+				# At 09:19 on Sunday.
+				# Via WooCommerce - ARAS Cargo Integration Script
+				# Copyright 2021 Hasan ÇALIŞIR
+				# MAILTO=$mail_to
+				SHELL=/bin/bash
+				$cron_minute_update ${cron_user} [ -x ${cron_script_full_path} ] && ${my_bash} ${cron_script_full_path} -u
+				WOOARAS
+				[[ $? -ne 0 ]] && good_update=1
+			fi
+		else
+			installation_err "${cron_dir}/${cron_filename_update}"
+		fi
+	fi
+
+	[[ "${good_main}" -ne 0 || "${good_update}" -ne 0 ]] && good=false
+
+	if $good; then
+		# Install systemd_tmpfiles
+		systemd_tmpfiles
+
+		# Add logrotate
+		add_logrotate
+
+		# Set status
+		on_fly_disable
+	else
+		installation_err
+	fi
+
+	echo -e "\n${green}*${reset} ${green}Installation completed.${reset}"
+	echo "${cyan}${m_tab}#####################################################${reset}"
+	if [[ "${auto_update}" -eq 1 ]]; then
+		echo "${m_tab}${green}Main cron installed to ${cyan}${cron_dir}/${cron_filename}${reset}"
+		echo "${m_tab}${green}Updater cron installed to ${cyan}${cron_dir}/${cron_filename_update}${reset}"
+	else
+		echo "${m_tab}${green}Main cron installed to ${cyan}${cron_dir}/${cron_filename}${reset}"
+	fi
+
+	if [[ "${logrotate_installed}" ]]; then
+		if [[ "${logrotate_installed}" == "asfile" ]]; then
+			echo "${m_tab}${green}Logrotate installed to ${cyan}${logrotate_dir}/${logrotate_filename}${reset}"
+		elif [[ "${logrotate_installed}" == "conf" ]]; then
+			echo "${m_tab}${green}Logrotate rules inserted to ${cyan}${logrotate_conf}${reset}"
+		fi
+	fi
+
+	if [[ "${tmpfiles_installed}" ]]; then
+		if [[ "${tmpfiles_installed}" == "systemd" ]]; then
+			echo -e "${m_tab}${green}Runtime path deployed via ${cyan}${tmpfiles_d}/${tmpfiles_f}${reset}\n"
+		elif [[ "${tmpfiles_installed}" == "rclocal" ]]; then
+			echo -e "${m_tab}${green}Runtime path deployed via ${cyan}/etc/rc.local${reset}\n"
+		fi
+	fi
+
+	echo "$(timestamp): Installation completed." >> "${wooaras_log}"
+	exit 0
 }
 
 add_systemd () {
@@ -2715,7 +2699,7 @@ add_systemd () {
 			WOOARAS
 			[[ $? -ne 0 ]] && good_main=1
 		else
-			systemd_installation_err "${systemd_dir}/${service_filename}"
+			installation_err "${systemd_dir}/${service_filename}"
 		fi
 	fi
 
@@ -2735,7 +2719,7 @@ add_systemd () {
 			WOOARAS
 			[[ $? -ne 0 ]] && good_timer=1
 		else
-			systemd_installation_err "${systemd_dir}/${timer_filename}"
+			installation_err "${systemd_dir}/${timer_filename}"
 		fi
 	fi
 
@@ -2757,7 +2741,7 @@ add_systemd () {
 				[[ $? -ne 0 ]] && good_cron=1
 			fi
 		else
-			systemd_installation_err "${cron_dir}/${cron_filename_update}"
+			installation_err "${cron_dir}/${cron_filename_update}"
 		fi
 	fi
 
@@ -2783,7 +2767,7 @@ add_systemd () {
 			exit 1
 		fi
 	else
-		systemd_installation_err
+		installation_err
 	fi
 
 	echo -e "\n${green}*${reset} ${green}Installation completed.${reset}"
@@ -2822,7 +2806,7 @@ add_logrotate () {
 				exit 1
 			else
 				logrotate_installed="asfile"
-				cat <<- EOF > "${logrotate_dir}/${logrotate_filename}"
+				cat <<- WOOARAS > "${logrotate_dir}/${logrotate_filename}"
 				${wooaras_log} {
 				firstaction
 				su -s /bin/bash -c '${cron_script_full_path} --rotate >/dev/null 2>&1' ${user}
@@ -2838,7 +2822,7 @@ add_logrotate () {
 				echo "\$(date +"%Y-%m-%d %T"): Logrotation completed" >> ${wooaras_log}
 				endscript
 				}
-				EOF
+				WOOARAS
 			fi
 		fi
 	elif ! grep -q "ARAS Cargo" "${logrotate_conf}"; then
@@ -2850,7 +2834,7 @@ add_logrotate () {
 			exit 1
 		else
 			logrotate_installed="conf"
-			cat <<- EOF >> "${logrotate_conf}"
+			cat <<- WOOARAS >> "${logrotate_conf}"
 
 			# Via WooCommerce - ARAS Cargo Integration Script
 			# Copyright 2021 Hasan ÇALIŞIR
@@ -2870,7 +2854,7 @@ add_logrotate () {
 			endscript
 			# END-WOOARAS
 			}
-			EOF
+			WOOARAS
 		fi
 	fi
 }
@@ -2885,10 +2869,10 @@ systemd_tmpfiles () {
 				echo "$(timestamp): Installation aborted, as folder not writable: ${tmpfiles_d}" >> "${wooaras_log}"
 				exit 1
 			else
-				cat <<- EOF > "${tmpfiles_d}/${tmpfiles_f}"
+				cat <<- WOOARAS > "${tmpfiles_d}/${tmpfiles_f}"
 				d ${runtime_path%/*} 0755 $user $user
 				d ${wooaras_log%/*} 0755 $user $user
-				EOF
+				WOOARAS
 
 				result=$?
 				if [[ "${result}" -eq 0 ]]; then
@@ -3262,7 +3246,7 @@ fi
 
 hide_me --enable
 # Create SOAP client to request ARAS cargo end
-cat <<- EOF > "${this_script_path}/aras_request.php"
+cat <<- WOOARAS > "${this_script_path}/aras_request.php"
 <?php
 	try {
 	\$client = new SoapClient("$api_end_aras", array("trace" => 1, "exception" => 0));
@@ -3289,7 +3273,7 @@ cat <<- EOF > "${this_script_path}/aras_request.php"
 	serialize(\$result);
 	print_r(\$result->GetQueryJSONResult);
 ?>
-EOF
+WOOARAS
 hide_me --disable
 
 # Make SOAP request to ARAS web service to get shipment DATA in JSON format
