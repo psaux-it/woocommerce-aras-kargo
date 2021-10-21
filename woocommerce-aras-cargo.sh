@@ -179,8 +179,10 @@ fi
 
 # Pretty send mail function
 send_mail () {
-	if [[ "${send_mail_err}" -eq 1 && ! "${connection_error}" ]]; then
-		send_mail_err <<< "${1}" >/dev/null 2>&1
+	if command -v "${send_mail_command}" >/dev/null 2>&1; then
+		if [[ "${send_mail_err}" -eq 1 && ! "${connection_error}" ]]; then
+			send_mail_err <<< "${1}" >/dev/null 2>&1
+		fi
 	fi
 }
 
@@ -466,9 +468,9 @@ PIDFILE="/var/run/woo-aras/woocommerce-aras-cargo.pid"
 path_pretty_error () {
 	echo -e "\n${red}*${reset} ${red}Path not writable: ${1}${reset}"
 	echo "${cyan}${m_tab}#####################################################${reset}"
-	echo -e "${red}${m_tab}Run once with sudo privileges to create path${reset}\n"
+	echo -e "${red}${m_tab}Run once with sudo to create path${reset}\n"
 	broken_installation "Broken installation, path not writable: ${1}, run once with sudo privileges to create path"
-	check_log && echo "$(timestamp): Path not writable: ${1}, run once with sudo privileges to create path" >> "${wooaras_log}"
+	check_log && echo "$(timestamp): Path not writable: ${1}, run once with sudo to create path" >> "${wooaras_log}"
 	exit 1
 }
 
@@ -903,9 +905,9 @@ check_delivered () {
 curl_helper () {
 	hide_me --enable
 	if [[ ! "${api_key}" || ! "${api_secret}" || ! "${api_endpoint}" ]]; then
-		api_key=$(< "${this_script_lck_path}/.key.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:wooaras 2>/dev/null)
-		api_secret=$(< "${this_script_lck_path}/.secret.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:wooaras 2>/dev/null)
-		api_endpoint=$(< "${this_script_lck_path}/.end.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:wooaras 2>/dev/null)
+		api_key=$(< "${this_script_lck_path}/.key.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:"$(< ${this_script_path}/.env.ready $m_awk '{print $2}')" 2>/dev/null)
+		api_secret=$(< "${this_script_lck_path}/.secret.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:"$(< ${this_script_path}/.env.ready $m_awk '{print $2}')" 2>/dev/null)
+		api_endpoint=$(< "${this_script_lck_path}/.end.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:"$(< ${this_script_path}/.env.ready $m_awk '{print $2}')" 2>/dev/null)
 	fi
 	hide_me --disable
 }
@@ -2928,7 +2930,7 @@ encrypt_wc_auth () {
 			read -r -p "${m_tab}${BC}Enter WooCommerce API key:${EC} " my_wc_api_key < /dev/tty
 			if [[ "${my_wc_api_key}" == "q" || "${my_wc_api_key}" == "quit" ]]; then exit 1; fi
 			echo "${cyan}${m_tab}#####################################################${reset}"
-			echo "${my_wc_api_key}" | openssl enc -base64 -e -aes-256-cbc -nosalt -pass pass:wooaras 2>/dev/null > "${this_script_lck_path}/.key.wc.lck"
+			echo "${my_wc_api_key}" | openssl enc -base64 -e -aes-256-cbc -nosalt -pass pass:"$(< ${this_script_path}/.env.ready $m_awk '{print $2}')" 2>/dev/null > "${this_script_lck_path}/.key.wc.lck"
 			depriv "${this_script_lck_path}/.key.wc.lck"
 		else
 			encrypt_ops_exit "${this_script_lck_path}/.key.wc.lck"
@@ -2941,7 +2943,7 @@ encrypt_wc_auth () {
 			read -r -p "${m_tab}${BC}Enter WooCommerce API secret:${EC} " my_wc_api_secret < /dev/tty
 			if [[ "${my_wc_api_secret}" == "q" || "${my_wc_api_secret}" == "quit" ]]; then exit 1; fi
 			echo "${cyan}${m_tab}#####################################################${reset}"
-			echo "${my_wc_api_secret}" | openssl enc -base64 -e -aes-256-cbc -nosalt -pass pass:wooaras 2>/dev/null > "${this_script_lck_path}/.secret.wc.lck"
+			echo "${my_wc_api_secret}" | openssl enc -base64 -e -aes-256-cbc -nosalt -pass pass:"$(< ${this_script_path}/.env.ready $m_awk '{print $2}')" 2>/dev/null > "${this_script_lck_path}/.secret.wc.lck"
 			depriv "${this_script_lck_path}/.secret.wc.lck"
 		else
 			encrypt_ops_exit "${this_script_lck_path}/.secret.wc.lck"
@@ -2960,7 +2962,7 @@ encrypt_wc_end () {
 			read -r -p "${m_tab}${BC}Enter Wordpress Domain URL:${EC} " my_wc_api_endpoint < /dev/tty
 			if [[ "${my_wc_api_endpoint}" == "q" || "${my_wc_api_endpoint}" == "quit" ]]; then exit 1; fi
 			echo "${cyan}${m_tab}#####################################################${reset}"
-			echo "${my_wc_api_endpoint}" | openssl enc -base64 -e -aes-256-cbc -nosalt -pass pass:wooaras 2>/dev/null > "${this_script_lck_path}/.end.wc.lck"
+			echo "${my_wc_api_endpoint}" | openssl enc -base64 -e -aes-256-cbc -nosalt -pass pass:"$(< ${this_script_path}/.env.ready $m_awk '{print $2}')" 2>/dev/null > "${this_script_lck_path}/.end.wc.lck"
 			depriv "${this_script_lck_path}/.end.wc.lck"
 		else
 			encrypt_ops_exit "${this_script_lck_path}/.end.wc.lck"
@@ -2978,7 +2980,7 @@ encrypt_aras_auth () {
 			read -r -p "${m_tab}${BC}Enter ARAS SOAP API Password:${EC} " my_aras_api_pass < /dev/tty
 			if [[ "${my_aras_api_pass}" == "q" || "${my_aras_api_pass}" == "quit" ]]; then exit 1; fi
 			echo "${cyan}${m_tab}#####################################################${reset}"
-			echo "${my_aras_api_pass}" | openssl enc -base64 -e -aes-256-cbc -nosalt -pass pass:wooaras 2>/dev/null > "${this_script_lck_path}/.key.aras.lck"
+			echo "${my_aras_api_pass}" | openssl enc -base64 -e -aes-256-cbc -nosalt -pass pass:"$(< ${this_script_path}/.env.ready $m_awk '{print $2}')" 2>/dev/null > "${this_script_lck_path}/.key.aras.lck"
 			depriv "${this_script_lck_path}/.key.aras.lck"
 		else
 			encrypt_ops_exit "${this_script_lck_path}/.key.aras.lck"
@@ -2991,7 +2993,7 @@ encrypt_aras_auth () {
 			read -r -p "${m_tab}${BC}Enter ARAS SOAP API Username:${EC} " my_aras_api_usr < /dev/tty
 			if [[ "${my_aras_api_usr}" == "q" || "${my_aras_api_usr}" == "quit" ]]; then exit 1; fi
 			echo "${cyan}${m_tab}#####################################################${reset}"
-			echo "${my_aras_api_usr}" | openssl enc -base64 -e -aes-256-cbc -nosalt -pass pass:wooaras 2>/dev/null > "${this_script_lck_path}/.usr.aras.lck"
+			echo "${my_aras_api_usr}" | openssl enc -base64 -e -aes-256-cbc -nosalt -pass pass:"$(< ${this_script_path}/.env.ready $m_awk '{print $2}')" 2>/dev/null > "${this_script_lck_path}/.usr.aras.lck"
 			depriv "${this_script_lck_path}/.usr.aras.lck"
 		else
 			encrypt_ops_exit "${this_script_lck_path}/.usr.aras.lck"
@@ -3011,7 +3013,7 @@ encrypt_aras_auth () {
 					*) break;;
 				esac
 			done
-			echo "${my_aras_api_mrc}" | openssl enc -base64 -e -aes-256-cbc -nosalt -pass pass:wooaras 2>/dev/null > "${this_script_lck_path}/.mrc.aras.lck"
+			echo "${my_aras_api_mrc}" | openssl enc -base64 -e -aes-256-cbc -nosalt -pass pass:"$(< ${this_script_path}/.env.ready $m_awk '{print $2}')" 2>/dev/null > "${this_script_lck_path}/.mrc.aras.lck"
 			depriv "${this_script_lck_path}/.mrc.aras.lck"
 		else
 			encrypt_ops_exit "${this_script_lck_path}/.mrc.aras.lck"
@@ -3029,7 +3031,7 @@ encrypt_aras_end () {
 			read -r -p "${m_tab}${BC}Enter ARAS SOAP endpoint URL (wsdl):${EC} " my_aras_api_end < /dev/tty
 			if [[ "${my_aras_api_end}" == "q" || "${my_aras_api_end}" == "quit" ]]; then exit 1; fi
 			echo "${cyan}${m_tab}#####################################################${reset}"
-			echo "${my_aras_api_end}" | openssl enc -base64 -e -aes-256-cbc -nosalt -pass pass:wooaras 2>/dev/null > "${this_script_lck_path}/.end.aras.lck"
+			echo "${my_aras_api_end}" | openssl enc -base64 -e -aes-256-cbc -nosalt -pass pass:"$(< ${this_script_path}/.env.ready $m_awk '{print $2}')" 2>/dev/null > "${this_script_lck_path}/.end.aras.lck"
 			depriv "${this_script_lck_path}/.end.aras.lck"
 		else
 			encrypt_ops_exit "${this_script_lck_path}/.end.aras.lck"
@@ -3054,7 +3056,7 @@ encrypt_aras_qry () {
 				esac
 			done
 			echo "${cyan}${m_tab}#####################################################${reset}"
-			echo "${my_aras_api_qry}" | openssl enc -base64 -e -aes-256-cbc -nosalt -pass pass:wooaras 2>/dev/null > "${this_script_lck_path}/.qry.aras.lck"
+			echo "${my_aras_api_qry}" | openssl enc -base64 -e -aes-256-cbc -nosalt -pass pass:"$(< ${this_script_path}/.env.ready $m_awk '{print $2}')" 2>/dev/null > "${this_script_lck_path}/.qry.aras.lck"
 			depriv "${this_script_lck_path}/.qry.aras.lck"
 		else
 			encrypt_ops_exit "${this_script_lck_path}/.qry.aras.lck"
@@ -3069,30 +3071,30 @@ hide_me --disable
 
 decrypt_aras_auth () {
 	hide_me --enable
-	api_key_aras=$(< "${this_script_lck_path}/.key.aras.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:wooaras 2>/dev/null)
-	api_usr_aras=$(< "${this_script_lck_path}/.usr.aras.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:wooaras 2>/dev/null)
-	api_mrc_aras=$(< "${this_script_lck_path}/.mrc.aras.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:wooaras 2>/dev/null)
+	api_key_aras=$(< "${this_script_lck_path}/.key.aras.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:"$(< ${this_script_path}/.env.ready $m_awk '{print $2}')" 2>/dev/null)
+	api_usr_aras=$(< "${this_script_lck_path}/.usr.aras.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:"$(< ${this_script_path}/.env.ready $m_awk '{print $2}')" 2>/dev/null)
+	api_mrc_aras=$(< "${this_script_lck_path}/.mrc.aras.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:"$(< ${this_script_path}/.env.ready $m_awk '{print $2}')" 2>/dev/null)
 	hide_me --disable
 }
 
 decrypt_aras_end () {
 	hide_me --enable
-	api_end_aras=$(< "${this_script_lck_path}/.end.aras.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:wooaras 2>/dev/null)
+	api_end_aras=$(< "${this_script_lck_path}/.end.aras.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:"$(< ${this_script_path}/.env.ready $m_awk '{print $2}')" 2>/dev/null)
 	hide_me --disable
 }
 
-api_qry_aras=$(< "${this_script_lck_path}/.qry.aras.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:wooaras 2>/dev/null)
+api_qry_aras=$(< "${this_script_lck_path}/.qry.aras.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:"$(< ${this_script_path}/.env.ready $m_awk '{print $2}')" 2>/dev/null)
 
 decrypt_wc_auth () {
 	hide_me --enable
-	api_key=$(< "${this_script_lck_path}/.key.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:wooaras 2>/dev/null)
-	api_secret=$(< "${this_script_lck_path}/.secret.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:wooaras 2>/dev/null)
+	api_key=$(< "${this_script_lck_path}/.key.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:"$(< ${this_script_path}/.env.ready $m_awk '{print $2}')" 2>/dev/null)
+	api_secret=$(< "${this_script_lck_path}/.secret.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:"$(< ${this_script_path}/.env.ready $m_awk '{print $2}')" 2>/dev/null)
 	hide_me --disable
 }
 
 decrypt_wc_end () {
 	hide_me --enable
-	api_endpoint=$(< "${this_script_lck_path}/.end.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:wooaras 2>/dev/null)
+	api_endpoint=$(< "${this_script_lck_path}/.end.wc.lck" openssl enc -base64 -d -aes-256-cbc -nosalt -pass pass:"$(< ${this_script_path}/.env.ready $m_awk '{print $2}')" 2>/dev/null)
 	hide_me --disable
 }
 
