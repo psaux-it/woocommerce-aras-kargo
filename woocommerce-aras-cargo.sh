@@ -686,58 +686,68 @@ declare -a dependencies=("iconv" "awk" "sed" "stat" "${send_mail_command}"
                          "curl" "php" "jq" "perl" "openssl" "logrotate"
                          "whiptail")
 
-for i in "${dependencies[@]}"
+missing_deps=()
+for dep in "${dependencies[@]}"
 do
-	if ! command -v "${i}" > /dev/null 2>&1; then
-		echo -e "\n${red}*${reset} ${red}${i} not found.${reset}"
-		echo "${cyan}${m_tab}#####################################################${reset}"
-		# Not break script but warn user about mail operations
-		if [[ "${i}" == "${send_mail_command}" ]]; then
-			echo "${yellow}${m_tab}You need running mail server with ${i} command.${reset}"
-			if [[ "${check_mail_server}" -eq 1 ]]; then
-				echo "${yellow}${m_tab}Mail server not configured as SMTP port 587 is closed or not listening.${reset}"
-				echo "$(timestamp): Mail server not configured as SMTP port 587 is closed or not listening, ${i} command not found." >> "${wooaras_log}"
-			fi
-			echo "${yellow}${m_tab}'mail' command is part of mailutils package.${reset}"
-			echo -e "${yellow}${m_tab}You can continue the setup but you cannot get important mail alerts${reset}\n"
-			if [[ "${check_mail_server}" -eq 0 ]]; then
-				echo "$(timestamp): ${i} not found." >> "${wooaras_log}"
-			fi
-		else
-			# Exit for all other conditions
-			echo "${yellow}${m_tab}Please install necessary package from your linux repository and re-start setup.${reset}"
-			echo -e "${yellow}${m_tab}If package installed but binary not in your PATH: add PATH to ~/.bash_profile, ~/.bashrc or profile.${reset}\n"
-			echo "$(timestamp): ${i} not found." >> "${wooaras_log}"
-			exit 1
+	if ! command -v "${dep}" >/dev/null 2>&1; then
+		missing_deps+=( "${dep}" )
+		if [[ "${dep}" == "php" ]]; then
+			missing_deps+=( "php-soap" )
+		elif [[ "${dep}" == "perl" ]]; then
+			missing_deps+=( "Text::Fuzzy" "App::cpanminus" )
 		fi
-	elif [[ "${i}" == "php" ]]; then
-		dynamic_vars "$i"
-		# Check php-soap module
+	elif [[ "${dep}" == "php" ]]; then
+		dynamic_vars "$dep"
 		if ! $m_php -m | grep -q "soap"; then
-			echo -e "\n${red}*${reset} ${red}php-soap module not found.${reset}"
-			echo "${cyan}${m_tab}#####################################################${reset}"
-			echo -e "${yellow}${m_tab}Need for creating SOAP client to get data from ARAS${reset}\n"
-			echo "$(timestamp): php-soap module not found, need for creating SOAP client to get data from ARAS" >> "${wooaras_log}"
-			exit 1
+			missing_deps+=( "php-soap" )
 		fi
-	elif [[ "${i}" == "perl" ]]; then
-		dynamic_vars "$i"
-		# Check perl Text::Fuzzy module
+	elif [[ "${dep}" == "perl" ]]; then
+		dynamic_vars "$dep"
 		if ! $m_perl -e 'use Text::Fuzzy;' >/dev/null 2>&1; then
-			echo -e "\n${red}*${reset} ${red}Text::Fuzzy PERL module not found.${reset}"
-			echo "${cyan}${m_tab}#####################################################${reset}"
-			echo -e "${yellow}${m_tab}Use distro repo or CPAN (https://metacpan.org/pod/Text::Fuzzy) to install${reset}\n"
-			echo "$(timestamp): Text::Fuzzy PERL module not found." >> "${wooaras_log}"
-			exit 1
-                fi
+			if ! $m_perl -e 'use App::cpanminus;' >/dev/null 2>&1; then
+				missing_deps+=( "Text::Fuzzy" "App::cpanminus" )
+			else
+				missing_deps+=( "Text::Fuzzy" )
+			fi
+		fi
 	else
 		# Explicit paths for specific binaries used by script.
 		# Best practise to avoid cron errors is declare full path of binaries.
 		# I expect bash-builtin commands will not cause any cron errors.
-		# If you use specific linux distro and face cron errors please open issue.
-		dynamic_vars "$i"
+		# If you use specific linux distro and face cron errors please file a bug.
+		dynamic_vars "$dep"
 	fi
 done
+
+# Not break script but warn user about mail operations
+if [[ "${missing_deps[@]}" =~ "${send_mail_command}" ]]; then
+	# Remove element from array to not break script
+	delete=( "${send_mail_command}" )
+	for target in "${delete[@]}"; do
+		for i in "${!missing_deps[@]}"; do
+			if [[ "${missing_deps[i]}" = "${target}" ]]; then
+				unset 'missing_deps[i]'
+			fi
+		done
+	done
+	echo -e "\n${yellow}*${reset} ${yellow}${send_mail_command} command not found.${reset}"
+	echo "${cyan}${m_tab}#####################################################${reset}"
+	echo "${yellow}${m_tab}You need running mail server with ${send_mail_command} command.${reset}"
+	if [[ "${check_mail_server}" -eq 1 ]]; then
+		echo "${yellow}${m_tab}Mail server not configured as SMTP port 587 is closed or not listening.${reset}"
+	fi
+	echo "${yellow}${m_tab}You can continue the setup but you cannot get important mail alerts${reset}"
+fi
+
+# Quit if missing dependencies found
+if (( ${#missing_deps[@]} )); then
+	echo -e "\n${red}*${reset} ${red}Missing dependencies found: ${missing_deps[*]}${reset}"
+	echo "${cyan}${m_tab}#####################################################${reset}"
+	echo "${red}${m_tab}Please re-start setup.${reset}"
+	broken_installation "Missing dependencies found: ${missing_deps[*]}, please re-start setup."
+	echo "$(timestamp): Missing dependencies found: ${missing_deps[*]}, please re-start setup." >> "${wooaras_log}"
+	exit 1
+fi
 
 # Prevent iconv text translation errors
 # Set locale category for character handling functions (otherwise this script not work correctly)
@@ -753,7 +763,7 @@ if [[ "${m_ctype}" != "en" ]]; then
 		echo "${red}${m_tab}Please add support on English locale for your shell environment.${reset}"
 		echo -e "${yellow}${m_tab}e.g. for ubuntu -> apt-get -y install language-pack-en${reset}\n"
 		echo "$(timestamp): English locale not found, please add support on English locale for your shell environment." >> "${wooaras_log}"
-		send_mail "English locale not found, please add support on English locale for your shell environment."
+		broken_installation "English locale not found, please add support on English locale for your shell environment."
 		exit 1
 	fi
 fi
