@@ -491,7 +491,7 @@ fi
 # Runtime protection
 if [[ -e "${this_script_path}/.woo.aras.set" ]]; then
 	if [[ -e "${this_script_path}/.env.ready" ]]; then
-		uniq_id="$(findmnt --output=UUID --noheadings --target=/ | tr -d '-')"
+		uniq_id="$(cat /sys/class/net/$(ip route show default | awk '/default/ {print $5}')/address | tr -d ':')"
 		if [[ "${uniq_id}" != "$(< ${this_script_path}/.env.ready awk '{print $2}')" ]]; then
 			echo -e "\n${red}*${reset} ${red}Runtime protection!${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
@@ -775,7 +775,7 @@ if [[ "${connection_error}" ]]; then
 	echo -e "${cyan}${m_tab}#####################################################${reset}\n"
 	echo "$(timestamp): There is no internet connection" >> "${wooaras_log}"
 	exit 1
-}
+fi
 
 # Create temporary files
 my_tmp=$(mktemp)

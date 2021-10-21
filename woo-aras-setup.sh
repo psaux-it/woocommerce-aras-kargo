@@ -105,7 +105,7 @@ usage () {
 [[ ! $SUDO_USER && $EUID -ne 0 ]] && { usage; exit 1; }
 
 export new_user="wooaras"
-export setup_key=$(findmnt --output=UUID --noheadings --target=/ | tr -d '-')
+export setup_key="$(cat /sys/class/net/$(ip route show default | awk '/default/ {print $5}')/address | tr -d ':')"
 export working_path="/home/${new_user}/scripts/woocommerce-aras-kargo"
 git_repo="https://github.com/hsntgm/woocommerce-aras-kargo.git"
 sudoers_file="/etc/sudoers"
@@ -894,6 +894,7 @@ autodetect_distribution &&
 autodetect_package_manager || un_supported --pm
 } ||
 un_supported --os
+export distribution
 pre_start
 # +-----+-----+--->
 
@@ -1078,7 +1079,6 @@ if ! grep -qE "^${new_user}:" "${pass_file}"; then
   enc_pass=$(perl -e 'print crypt($ARGV[0], "password")' $new_user || { replace_fail "USER OPERATIONS FAILED"; u_error+=( "enc" ); })
   # Create user
   useradd -K UMASK=0077 -U -m -p "${enc_pass}" -s /bin/bash "${new_user}" >/dev/null 2>&1 || { replace_fail "USER OPERATIONS FAILED"; u_error+=( "add" ); }
-  echo "cd ${}"
   # Grant sudo priv. for only execute setup and main script
   [[ ! -d /etc/sudoers.d ]] && mkdir /etc/sudoers.d
   if grep -q "@includedir.*/etc/sudoers.d" /etc/sudoers; then
