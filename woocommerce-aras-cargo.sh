@@ -2676,124 +2676,105 @@ add_cron () {
 	exit 0
 }
 
+systemd_installation_err () {
+	echo -e "\n${red}*${reset} ${red}Installation aborted${reset}"
+	echo "${cyan}${m_tab}#####################################################${reset}"
+	echo "${m_tab}${red}As file not writable: ${*}${reset}"
+	echo -e "${m_tab}${red}Try to run script with sudo privileges.${reset}\n"
+	echo "$(timestamp): Installation aborted, as file not writable: ${*}." >> "${wooaras_log}"
+	exit 1
+}
+
 add_systemd () {
-	[[ -d "/etc/systemd/system" ]] &&
-	{
-	touch "${systemd_dir}/${service_filename}" 2>/dev/null
-	touch "${systemd_dir}/${timer_filename}" 2>/dev/null
-	}
+	local good good_timer good_main good_cron result
+	good_main=0; good_timer=0; good_cron=0; good=true
 
-	if [[ ! -w "${systemd_dir}/${service_filename}" ]]; then
-		echo -e "\n${red}*${reset} ${red}Systemd install aborted, as file not writable:${reset} ${green}${systemd_dir}/${service_filename}${reset}"
-		echo "${cyan}${m_tab}#####################################################${reset}"
-		echo -e "${m_tab}${red}Try to run script with sudo privileges.${reset}\n"
-		echo "$(timestamp): Systemd install aborted, as file not writable: ${systemd_dir}/${service_filename}" >> "${wooaras_log}"
-		exit 1
-	else
-		cat <<- EOF > "${systemd_dir}/${service_filename}"
-		[Unit]
-		Description=woocommerce aras cargo integration script.
-		RequiresMountsFor=/var/log
-		RequiresMountsFor=/tmp
+	if [[ ! -e "${systemd_dir}/${service_filename}" ]]; then
+		if ! grep -qi 'Permission denied' <<< "$(touch ${systemd_dir}/${service_filename} 2>&1)"; then
+			cat <<- WOOARAS > "${systemd_dir}/${service_filename}"
+			[Unit]
+			Description=woocommerce aras cargo integration script.
+			RequiresMountsFor=/var/log
+			RequiresMountsFor=/tmp
+			[Service]
+			Type=oneshot
+			User=${systemd_user}
+			Group=${systemd_user}
+			RuntimeDirectory=woo-aras
+			LogsDirectory=woo-aras
+			LogsDirectoryMode=0775
+			RuntimeDirectoryMode=0775
+			RuntimeDirectoryPreserve=yes
+			PrivateTmp=true
+			ReadOnlyPaths=/
+			ReadWritePaths=/var /run ${this_script_path}
+			InaccessiblePaths=-/lost+found
+			ExecStart=${my_bash} ${systemd_script_full_path}
+			[Install]
+			WantedBy=multi-user.target
+			WOOARAS
+			[[ $? -ne 0 ]] && good_main=1
+		else
+			systemd_installation_err "${systemd_dir}/${service_filename}"
+		fi
+	fi
 
-		[Service]
-		Type=oneshot
-		User=${systemd_user}
-		Group=${systemd_user}
-		RuntimeDirectory=woo-aras
-		LogsDirectory=woo-aras
-		LogsDirectoryMode=0775
-		RuntimeDirectoryMode=0775
-		RuntimeDirectoryPreserve=yes
-		PrivateTmp=true
-		ReadOnlyPaths=/
-		ReadWritePaths=/var /run ${this_script_path}
-		InaccessiblePaths=-/lost+found
-		ExecStart=${my_bash} ${systemd_script_full_path}
+	if [[ ! -e "${systemd_dir}/${timer_filename}" ]]; then
+		if ! grep -qi 'Permission denied' <<< "$(touch ${systemd_dir}/${timer_filename} 2>&1)"; then
+			cat <<- WOOARAS > "${systemd_dir}/${timer_filename}"
+			[Unit]
+			Description=woocommerce-aras timer - At every 30th minute past every hour from 9AM through 20PM expect Sunday
+			After=network-online.target
+			Requires=network-online.target
+			[Timer]
+			OnCalendar=${on_calendar}
+			Persistent=true
+			Unit=${service_filename}
+			[Install]
+			WantedBy=timers.target
+			WOOARAS
+			[[ $? -ne 0 ]] && good_timer=1
+		else
+			systemd_installation_err "${systemd_dir}/${timer_filename}"
+		fi
+	fi
 
-		[Install]
-		WantedBy=multi-user.target
-		EOF
+	if [[ ! -e "${cron_dir}/${cron_filename_update}" ]]; then
+		if [[ ! -d "${cron_dir}" ]]; then
+			mkdir "${cron_dir}" >/dev/null 2>&1 
+		fi
 
-		cat <<- EOF > "${systemd_dir}/${timer_filename}"
-		[Unit]
-		Description=woocommerce-aras timer - At every 30th minute past every hour from 9AM through 20PM expect Sunday
-		After=network-online.target
-		Requires=network-online.target
+		if ! grep -qi 'Permission denied' <<< "$(touch ${cron_dir}/${cron_filename_update} 2>&1)"; then
+			if [[ "${auto_update}" -eq 1 ]]; then
+				cat <<- WOOARAS > "${cron_dir}/${cron_filename_update}"
+				# At 09:19 on Sunday.
+				# Via WooCommerce - ARAS Cargo Integration Script
+				# Copyright 2021 Hasan ÇALIŞIR
+				# MAILTO=$mail_to
+				SHELL=/bin/bash
+				$cron_minute_update ${cron_user} [ -x ${cron_script_full_path} ] && ${my_bash} ${cron_script_full_path} -u
+				WOOARAS
+				[[ $? -ne 0 ]] && good_cron=1
+			fi
+		else
+			systemd_installation_err "${cron_dir}/${cron_filename_update}"
+		fi
+	fi
 
-		[Timer]
-		OnCalendar=${on_calendar}
-		Persistent=true
-		Unit=${service_filename}
+	[[ "${good_main}" -ne 0 || "${good_timer}" -ne 0 || "${good_cron}" -ne 0 ]] && good=false
 
-		[Install]
-		WantedBy=timers.target
-		EOF
-
+	if $good; then
 		systemctl daemon-reload >/dev/null 2>&1 &&
 		systemctl enable "${timer_filename}" >/dev/null 2>&1 &&
 		systemctl start "${timer_filename}" >/dev/null 2>&1
 		result=$?
 
 		if [[ "${result}" -eq 0 ]]; then
-			if [[ ! -e "${cron_dir}/${cron_filename_update}" ]]; then
-				mkdir -p "$cron_dir" >/dev/null 2>&1
-				touch "${cron_dir}/${cron_filename_update}" /dev/null 2>&1 ||
-				{ echo "could not create cron ${cron_filename_update}";  echo "$(timestamp): SETUP: could not create cron ${cron_filename_update}" >> "${wooaras_log}";  exit 1; }
-			fi
+			# Add logrotate
+			add_logrotate
 
-			if [[ ! -w "${cron_dir}/${cron_filename_update}" ]]; then
-				echo -e "\n${red}*${reset} ${red}Updater cron install aborted, as file not writable: ${cron_dir}/${cron_filename_update}${reset}"
-				echo "${cyan}${m_tab}#####################################################${reset}"
-				echo -e "${m_tab}${red}Try to run script with sudo privileges.${reset}\n"
-				echo "$(timestamp): Installation aborted, as file not writable: ${cron_dir}/${cron_filename_update}." >> "${wooaras_log}"
-				exit 1
-			else
-				if [[ "${auto_update}" -eq 1 ]]; then
-					cat <<- EOF > "${cron_dir}/${cron_filename_update}"
-					# At 09:19 on Sunday.
-					# Via WooCommerce - ARAS Cargo Integration Script
-					# Copyright 2021 Hasan ÇALIŞIR
-					# MAILTO=$mail_to
-					SHELL=/bin/bash
-					$cron_minute_update ${cron_user} [ -x ${cron_script_full_path} ] && ${my_bash} ${cron_script_full_path} -u
-					EOF
-
-					result=$?
-					if [[ "${result}" -eq 0 ]]; then
-						# Add logrotate
-						add_logrotate
-
-						# Set status
-						on_fly_disable
-					else
-						echo -e "\n${red}*${reset} ${green}Installation failed.${reset}"
-						echo "${cyan}${m_tab}#####################################################${reset}"
-						echo "${m_tab}${red}Could not create updater cron {cron_dir}/${cron_filename_update}.${reset}"
-						echo "$(timestamp): Installation failed, could not create cron {cron_dir}/${cron_filename_update}" >> "${wooaras_log}"
-						exit 1
-					fi
-				fi
-			fi
-
-			echo -e "\n${green}*${reset} ${green}Installation completed.${reset}"
-			echo "${cyan}${m_tab}#####################################################${reset}"
-			echo "${m_tab}${green}Systemd service installed to ${cyan}${systemd_dir}/${service_filename}${reset}"
-			echo "${m_tab}${green}Systemd service timer installed to ${cyan}${systemd_dir}/${timer_filename}${reset}"
-			if [[ "${auto_update}" -eq 1 ]]; then
-				echo "${m_tab}${green}Timer service enabled and started.${reset}"
-				echo "${m_tab}${green}Updater cron installed to ${cyan}${cron_dir}/${cron_filename_update}${reset}"
-			else
-				echo "${m_tab}${green}Timer service enabled and started.${reset}"
-			fi
-			if [[ "${logrotate_installed}" ]]; then
-				if [[ "${logrotate_installed}" == "asfile" ]]; then
-					echo -e "${m_tab}${green}Logrotate installed to ${cyan}${logrotate_dir}/${logrotate_filename}${reset}\n"
-				elif [[ "${logrotate_installed}" == "conf" ]]; then
-					echo -e "${m_tab}${green}Logrotate rules inserted to ${cyan}${logrotate_conf}${reset}\n"
-				fi
-			fi
-			echo "$(timestamp): Installation completed." >> "${wooaras_log}"
+			# Set status
+			on_fly_disable
 		else
 			echo -e "\n${red}*${reset} ${red}Installation failed.${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
@@ -2801,7 +2782,31 @@ add_systemd () {
 			echo "$(timestamp): Installation failed, couldn't start ${timer_filename} service." >> "${wooaras_log}"
 			exit 1
 		fi
+	else
+		systemd_installation_err
 	fi
+
+	echo -e "\n${green}*${reset} ${green}Installation completed.${reset}"
+	echo "${cyan}${m_tab}#####################################################${reset}"
+	echo "${m_tab}${green}Systemd service installed to ${cyan}${systemd_dir}/${service_filename}${reset}"
+	echo "${m_tab}${green}Systemd service timer installed to ${cyan}${systemd_dir}/${timer_filename}${reset}"
+
+	if [[ "${auto_update}" -eq 1 ]]; then
+		echo "${m_tab}${green}Timer service enabled and started.${reset}"
+		echo "${m_tab}${green}Updater cron installed to ${cyan}${cron_dir}/${cron_filename_update}${reset}"
+	else
+		echo "${m_tab}${green}Timer service enabled and started.${reset}"
+	fi
+
+	if [[ "${logrotate_installed}" ]]; then
+		if [[ "${logrotate_installed}" == "asfile" ]]; then
+			echo -e "${m_tab}${green}Logrotate installed to ${cyan}${logrotate_dir}/${logrotate_filename}${reset}\n"
+		elif [[ "${logrotate_installed}" == "conf" ]]; then
+			echo -e "${m_tab}${green}Logrotate rules inserted to ${cyan}${logrotate_conf}${reset}\n"
+		fi
+	fi
+
+	echo "$(timestamp): Installation completed." >> "${wooaras_log}"
 	exit 0
 }
 
