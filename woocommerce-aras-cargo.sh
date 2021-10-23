@@ -558,8 +558,7 @@ depriv () {
 # @FOLDER OPS
 # Create folder, drop folder privileges back to non-root user if we got here with sudo
 depriv_f () {
-	local my_path
-	local m_path
+	local my_path m_path
 
 	for m_path in "${@}"
 	do
@@ -967,15 +966,16 @@ statistics () {
 
 # Check dependency version
 pre_check () {
-	local running_os; local ast_ver; local woo_ver; local bash_ver
-	local find_ver; local gnu_find; local w_ver; local gnu_awk
-	local gnu_awk_v; local gnu_sed; local gnu_sed_v; local jq_ver
-	local woo_old; local find_old; local jq_old; local word_old
-	local bash_old; local awk_old; local find_not_gnu; local awk_not_gnu
-	local sed_old; local sed_not_gnu; local woo_unknown; local jq_unknown
-	local word_unknown; local find_unknown; local gnu_awk_v_unknown
-	local gnu_sed_v_unknown; local bridge="$1"; local ast_unknown
-	local delimeter; local my_bash
+	local running_os ast_ver woo_ver bash_ver
+	local find_ver gnu_find w_ver gnu_awk
+	local gnu_awk_v gnu_sed gnu_sed_v jq_ver
+	local woo_old find_old jq_old word_old
+	local bash_old awk_old find_not_gnu awk_not_gnu
+	local sed_old sed_not_gnu woo_unknown jq_unknown
+	local word_unknown find_unknown gnu_awk_v_unknown
+	local gnu_sed_v_unknown ast_unknown
+	local delimeter my_bash
+	local bridge="$1"
 
 	if [[ "${bridge}" == "--status" ]]; then # Coming from --setup or --status?
 		if [[ -e "${this_script_path}/.woo.aras.set" ]]; then
@@ -1219,7 +1219,7 @@ pre_check () {
 
 # Display automation status
 my_status () {
-	local w_delivered; local s_status
+	local w_delivered s_status
 
 	echo -e "\n${m_tab}${cyan}# WOOCOMMERCE - ARAS CARGO INTEGRATION STATUS${reset}"
 	echo "${m_tab}${cyan}# ---------------------------------------------------------------------${reset}"
@@ -1325,8 +1325,7 @@ continue_setup () {
 }
 
 find_child_path () {
-	local bridge
-	local theme_child
+	local bridge theme_child
 	bridge="$1"
 
 	# Call curl helper
@@ -1560,8 +1559,7 @@ install_twoway () {
 	check_delivered
 	find_child_path --install
 	if [[ "${twoway}" == "true" ]]; then
-		local GROUP_OWNER
-		local USER_OWNER
+		local GROUP_OWNER USER_OWNER
 		# Get ownership operations
 		if [[ -f "${absolute_child_path}/functions.php" ]]; then
 			if [[ -r "${absolute_child_path}/functions.php" ]]; then
@@ -2173,9 +2171,7 @@ twoway_disable () {
 }
 
 download () {
-	local OCTAL_MODE
-	local U_GROUP_OWNER
-	local U_USER_OWNER
+	local OCTAL_MODE U_GROUP_OWNER U_USER_OWNER
 
 	$m_curl -f -s -k -R -L --compressed -z "$sh_output" -o "$sh_output" "$sh_github" >/dev/null 2>&1
 	result=$?
