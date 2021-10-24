@@ -118,6 +118,11 @@ fatal () {
   exit 1
 }
 
+# We have valid username?
+while [[ ! "${new_user}" =~ "^[a-z][-a-z0-9]*\$" ]]; do
+	fatal "Invalid username"
+done
+
 done_ () {
   printf >&2 "\n${m_tab}${TPUT_BGGREEN}${TPUT_WHITE}${TPUT_BOLD} DONE ${TPUT_RESET} ${*}\n"
 }
