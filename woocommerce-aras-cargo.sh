@@ -2319,7 +2319,6 @@ download () {
 	rm -f \$0
 	WOOARAS
 
-	chown "${user}":"${user}" "${this_script_path}/${update_script}"
 	chmod u+x "${this_script_path}/${update_script}"
 	umask "${d_umask}"
 
