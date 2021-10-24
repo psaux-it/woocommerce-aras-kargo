@@ -50,6 +50,7 @@
 # =====================================================================
 export TZ='Europe/Istanbul'
 renice 19 $$ > /dev/null 2> /dev/null
+d_umask="$(umask)"
 
 # Need for upgrade - DON'T EDIT MANUALLY
 # =====================================================================
@@ -355,7 +356,7 @@ if [[ "${1}" == "-s" || "${1}" == "--setup" ]]; then
 	if [[ "${setup_key}" ]]; then
 		if [[ "$SUDO_USER" == "${new_user}" ]]; then
 			if ! [[ -s "${working_path}/.env.ready" ]]; then
-				echo "${distribution} ${setup_key}" > "${working_path}/.env.ready"
+				echo "${distribution} ${setup_key} ${new_user}" > "${working_path}/.env.ready"
 				chown "${new_user}":"${new_user}" "${working_path}/.env.ready"
 				chmod 600 "${working_path}/.env.ready"
 				check_log && echo "$(timestamp): Pre-Setup completed." >> "${wooaras_log}"
@@ -376,7 +377,7 @@ fi
 if [[ "${1}" == "-s" || "${1}" == "--setup" || "${1}" == "-d" || "${1}" == "--uninstall" ]]; then
 	if [[ ! $SUDO_USER && $EUID -ne 0 ]]; then
 		usage
-		check_log && echo "$(timestamp): You need root privileges for setup" >> "${wooaras_log}"
+		check_log && echo "$(timestamp): You need root privileges for setup/uninstall" >> "${wooaras_log}"
 		exit 1
 	fi
 fi
@@ -474,6 +475,15 @@ path_pretty_error () {
 	exit 1
 }
 
+missing_runtime_file_err () {
+	echo -e "\n${red}*${reset} ${red}Missing runtime file:${reset}"
+	echo "${cyan}${m_tab}#####################################################${reset}"
+	echo -e "${m_tab}${red}Please re-start setup..${reset}\n"
+	broken_installation "Missing runtime file, please re-start setup"
+	check_log && echo "$(timestamp): Missing runtime file, please re-start setup" >> "${wooaras_log}"
+	exit 1
+}
+
 # Verify installation & make immutable calling script without argument till setup completed
 if [[ $# -eq 0 ]]; then
 	if [[ ! -e "${this_script_path}/.woo.aras.set" ]]; then
@@ -495,22 +505,17 @@ if [[ -e "${this_script_path}/.woo.aras.set" ]]; then
 		if [[ "${uniq_id}" != "$(< ${this_script_path}/.env.ready awk '{print $2}')" ]]; then
 			echo -e "\n${red}*${reset} ${red}Runtime protection!${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
-			echo "${red}${m_tab}The UUID which setted during installation has changed.${reset}"
+			echo "${red}${m_tab}The installation environment has changed.${reset}"
 			echo -e "${red}${m_tab}Please re-start setup..${reset}\n"
 			# Remove sensetive data immediately
 			rm -rf "${this_script_path:?}"/.lck/.*lck >/dev/null 2>&1
 			rm -rf "${this_script_path:?}"/{.woo.aras.set,.woo.aras.enb,.env.ready} >/dev/null 2>&1
-			broken_installation "Runtime protection, the UUID which set during installation has changed, please re-start setup"
-			check_log && echo "$(timestamp): Runtime protection, the UUID which set during installation has changed, please re-start setup" >> "${wooaras_log}"
+			broken_installation "Runtime protection, the installation environment has changed, please re-start setup"
+			check_log && echo "$(timestamp): Runtime protection, the installation environment has changed, please re-start setup" >> "${wooaras_log}"
 			exit 1
 		fi
 	else
-		echo -e "\n${red}*${reset} ${red}Missing runtime file:${reset}"
-		echo "${cyan}${m_tab}#####################################################${reset}"
-		echo -e "${m_tab}${red}Please re-start setup..${reset}\n"
-		broken_installation "Missing runtime file, please re-start setup"
-		check_log && echo "$(timestamp): Missing runtime file, please re-start setup" >> "${wooaras_log}"
-		exit 1
+		missing_runtime_file_err
 	fi
 fi
 
@@ -528,17 +533,19 @@ fi
 
 # Verify shop manager html email templates
 if [[ "$(ls -A "${this_script_path}/emails" 2>/dev/null | wc -l)" -eq 0 ]]; then
-	echo -e "\n${red}*${reset} ${red}Missing runtime file:${reset}"
-	echo "${cyan}${m_tab}#####################################################${reset}"
-	echo -e "${m_tab}${red}Please re-start setup..${reset}\n"
 	usage
-	broken_installation "Missing runtime file, please re-start setup"
-	check_log && echo "$(timestamp): Missing runtime file, please re-start setup" >> "${wooaras_log}"
-	exit 1
+	missing_runtime_file_err
 fi
 
 # Determine user
-if [[ $SUDO_USER ]]; then user="${SUDO_USER}"; else user="$(whoami)"; fi
+if [[ -s "${this_script_path}/.env.ready" ]]; then
+	user="$(< ${this_script_path}/.env.ready awk '{print $3}')"
+	if [[ ! "${user}" ]]; then
+		missing_runtime_file_err
+	fi
+else
+	missing_runtime_file_err
+fi
 
 # @FILE OPS
 # Create file, drop file privileges back to non-root user if we got here with sudo
@@ -1003,6 +1010,7 @@ pre_check () {
 	esac
 	echo -ne "${cyan}${m_tab}########                                             [20%]\r${reset}"
 
+	umask 066
 	if [[ ! "${delimeter}" ]]; then
 		# AST Plugin version
 		$m_curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/system_status" -K- <<< "-u ${api_key}:${api_secret}" -H "Content-Type: application/json" | $m_jq -r '[.active_plugins[].plugin]' | tr -d '[],"' | $m_awk -F/ '{print $2}' | $m_awk -F. '{print $1}' | $m_sed '/^[[:space:]]*$/d' > "${this_script_path}"/.plg.proc
@@ -1193,6 +1201,7 @@ pre_check () {
 	} > "${this_script_path}/.msg.proc" # NOTE: End redirection to file
 					    # Cannot directly pipe to column here that creates subshell and we lose variables we need
 	column -o '     ' -t -s ' ' <<< "$(< "${this_script_path}/.msg.proc")" | $m_sed 's/^/  /'
+	umask "${d_umask}"
 
 	# Quit
 	declare -a quit_now=("${awk_not_gnu}" "${sed_not_gnu}" "${find_not_gnu}" "${awk_old}"
@@ -1243,6 +1252,7 @@ my_status () {
                 exit 1
         fi
 
+	umask 066
 	{ # Start redirection
 
 	# Setup status
@@ -1300,6 +1310,7 @@ my_status () {
 
 	} > "${this_script_path}/.pre.proc" # End redirection to file
 	column -t -s ' ' <<< "$(< "${this_script_path}/.pre.proc")" | $m_sed 's/^/  /'
+	umask "${d_umask}"
 
 	# Call statistic function
 	statistics
@@ -2209,12 +2220,12 @@ download () {
 	done
 
 	# Apply old user defined settings before upgrading
-	# TODO: get sed exit code for failed 'find and replace' operations and exit
 	for i in "${!keeped[@]}"
 	do
 		$m_sed -i -e "s|^$i=.*|$i=${keeped[$i]}|" "${sh_output}"
 	done
 
+	umask 066
 	$m_sed -n '/^# If you use sendmail/,/^# END/p' 2>/dev/null "${cron_script_full_path}" | $m_sed '1,1d' | $m_sed '$d' > "${this_script_path}/upgr.proc"
 	$m_sed -i '
 		/^# If you use sendmail/,/^# END/{
@@ -2302,11 +2313,15 @@ download () {
 	echo -e "${m_tab}\$(tput setaf 2)Script updated to version ${latest_version}\$(tput sgr0)\\n"
 
 	# Clean-up
-        rm -rf ${this_script_path}/upgr.proc ${PIDFILE} || { echo "Temproray files couldn't removed"; }
+        rm -rf ${this_script_path}/upgr.proc ${PIDFILE} || { echo "Temporary files couldn't removed"; }
 
 	#remove the tmp script before exit
 	rm -f \$0
 	WOOARAS
+
+	chown "${user}":"${user}" "${this_script_path}/${update_script}"
+	chmod u+x "${this_script_path}/${update_script}"
+	umask "${d_umask}"
 
 	# Replaced with $0, so code will update
 	exec "$my_bash" "${this_script_path}/${update_script}"
@@ -3112,14 +3127,18 @@ fi
 #=====================================================================
 # Pre-defined curl functions for various tests
 w_curl_s () {
+	umask 066
 	$m_curl -X GET -H "Content-Type: application/json" "https://$api_endpoint/wp-json/wc/v3/settings" > "${this_script_path}/curl.proc" 2>&1
+	umask "${d_umask}"
 }
 
 w_curl_a () {
+	umask 066
 	$m_curl -X GET \
 		-K- <<< "-u ${api_key}:${api_secret}" \
 		-H "Content-Type: application/json" \
 		"https://$api_endpoint/wp-json/wc/v3/settings" > "${this_script_path}/curl.proc" 2>&1
+	umask "${d_umask}"
 }
 
 control_ops_exit () {
@@ -3240,6 +3259,7 @@ if ! grep -q "401" "${this_script_path}/curl.proc"; then
 	exit 1
 fi
 
+umask 066
 hide_me --enable
 # Create SOAP client to request ARAS cargo end
 cat <<- WOOARAS > "${this_script_path}/aras_request.php"
@@ -3275,7 +3295,9 @@ hide_me --disable
 # Make SOAP request to ARAS web service to get shipment DATA in JSON format
 # We will request last 10 day data as setted before
 aras_request () {
+	umask 066
 	$m_php "${this_script_path}/aras_request.php" > "${this_script_path}/aras.json"
+	umask "${d_umask}"
 }
 
 # Test Aras SOAP Endpoint
@@ -3478,7 +3500,7 @@ fi
 
 # MAIN STRING MATCHING LOGIC
 # =============================================================================================
-
+umask 066
 # Exit --> always appended file not removed by trap on previous run
 catch_trap_fail () {
 	echo -e "\n${red}*${reset} ${red}Removing temporary file failed on previous run${reset}"
@@ -3722,6 +3744,8 @@ if [[ -s "${this_script_path}/.lvn.all.cus" ]]; then
 		fi
 	fi
 fi
+umask "${d_umask}"
+
 # END MAIN STRING MATCHING LOGIC
 # ============================================================================================
 
