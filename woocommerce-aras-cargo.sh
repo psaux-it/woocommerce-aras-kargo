@@ -360,12 +360,10 @@ fi
 if [[ "${1}" == "-s" || "${1}" == "--setup" ]]; then
 	if [[ "${setup_key}" ]]; then
 		if [[ "$SUDO_USER" == "${new_user}" ]]; then
-			if ! [[ -s "${working_path}/.env.ready" ]]; then
-				echo "${distribution} ${setup_key} ${new_user}" > "${working_path}/.env.ready"
-				chown "${new_user}":"${new_user}" "${working_path}/.env.ready"
-				chmod 600 "${working_path}/.env.ready"
-				check_log && echo "$(timestamp): Pre-Setup completed." >> "${wooaras_log}"
-			fi
+			echo "${distribution} ${setup_key} ${new_user}" > "${working_path}/.env.ready"
+			chown "${new_user}":"${new_user}" "${working_path}/.env.ready"
+			chmod 600 "${working_path}/.env.ready"
+			check_log && echo "$(timestamp): Pre-Setup completed." >> "${wooaras_log}"
 		fi
 	else
 		echo -e "\n${red}*${reset} ${red}Forbidden action!${reset}"
@@ -556,6 +554,8 @@ fi
 # Create file, drop file privileges back to non-root user if we got here with sudo
 depriv () {
 	touched=0
+	local file my_path
+
 	for file in "${@}"
 	do
 		[[ "${file}" =~ "lck" ]] && { chown "${user}":"${user}" "${file}"; chmod 600 "${file}"; }
@@ -563,6 +563,8 @@ depriv () {
 			touch "${file}"
 			chown "${user}":"${user}" "${file}"
 			[[ "${file}" == "${wooaras_log}" ]] && touched=1
+		elif [[ "$(stat --format "%U" "${file}" 2>/dev/null)" != "{user}" ]]; then
+			chown "${user}":"${user}" "${file}"
 		fi
 	done
 }
@@ -575,21 +577,27 @@ depriv_f () {
 	for m_path in "${@}"
 	do
 		# Determine the path type
-		[[ "${m_path}" =~ ^/run.* || "${m_path}" =~ ^/var.* ]] && my_path="system_path" || my_path="local_path"
+		[[ "${m_path}" =~ "^/run.*" || "${m_path}" =~ "^/var.*" ]] && my_path="system_path" || my_path="local_path"
 
 		# Start the operations
 		if [[ "${my_path}" == "system_path" ]]; then # Operations always need root privileges
 			if [[ ! -d "${m_path}" ]]; then
 				if [[ $SUDO_USER || $EUID -eq 0 ]]; then
 					mkdir "${m_path}"
-					[[ $SUDO_USER ]] && chown "${user}":"${user}" "${m_path}"
+					chown "${user}":"${user}" "${m_path}"
 				else
 					path_pretty_error "${m_path}"
 				fi
+			elif [[ $SUDO_USER || $EUID -eq 0 ]]; then
+				if [[ "$(stat --format "%U" "${m_path}" 2>/dev/null)" != "{user}" ]]; then
+					chown -R "${user}":"${user}" "${m_path}"
+				fi
+			else
+				path_pretty_error "${m_path}"
 			fi
 		elif [[ ! -d "${m_path}" ]]; then # Operations not always need root privileges
 			mkdir "${m_path}" >/dev/null 2>&1 || path_pretty_error "${m_path}"
-			[[ $SUDO_USER ]] && chown "${user}":"${user}" "${m_path}"
+			chown -R "${user}":"${user}" "${m_path}"
 		fi
 	done
 }
