@@ -588,12 +588,14 @@ depriv_f () {
 				else
 					path_pretty_error "${m_path}"
 				fi
-			elif [[ $SUDO_USER || $EUID -eq 0 ]]; then
-				if [[ "$(stat --format "%U" "${m_path}" 2>/dev/null)" != "{user}" ]]; then
-					chown -R "${user}":"${user}" "${m_path}"
-				fi
 			else
-				path_pretty_error "${m_path}"
+				if [[ $SUDO_USER || $EUID -eq 0 ]]; then
+					if [[ "$(stat --format "%U" "${m_path}" 2>/dev/null)" != "{user}" ]]; then
+						chown -R "${user}":"${user}" "${m_path}"
+					fi
+				else
+					path_pretty_error "${m_path}"
+				fi
 			fi
 		elif [[ ! -d "${m_path}" ]]; then # Operations not always need root privileges
 			mkdir "${m_path}" >/dev/null 2>&1 || path_pretty_error "${m_path}"
