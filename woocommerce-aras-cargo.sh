@@ -204,6 +204,11 @@ timestamp () {
         date +"%Y-%m-%d %T"
 }
 
+ugly_fatal () {
+	printf >&2 "\n${m_tab}%s ABORTED %s %s \n\n" "${TPUT_BGRED}${TPUT_WHITE}${TPUT_BOLD}" "${TPUT_RESET}" "${*}"
+	exit 1
+}
+
 # Set terminal colors
 setup_terminal () {
 	green=""; red=""; reset=""; cyan=""; magenta=""; yellow=""
@@ -537,14 +542,14 @@ if [[ "$(ls -A "${this_script_path}/emails" 2>/dev/null | wc -l)" -eq 0 ]]; then
 	missing_runtime_file_err
 fi
 
-# Determine user
+# Determine user & restrict calling critical functions before setup is complete
 if [[ -s "${this_script_path}/.env.ready" ]]; then
 	user="$(< ${this_script_path}/.env.ready awk '{print $3}')"
 	if [[ ! "${user}" ]]; then
 		missing_runtime_file_err
 	fi
 else
-	missing_runtime_file_err
+	ugly_fatal "You cannot call this function [ ${1} ] before the installation is complete."
 fi
 
 # @FILE OPS
