@@ -577,7 +577,7 @@ depriv_f () {
 	for m_path in "${@}"
 	do
 		# Determine the path type
-		[[ "${m_path}" =~ "^/run.*" || "${m_path}" =~ "^/var.*" ]] && my_path="system_path" || my_path="local_path"
+		[[ "${m_path}" =~ ^/run.* || "${m_path}" =~ ^/var.* ]] && my_path="system_path" || my_path="local_path"
 
 		# Start the operations
 		if [[ "${my_path}" == "system_path" ]]; then # Operations always need root privileges
