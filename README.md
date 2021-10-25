@@ -112,14 +112,14 @@ Secondly, be sure the customer info (first and last name) in the cargo informati
 Critical part such as success mails, fronted&admin side custom order status label supports Turkish. You are welcome to add support/contribute on Turkish translation of setup&logging&readme part.
 
 ## Features
-- Interactive easy setup
+- Interactive easy setup & automatically prepare environment & install needed packages for supported Linux distributions
 - Adjustable user options like delivery_time, max_distance, job schedule timer, check --options
 - User has full control over the automation with useful arguments, check --help
 - Pluginless server side bash scripting solution, nothing is complex and costly, set and forget
 - Auto two-way fulfillment workflow implementation with custom order status package
 - Encryped sensetive data (REST,SOAP credentials) hardened as much as possible (credentials always headache in bash scripting)
 - Powerful error handling for various checks like SOAP and REST API connections
-- Easy debugging with useful parameters
+- Easy debugging with useful search parameters
 - Statistics via automation
 - Support installation methods via cron, systemd
 - Logrotate support
@@ -130,23 +130,23 @@ Critical part such as success mails, fronted&admin side custom order status labe
 ![setup](https://user-images.githubusercontent.com/25556606/124499928-7e2c6080-ddc7-11eb-9df2-672a0f5ab2d1.png)
 
 ## Top-Level Directory & File Layout
-
     .
-    ├── CHANGELOG                                         # Documentation file
-    ├── custom-order-status-package                       # Holds build-time dependencies (twoway)
-    │   ├── fallback-order-status-sql.php                   # Two-way uninstallation file
-    │   ├── aras-woo-delivered.php                          # Two-way installation file
-    │   ├── class-wc-delivered-status-order.php             # Two-way installation file
-    │   ├── functions.php                                   # Two-way installation file
-    │   └── wc-customer-delivered-status-order.php          # Two-way installation file
-    ├── emails                                            # Holds runtime dependencies
-    │   ├── delivered.min.html                              # Delivered html mail template
-    │   └── shipped.min.html                                # Shipped html mail template
-    ├── .lck                                              # Holds encrypted runtime dependencies
-    ├── README.md                                         # Documentation file
-    ├── tmp                                               # Holds data for debugging
-    └── woocommerce-aras-cargo.sh                         # Main executable file
-
+    ├── custom-order-status-package                        # Holds build-time dependencies (twoway)
+    │   ├── aras-woo-delivered.php                           # Two-way installation
+    │   ├── class-wc-delivered-status-order.php              # Two-way installation
+    │   ├── fallback-order-status-sql.php                    # Two-way uninstallation
+    │   ├── functions.php                                    # Two-way installation
+    │   └── wc-customer-delivered-status-order.php           # Two-way installation
+    ├── emails                                             # Holds runtime dependencies
+    │   ├── delivered.min.html                               # Delivered html mail template
+    │   └── shipped.min.html                                 # Shipped html mail template
+    ├── lck                                                # Holds encrypted runtime dependencies
+    ├── tmp                                                # Holds data for debugging
+    ├── CHANGELOG                                          # Documentation file
+    ├── README.md                                          # Documentation file
+    ├── woo-aras-setup.sh                                  # Setup executable
+    └── woocommerce-aras-cargo.sh                          # Main executable
+ 
 ## Hard Dependencies (may not included in default linux installations)
 - curl
 - perl-Text::Fuzzy>=0.29 --> perl module for string matching via levenshtein distance function
