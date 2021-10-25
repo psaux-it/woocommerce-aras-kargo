@@ -563,7 +563,7 @@ depriv () {
 			touch "${file}"
 			chown "${user}":"${user}" "${file}"
 			[[ "${file}" == "${wooaras_log}" ]] && touched=1
-		elif [[ "$(stat --format "%U" "${file}" 2>/dev/null)" != "{user}" ]]; then
+		elif [[ "$(stat --format "%U" "${file}" 2>/dev/null)" != "${user}" ]]; then
 			chown "${user}":"${user}" "${file}"
 		fi
 	done
@@ -588,10 +588,10 @@ depriv_f () {
 					path_pretty_error "${m_path}"
 				fi
 			elif [[ $SUDO_USER || $EUID -eq 0 ]]; then
-				if [[ "$(stat --format "%U" "${m_path}" 2>/dev/null)" != "{user}" ]]; then
+				if [[ "$(stat --format "%U" "${m_path}" 2>/dev/null)" != "${user}" ]]; then
 					chown -R "${user}":"${user}" "${m_path}" || ugly_fatal "Cannot change ownership of path ${m_path}"
 				fi
-			elif [[ "$(stat --format "%U" "${m_path}" 2>/dev/null)" != "{user}" ]]; then
+			elif [[ "$(stat --format "%U" "${m_path}" 2>/dev/null)" != "${user}" ]]; then
 				ugly_fatal "Cannot change ownership of path ${m_path}"
 			fi
 		elif [[ ! -d "${m_path}" ]]; then # Operations not always need root privileges
