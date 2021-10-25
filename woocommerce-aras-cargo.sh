@@ -204,20 +204,17 @@ timestamp () {
         date +"%Y-%m-%d %T"
 }
 
-ugly_fatal () {
-	printf >&2 "\n${m_tab}%s ABORTED %s %s \n\n" "${TPUT_BGRED}${TPUT_WHITE}${TPUT_BOLD}" "${TPUT_RESET}" "${*}"
-	exit 1
-}
-
 # Set terminal colors
 setup_terminal () {
 	green=""; red=""; reset=""; cyan=""; magenta=""; yellow=""
+	bold=""; bgred=""; white=""
 	if [[ "${my_shell}" == "interactive" ]]; then
 		if command -v tput > /dev/null 2>&1; then
     			if [[ $(($(tput colors 2> /dev/null))) -ge 8 ]]; then
 				# Set color
-				green=$(tput setaf 2); red=$(tput setaf 1); reset=$(tput sgr0)
+				green=$(tput setaf 2); red=$(tput setaf 1)
 				cyan=$(tput setaf 6); magenta=$(tput setaf 5); yellow=$(tput setaf 3)
+				white=$(tput setaf 7); bold=$(tput bold); bgred=$(tput setab 1); reset=$(tput sgr0)
 			fi
 		fi
 		BC=$'\e[32m'; EC=$'\e[0m'; m_tab='  '; m_tab_3=' '; m_tab_4='    '
@@ -228,6 +225,11 @@ setup_terminal () {
 	return 0
 }
 setup_terminal || echo > /dev/null
+
+ugly_fatal () {
+	printf >&2 "\n${m_tab}%s ABORTED %s %s \n\n" "${bgred}${white}${bold}" "${reset}" "${*}"
+	exit 1
+}
 
 # Display usage instruction
 usage () {
