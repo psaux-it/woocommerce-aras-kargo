@@ -82,11 +82,11 @@ fi
 
 # Prevent errors cause by uncompleted upgrade
 # Detect to make sure the entire script is available, fail if the script is missing contents
-if [[ "$(tail -n 1 "${0}" | head -n 1 | cut -c 1-7)" != "exit \$?" ]]; then
-  echo -e "\n${red}*${reset} ${red}Script is incomplete${reset}"
-  echo -e "${cyan}${m_tab}#####################################################${reset}\n"
-  exit 1
-fi
+#if [[ "$(tail -n 1 "${0}" | head -n 1 | cut -c 1-7)" != "exit \$?" ]]; then
+#  echo -e "\n${red}*${reset} ${red}Script is incomplete${reset}"
+#  echo -e "${cyan}${m_tab}#####################################################${reset}\n"
+#  exit 1
+#fi
 
 # Check OS is supported
 if [[ "$(uname -s)" != "Linux" ]]; then
@@ -181,34 +181,34 @@ script_path_pretty_error () {
   exit 1
 }
 
-this_script_full_path="${BASH_SOURCE[0]}"
-if command -v dirname >/dev/null 2>&1 && command -v readlink >/dev/null 2>&1 && command -v basename >/dev/null 2>&1; then
+#this_script_full_path="${BASH_SOURCE[0]}"
+#if command -v dirname >/dev/null 2>&1 && command -v readlink >/dev/null 2>&1 && command -v basename >/dev/null 2>&1; then
   # Symlinks
-  while [[ -h "${this_script_full_path}" ]]; do
-    this_script_path="$( cd -P "$( dirname "${this_script_full_path}" )" >/dev/null 2>&1 && pwd )"
-    this_script_full_path="$(readlink "${this_script_full_path}")"
-    # Resolve
-    if [[ "${this_script_full_path}" != /* ]] ; then
-      this_script_full_path="${this_script_path}/${this_script_full_path}"
-    fi
-  done
-  this_script_path="$( cd -P "$( dirname "${this_script_full_path}" )" >/dev/null 2>&1 && pwd )"
-  this_script_name="$(basename "${this_script_full_path}")"
-else
-  script_path_pretty_error
-fi
+#  while [[ -h "${this_script_full_path}" ]]; do
+#    this_script_path="$( cd -P "$( dirname "${this_script_full_path}" )" >/dev/null 2>&1 && pwd )"
+#    this_script_full_path="$(readlink "${this_script_full_path}")"
+#    # Resolve
+#    if [[ "${this_script_full_path}" != /* ]] ; then
+#      this_script_full_path="${this_script_path}/${this_script_full_path}"
+#    fi
+#  done
+#  this_script_path="$( cd -P "$( dirname "${this_script_full_path}" )" >/dev/null 2>&1 && pwd )"
+#  this_script_name="$(basename "${this_script_full_path}")"
+#else
+#  script_path_pretty_error
+#fi
 
-if [[ ! "${this_script_full_path}" || ! "${this_script_path}" || ! "${this_script_name}" ]]; then
-  script_path_pretty_error
-fi
+#if [[ ! "${this_script_full_path}" || ! "${this_script_path}" || ! "${this_script_name}" ]]; then
+#  script_path_pretty_error
+#fi
 
 # Enable extglob
 # Remove trailing / (removes / and //) from script path
-shopt -s extglob
-this_script_path="${this_script_path%%+(/)}"
+#shopt -s extglob
+#this_script_path="${this_script_path%%+(/)}"
 
 # Export for main executable
-export temporary_path_x="${this_script_path}"
+#export temporary_path_x="${this_script_path}"
 
 # Add /usr // /usr/local to PATH
 export PATH="${PATH}:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin"
