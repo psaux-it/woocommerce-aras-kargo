@@ -70,6 +70,7 @@ mkdir /var/www/html/wp-content/themes/my-child/woocommerce/templates/emails/plai
 
 ```
 cp custom-order-status-package/aras-woo-delivered.php /var/www/html/wp-content/themes/my-child/woocommerce/
+cp custom-order-status-package/fallback-order-status-sql.php /var/www/html/wp-content/themes/my-child/woocommerce/
 cp custom-order-status-package/class-wc-delivered-status-order.php /var/www/html/wp-content/themes/my-child/woocommerce/emails/
 cp custom-order-status-package/wc-customer-delivered-status-order.php /var/www/html/wp-content/themes/my-child/woocommerce/templates/emails/
 cp custom-order-status-package/wc-customer-delivered-status-order.php /var/www/html/wp-content/themes/my-child/woocommerce/templates/emails/plain/
@@ -85,6 +86,7 @@ Add below code to your child theme's functions.php ```/var/www/html/wp-content/t
 <?php
 // woocommerce-aras-cargo-integration
 include( get_stylesheet_directory() .'/woocommerce/aras-woo-delivered.php');
+//woo_aras_include_once( get_stylesheet_directory() .'/woocommerce/fallback-order-status-sql.php');
 // woocommerce-aras-cargo-integration
 ```
 
