@@ -216,8 +216,9 @@ If you use mutt, ssmtp, sendmail etc. please edit mail function as you wish. You
 - Enable WooCommerce REST API, get credentials (only support REST API v3)
 - Adjust user defined settings such as mail_to, company_name as mentioned before
 - Be sure you have some data both on woocommerce and ARAS for validations during setup (if not create test orders)
-- Start the setup with one liner -->
+- Start the setup with one liner
 - ```curl -s -o woo-aras-setup.sh https://raw.githubusercontent.com/hsntgm/woocommerce-aras-kargo/main/woo-aras-setup.sh && chmod +x woo-aras-setup.sh && sudo ./woo-aras-setup.sh```
+- or
 - ```wget -O woo-aras-setup.sh https://raw.githubusercontent.com/hsntgm/woocommerce-aras-kargo/main/woo-aras-setup.sh && chmod +x woo-aras-setup.sh && sudo ./woo-aras-setup.sh ```
 
 ![woocommerce-aras-help](https://user-images.githubusercontent.com/25556606/135243353-2151f4c6-d916-466c-9ab6-5b6e5a5086fd.png)
