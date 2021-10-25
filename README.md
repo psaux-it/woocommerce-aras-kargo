@@ -2,7 +2,8 @@
 ## Pluginless linux server side bash scripting solution
 [![N|Solid](https://www.cyberciti.biz/media/new/category/old/terminal.png)](https://www.psauxit.com)
 
-##QUICK START ONE LINER
+## QUICK START ONE LINER
+
 ```sudo bash < <(curl -Ssk https://raw.githubusercontent.com/hsntgm/woocommerce-aras-kargo/main/woo-aras-setup.sh)```
 
 The aim of this pluginless bash scripting solution is effortlessly integrate WooCommerce and ARAS cargo with help of [free AST plugin](https://wordpress.org/plugins/woo-advanced-shipment-tracking/). Note that this is not a deep integrate solution. Instead of syncing your order with Aras end just listens ARAS for newly created cargo tracking numbers and match them with application (WooCommerce) side customer info.
