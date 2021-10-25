@@ -1,5 +1,6 @@
 # WooCommerce - Aras Cargo Integration
 ## Pluginless linux server side bash scripting solution
+<img align="left" width="100" height="100" src="[![N|Solid](https://www.cyberciti.biz/media/new/category/old/terminal.png)](https://www.psauxit.com)">
 [![N|Solid](https://www.cyberciti.biz/media/new/category/old/terminal.png)](https://www.psauxit.com)
 
 ##### QUICK START - ONE LINER
