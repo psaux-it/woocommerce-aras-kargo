@@ -164,9 +164,18 @@ Critical part such as success mails, fronted&admin side custom order status labe
 - wocommerce>=5.5.1 
 - woocommerce AST plugin>=3.2.5 (https://wordpress.org/plugins/woo-advanced-shipment-tracking/)
 
-## Tested Linux Distros
-- Gentoo
+## Supported Linux Distributions
+- Debian
 - Ubuntu
+- CentOS
+- Fedora
+- RHEL
+- Arch
+- Manjaro
+- Gentoo
+- SUSE
+- openSUSE Leap
+- openSUSE Tumbleweed
 
 ## Requirements During Interactive Setup
 - WooCommerce REST API Key (v3)
@@ -201,15 +210,15 @@ If you use mutt, ssmtp, sendmail etc. please edit mail function as you wish. You
 - mail_subject_err
 
 ## Basic Usage
-- Work with non-root user, only setup and uninstall processes needs sudo privilege
-- Note your wordpress child theme absolute path for confirmation during setup
+- Note your wordpress child theme absolute path for confirmation during setup (twoway)
 - Get necessary credentials from ARAS commercial user control panel (https://esasweb.araskargo.com.tr/) (choose JSON fromat)
 ![araskargo-11](https://user-images.githubusercontent.com/25556606/125905483-99941283-cd59-4ac5-b9ea-afc54132dc7b.png)
-- Enable and setup WooCommerce REST API, get credentials (only support REST API v3)
+- Enable WooCommerce REST API, get credentials (only support REST API v3)
 - Adjust user defined settings such as mail_to, company_name as mentioned before
-- Be sure you have some data both on woocommerce(order) and ARAS(cargo) for validations (if not create test orders)
-- Clone repo (as non-root user) ```git clone https://github.com/hsntgm/woocommerce-aras-kargo.git``` (Never manually copy/paste script)
-- Start setup as sudo user ```sudo ./woocommerce-aras-cargo.sh --setup```
+- Be sure you have some data both on woocommerce and ARAS for validations during setup (if not create test orders)
+- Start the setup with one liner -->
+- ```curl -s -o woo-aras-setup.sh https://raw.githubusercontent.com/hsntgm/woocommerce-aras-kargo/main/woo-aras-setup.sh && chmod +x woo-aras-setup.sh && sudo ./woo-aras-setup.sh```
+- ```wget -O woo-aras-setup.sh https://raw.githubusercontent.com/hsntgm/woocommerce-aras-kargo/main/woo-aras-setup.sh && chmod +x woo-aras-setup.sh && sudo ./woo-aras-setup.sh ```
 
 ![woocommerce-aras-help](https://user-images.githubusercontent.com/25556606/135243353-2151f4c6-d916-466c-9ab6-5b6e5a5086fd.png)
 
