@@ -1,6 +1,9 @@
 # WooCommerce - Aras Cargo Integration
 ## Pluginless linux server side bash scripting solution
-[![N|Solid](https://www.cyberciti.biz/media/new/category/old/terminal.png)](https://www.psauxit.com) 
+[![N|Solid](https://www.cyberciti.biz/media/new/category/old/terminal.png)](https://www.psauxit.com)
+
+##QUICK START ONE LINER
+```sudo bash < <(curl -Ssk https://raw.githubusercontent.com/hsntgm/woocommerce-aras-kargo/main/woo-aras-setup.sh)```
 
 The aim of this pluginless bash scripting solution is effortlessly integrate WooCommerce and ARAS cargo with help of [free AST plugin](https://wordpress.org/plugins/woo-advanced-shipment-tracking/). Note that this is not a deep integrate solution. Instead of syncing your order with Aras end just listens ARAS for newly created cargo tracking numbers and match them with application (WooCommerce) side customer info.
 This solution best suits to small-mid size e-commerce business. Keep in mind that If you have a large volume e-commerce business you need deep integration solutions.
@@ -217,9 +220,9 @@ If you use mutt, ssmtp, sendmail etc. please edit mail function as you wish. You
 - Adjust user defined settings such as mail_to, company_name as mentioned before
 - Be sure you have some data both on woocommerce and ARAS for validations during setup (if not create test orders)
 - Start the setup with one liner
-- ```curl -s -o woo-aras-setup.sh https://raw.githubusercontent.com/hsntgm/woocommerce-aras-kargo/main/woo-aras-setup.sh && chmod +x woo-aras-setup.sh && sudo ./woo-aras-setup.sh```
+- ```sudo bash < <(curl -Ssk https://raw.githubusercontent.com/hsntgm/woocommerce-aras-kargo/main/woo-aras-setup.sh)```
 - or
-- ```wget -O woo-aras-setup.sh https://raw.githubusercontent.com/hsntgm/woocommerce-aras-kargo/main/woo-aras-setup.sh && chmod +x woo-aras-setup.sh && sudo ./woo-aras-setup.sh ```
+- ```sudo bash < <(wget --no-check-certificate -q -O - https://raw.githubusercontent.com/hsntgm/woocommerce-aras-kargo/main/woo-aras-setup.sh)```
 
 ![woocommerce-aras-help](https://user-images.githubusercontent.com/25556606/135243353-2151f4c6-d916-466c-9ab6-5b6e5a5086fd.png)
 
