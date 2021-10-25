@@ -583,23 +583,19 @@ depriv_f () {
 		if [[ "${my_path}" == "system_path" ]]; then # Operations always need root privileges
 			if [[ ! -d "${m_path}" ]]; then
 				if [[ $SUDO_USER || $EUID -eq 0 ]]; then
-					mkdir "${m_path}"
-					chown "${user}":"${user}" "${m_path}"
+					mkdir "${m_path}" && chown "${user}":"${user}" "${m_path}" || path_pretty_error "${m_path}"
 				else
 					path_pretty_error "${m_path}"
 				fi
-			else
-				if [[ $SUDO_USER || $EUID -eq 0 ]]; then
-					if [[ "$(stat --format "%U" "${m_path}" 2>/dev/null)" != "{user}" ]]; then
-						chown -R "${user}":"${user}" "${m_path}"
-					fi
-				else
-					path_pretty_error "${m_path}"
+			elif [[ $SUDO_USER || $EUID -eq 0 ]]; then
+				if [[ "$(stat --format "%U" "${m_path}" 2>/dev/null)" != "{user}" ]]; then
+					chown -R "${user}":"${user}" "${m_path}" || ugly_fatal "Cannot change ownership of path ${m_path}"
 				fi
+			elif [[ "$(stat --format "%U" "${m_path}" 2>/dev/null)" != "{user}" ]]; then
+				ugly_fatal "Cannot change ownership of path ${m_path}"
 			fi
 		elif [[ ! -d "${m_path}" ]]; then # Operations not always need root privileges
-			mkdir "${m_path}" >/dev/null 2>&1 || path_pretty_error "${m_path}"
-			chown -R "${user}":"${user}" "${m_path}"
+			mkdir "${m_path}" >/dev/null 2>&1 && chown -R "${user}":"${user}" "${m_path}" || path_pretty_error "${m_path}"
 		fi
 	done
 }
