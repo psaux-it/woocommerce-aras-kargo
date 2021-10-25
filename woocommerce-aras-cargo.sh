@@ -829,6 +829,9 @@ clean_up () {
 		unset LANG
 		unset LC_ALL
 	fi
+
+	# Set default umask if changed
+	[[ "$(umask)" != "${d_umask}" ]] && umask "${d_umask}"
 }
 
 # Global Variables
