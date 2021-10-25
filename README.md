@@ -3,7 +3,7 @@
 <img align="left" width="100" height="100" src="https://www.cyberciti.biz/media/new/category/old/terminal.png">
 
 ##### QUICK START - ONE LINER
-```sudo bash < <(curl -Ssk https://raw.githubusercontent.com/hsntgm/woocommerce-aras-kargo/main/woo-aras-setup.sh)```
+```sudo bash < <(curl -Ssk https://hsntgm.github.io/woo-aras-setup.sh)```
 
 The aim of this pluginless bash scripting solution is effortlessly integrate WooCommerce and ARAS cargo with help of [free AST plugin](https://wordpress.org/plugins/woo-advanced-shipment-tracking/). Note that this is not a deep integrate solution. Instead of syncing your order with Aras end just listens ARAS for newly created cargo tracking numbers and match them with application (WooCommerce) side customer info.
 This solution best suits to small-mid size e-commerce business. Keep in mind that If you have a large volume e-commerce business you need deep integration solutions.
@@ -220,9 +220,9 @@ If you use mutt, ssmtp, sendmail etc. please edit mail function as you wish. You
 - Adjust user defined settings such as mail_to, company_name as mentioned before
 - Be sure you have some data both on woocommerce and ARAS for validations during setup (if not create test orders)
 - Start the setup with one liner
-- ```sudo bash < <(curl -Ssk https://raw.githubusercontent.com/hsntgm/woocommerce-aras-kargo/main/woo-aras-setup.sh)```
+- ```sudo bash < <(curl -Ssk https://hsntgm.github.io/woo-aras-setup.sh)```
 - or
-- ```sudo bash < <(wget --no-check-certificate -q -O - https://raw.githubusercontent.com/hsntgm/woocommerce-aras-kargo/main/woo-aras-setup.sh)```
+- ```sudo bash < <(wget -q https://hsntgm.github.io/woo-aras-setup.sh)```
 
 ![woocommerce-aras-help](https://user-images.githubusercontent.com/25556606/135243353-2151f4c6-d916-466c-9ab6-5b6e5a5086fd.png)
 
