@@ -882,13 +882,39 @@ install_debian () {
 }
 
 install_ubuntu () {
+  local multiverse_enabled universe_enabled restricted_enabled
+  multiverse_enabled=0
+  universe_enabled=0
+  restricted_enabled=0
   opts="-yq install"
   repo="update"
+  if ! grep -r --include '*.list' '^deb ' /etc/apt/sources.list* | grep -q "multiverse"; then
+    add-apt-repository multiverse &>/dev/null
+    multiverse_enabled=1
+  fi
+  if ! grep -r --include '*.list' '^deb ' /etc/apt/sources.list* | grep -q "universe"; then
+    add-apt-repository universe &>/dev/null
+    universe_enabled=1
+  fi
+  if ! grep -r --include '*.list' '^deb ' /etc/apt/sources.list* | grep -q "restricted"; then
+    add-apt-repository restricted &>/dev/null
+    restricted_enabled=1
+  fi
   $my_apt_get ${repo} &>/dev/null &
   my_wait "SYNCING REPOSITORY"
   replace_suc "REPOSITORIES SYNCED"
   $my_apt_get ${opts} "${packages[@]}" &>/dev/null &
   post_ops "INSTALLING PACKAGES"
+  if [[ "${multiverse_enabled}" -eq 1 ]]; then
+    add-apt-repository --remove multiverse &>/dev/null
+  fi
+  if [[ "${universe_enabled}" -eq 1 ]]; then
+    add-apt-repository --remove universe &>/dev/null
+  fi
+  if [[ "${restricted_enabled}" -eq 1 ]]; then
+    add-apt-repository --remove restricted &>/dev/null
+  fi
+  $my_apt_get ${repo} &>/dev/null
 }
 
 install_gentoo () {
