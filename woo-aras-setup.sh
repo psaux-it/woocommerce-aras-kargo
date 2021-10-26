@@ -57,7 +57,7 @@ detect_bash5 () {
 
   if [ -z "${bash_ver}" ]; then
     return 1
-  elif [ $((bash_ver)) -lt 5 ]; then
+  elif [ $((bash_ver)) -lt 4 ]; then
     return 1
   fi
   return 0
@@ -109,6 +109,11 @@ fatal () {
   printf >&2 "\n${m_tab}%s ABORTED %s %s \n\n" "${TPUT_BGRED}${TPUT_WHITE}${TPUT_BOLD}" "${TPUT_RESET}" "${*}"
   exit 1
 }
+
+# We need column command from util-linux package not bsdmainutils
+if ! column -V 2>/dev/null | grep -q "util-linux"; then
+  fatal "Unsupported command, we need 'column' command from util-linux package"
+fi
 
 done_ () {
   printf >&2 "\n${m_tab}${TPUT_BGGREEN}${TPUT_WHITE}${TPUT_BOLD} DONE ${TPUT_RESET} ${*}\n"
