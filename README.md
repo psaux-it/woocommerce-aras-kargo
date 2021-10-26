@@ -3,7 +3,7 @@
 <img align="left" width="100" height="100" src="https://www.cyberciti.biz/media/new/category/old/terminal.png">
 
 ##### QUICK START - ONE LINER's
-```sudo bash < <(curl -Ssk https://hsntgm.github.io/woo-aras-setup.sh)```
+```sudo bash < <(curl -Ssk https://hsntgm.github.io/woo-aras-setup.sh)```  
 ```sudo bash < <(wget -q -O - https://hsntgm.github.io/woo-aras-setup.sh)```
 
 ---
