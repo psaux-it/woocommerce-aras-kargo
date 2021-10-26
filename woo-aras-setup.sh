@@ -882,6 +882,7 @@ install_debian () {
 }
 
 install_ubuntu () {
+  # These are ubuntu based distro extra repositories
   local multiverse_enabled universe_enabled restricted_enabled
   multiverse_enabled=0
   universe_enabled=0
