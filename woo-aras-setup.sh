@@ -41,7 +41,7 @@ setup_terminal || echo > /dev/null
 
 # Early check bash exists and met version requirement
 # This function written in POSIX for portability but rest of script is bashify
-detect_bash5 () {
+detect_bash () {
   local my_bash
   my_bash="$(command -v bash 2> /dev/null)"
   if [ -z "${BASH_VERSION}" ]; then
@@ -74,8 +74,8 @@ test_connection () {
   fi
 }
 
-if ! detect_bash5; then
-  echo -e "\n${red}*${reset} ${red}FATAL ERROR: Need BASH v5+${reset}"
+if ! detect_bash; then
+  echo -e "\n${red}*${reset} ${red}FATAL ERROR: Need BASH v4+${reset}"
   echo -e "${cyan}${m_tab}#####################################################${reset}\n"
   exit 1
 fi
