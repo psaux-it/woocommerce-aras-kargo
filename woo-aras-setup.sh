@@ -356,6 +356,7 @@ get_package_list () {
     ['debian']="build-essential"
     ['arch']="base-devel"
     ['manjaro']="base-devel"
+    ['gentoo']="sys-devel/make"
     ['default']=""
   )
 
@@ -627,6 +628,10 @@ my_wait () {
 # Validate installed packages silently
 validate_centos () {
   fail=()
+  if [[ "${missing_deps[@]}" =~ "make" ]]; then
+    packages+=( "make" )
+  fi
+
   for packagename in "${packages[@]}"
   do
     if ! $my_yum list installed ${packagename} >/dev/null 2>&1; then
@@ -637,6 +642,10 @@ validate_centos () {
 
 validate_rhel () {
   fail=()
+  if [[ "${missing_deps[@]}" =~ "make" ]]; then
+    packages+=( "make" )
+  fi
+
   for packagename in "${packages[@]}"
   do
     if [[ "${my_yum}" ]]; then
@@ -651,6 +660,10 @@ validate_rhel () {
 
 validate_fedora () {
   fail=()
+  if [[ "${missing_deps[@]}" =~ "make" ]]; then
+    packages+=( "make" )
+  fi
+
   for packagename in "${packages[@]}"
   do
     if ! $my_dnf list installed ${packagename} >/dev/null 2>&1; then
@@ -748,6 +761,10 @@ validate_manjaro () {
 
 validate_suse () {
   fail=()
+  if [[ "${missing_deps[@]}" =~ "make" ]]; then
+    packages+=( "make" )
+  fi
+
   for packagename in "${packages[@]}"
   do
     if [[ "${packagename}" == "php" ]]; then
@@ -766,6 +783,10 @@ validate_suse () {
 
 validate_opensuse-leap () {
   fail=()
+  if [[ "${missing_deps[@]}" =~ "make" ]]; then
+    packages+=( "make" )
+  fi
+
   for packagename in "${packages[@]}"
   do
     if [[ "${packagename}" == "php" ]]; then
@@ -784,6 +805,10 @@ validate_opensuse-leap () {
 
 validate_opensuse-tumbleweed () {
   fail=()
+  if [[ "${missing_deps[@]}" =~ "make" ]]; then
+    packages+=( "make" )
+  fi
+
   for packagename in "${packages[@]}"
   do
     if [[ "${packagename}" == "php" ]]; then
