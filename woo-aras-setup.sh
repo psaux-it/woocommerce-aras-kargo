@@ -352,17 +352,11 @@ autodetect_distribution () {
 # Package lists for distributions
 get_package_list () {
   declare -A pkg_make=(
-    ['centos']="@'Development Tools'"
-    ['fedora']="@'Development Tools'"
-    ['rhel']="@'Development Tools'"
     ['ubuntu']="build-essential"
     ['debian']="build-essential"
     ['arch']="base-devel"
     ['manjaro']="base-devel"
-    ['suse']=""
-    ['opensuse-leap']=""
-    ['opensuse-tumbleweed']=""
-    ['gentoo']=""
+    ['default']=""
   )
 
   declare -A pkg_curl=(
@@ -479,15 +473,22 @@ pre_start () {
     fi
 
     if (( ${#missing_deps[@]} )); then
+      shopt -s extglob
       get_package_list
       echo -e "\n${green}* ${magenta}STAGE-1 > PACKAGE INSTALLATION${reset}"
       echo "${cyan}${m_tab}+----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+--->${reset}"
-      fixed_packages="${packages[@]}"
+      fixed_packages=( "${packages[@]}" )
+      if [[ "${missing_deps[@]}" =~ "make" ]]; then
+        if [[ "${distribution}" != @(ubuntu|debian|arch|manjaro) ]]; then
+          fixed_packages+=( "make" )
+        fi
+      fi
+      my_fixed_packages="${fixed_packages[@]}"
       {
       if [[ "${missing_deps[@]}" =~ "perl_text_fuzzy" ]]; then
-        echo "${green}Missing_Packages: ${fixed_packages//${IFS:0:1}/,},Text::Fuzzy${reset}"
+        echo "${green}Missing_Packages: ${my_fixed_packages//${IFS:0:1}/,},Text::Fuzzy${reset}"
       else
-        echo "${green}Missing_Packages: ${fixed_packages//${IFS:0:1}/,}${reset}"
+        echo "${green}Missing_Packages: ${my_fixed_packages//${IFS:0:1}/,}${reset}"
       fi
       } | column -o '       ' -t -s ' ' | sed 's/^/  /'
     else
@@ -867,12 +868,16 @@ pre_start
 # +-----+-----+--->
 
 install_centos () {
+  local group
+  if [[ "${missing_deps[@]}" =~ "make" ]]; then
+    group="@'Development Tools'"
+  fi
   opts="-yq install"
   repo="update"
   echo n | $my_yum ${repo} &>/dev/null &
   my_wait "SYNCING REPOSITORY"
   replace_suc "REPOSITORIES SYNCED"
-  $my_yum ${opts} "${packages[@]}" &>/dev/null &
+  $my_yum ${opts} "${packages[@]}" ${group} &>/dev/null &
   post_ops "INSTALLING PACKAGES"
 }
 
@@ -1004,23 +1009,31 @@ install_opensuse-tumbleweed () {
 }
 
 install_fedora () {
+  local group
+  if [[ "${missing_deps[@]}" =~ "make" ]]; then
+    group="@'Development Tools'"
+  fi
   opts="-yq --setopt=strict=0 install"
   repo="distro-sync"
   echo n | $my_dnf ${repo} &>/dev/null &
   my_wait "SYNCING REPOSITORY"
   replace_suc "REPOSITORIES SYNCED"
-  $my_dnf ${opts} "${packages[@]}" &>/dev/null &
+  $my_dnf ${opts} "${packages[@]}" ${group} &>/dev/null &
   post_ops "INSTALLING PACKAGES"
 }
 
 install_rhel () {
+  local group
+  if [[ "${missing_deps[@]}" =~ "make" ]]; then
+    group="@'Development Tools'"
+  fi
   if [[ "${my_yum}" ]]; then
     opts="-yq install"
     repo="update"
     echo n | $my_yum ${repo} &>/dev/null &
     my_wait "SYNCING REPOSITORY"
     replace_suc "REPOSITORIES SYNCED"
-    $my_yum ${opts} "${packages[@]}" &>/dev/null &
+    $my_yum ${opts} "${packages[@]}" ${group} &>/dev/null &
     post_ops "INSTALLING PACKAGES"
   else
     opts="-yq --setopt=strict=0 install"
@@ -1028,7 +1041,7 @@ install_rhel () {
     echo n | $my_dnf ${repo} &>/dev/null &
     my_wait "SYNCING REPOSITORY"
     replace_suc "REPOSITORIES SYNCED "
-    $my_dnf ${opts} "${packages[@]}" &>/dev/null &
+    $my_dnf ${opts} "${packages[@]}" ${group} &>/dev/null &
     post_ops "INSTALLING PACKAGES"
   fi
 }
