@@ -178,6 +178,10 @@ script_path_pretty_error () {
   exit 1
 }
 
+version () {
+  echo "$@" | awk -F. '{ printf("%d%03d%03d%03d\n", $1,$2,$3,$4); }';
+}
+
 # Add /usr // /usr/local to PATH
 export PATH="${PATH}:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin"
 uniquepath () {
@@ -1114,12 +1118,16 @@ if ! grep -qE "^${new_user}:" "${pass_file}"; then
   useradd -K UMASK=0077 -U -m -p "${enc_pass}" -s /bin/bash "${new_user}" >/dev/null 2>&1 || { replace_fail "USER OPERATIONS FAILED"; u_error+=( "add" ); }
   # Grant sudo priv. for only execute setup and main script
   [[ ! -d /etc/sudoers.d ]] && mkdir /etc/sudoers.d
-  if grep -q "@includedir.*/etc/sudoers.d" /etc/sudoers; then
-    if grep '^ *#' /etc/sudoers | grep -q "@includedir /etc/sudoers.d"; then
-      sed -i '/@includedir \/etc\/sudoers.d/s/^#*\s*//g' /etc/sudoers || { replace_fail "USER OPERATIONS FAILED"; u_error+=( "sed" ); }
+  if [[ $(version $(sudo -V | head -n1 | awk '{print $3}')) -ge $(version "1.9.1") ]]; then
+    if grep -q "@includedir.*/etc/sudoers.d" /etc/sudoers; then
+      if grep '^ *#' /etc/sudoers | grep -q "@includedir.*/etc/sudoers.d"; then
+        sed -i '/@includedir \/etc\/sudoers.d/s/^#*\s*//g' /etc/sudoers || { replace_fail "USER OPERATIONS FAILED"; u_error+=( "sed" ); }
+      fi
+    else
+      echo "@includedir /etc/sudoers.d" >> /etc/sudoers
     fi
-  else
-     echo "@includedir /etc/sudoers.d" >> /etc/sudoers
+  elif ! grep -q "#includedir.*/etc/sudoers.d" /etc/sudoers && ! grep -q "#include.*/etc/sudoers.d" /etc/sudoers; then
+    echo "#includedir /etc/sudoers.d" >> /etc/sudoers
   fi
   d_umask=$(umask)
   umask 226 && echo "${new_user} ALL=(ALL) NOPASSWD:SETENV: ${working_path}/woocommerce-aras-cargo.sh,${working_path}/woo-aras-setup.sh" | (sudo su -c 'EDITOR="tee" visudo -f /etc/sudoers.d/wooaras') >/dev/null 2>&1 ||
