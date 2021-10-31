@@ -768,6 +768,13 @@ if (( ${#missing_deps[@]} )); then
 	exit 1
 fi
 
+# We need column command from util-linux package, not from bsdmainutils
+# Debian based distributions affected by this bug
+# https://bugs.launchpad.net/ubuntu/+source/util-linux/+bug/1705437
+if ! column -V 2>/dev/null | grep -q "util-linux"; then
+  [[ -f "/usr/local/bin/column2" ]] && my_column="/usr/local/bin/column2" || my_column="${this_script_path}/miscellaneous/column2"
+fi
+
 # Prevent iconv text translation errors
 # Set locale category for character handling functions (otherwise this script not work correctly)
 m_ctype=$(locale | grep LC_CTYPE | cut -d= -f2 | cut -d_ -f1 | tr -d '"')
@@ -977,7 +984,7 @@ statistics () {
 		fi
 	fi
 
-	} | column -o '       ' -t -s ' ' | $m_sed 's/^/  /' # End redirection { Piping created subshell and we lost all variables in command grouping }
+	} | $my_column -o '       ' -t -s ' ' | $m_sed 's/^/  /' # End redirection { Piping created subshell and we lost all variables in command grouping }
 
 	if ! command -v zgrep >/dev/null 2>&1; then
 		echo -e "\n${red}*${reset} ${red}zgrep not found!${reset}"
@@ -1216,7 +1223,7 @@ pre_check () {
 
 	} > "${this_script_path}/.msg.proc" # NOTE: End redirection to file
 					    # Cannot directly pipe to column here that creates subshell and we lose variables we need
-	column -o '     ' -t -s ' ' <<< "$(< "${this_script_path}/.msg.proc")" | $m_sed 's/^/  /'
+	$my_column -o '     ' -t -s ' ' <<< "$(< "${this_script_path}/.msg.proc")" | $m_sed 's/^/  /'
 	umask "${d_umask}"
 
 	# Quit
@@ -1263,7 +1270,7 @@ my_status () {
 			echo "${green}Default-Setup: ${red}Not_Completed${reset}"
 		fi
 		echo "${green}Two-way_Workflow-Setup: ${yellow}Null${reset}"
-		} | column -t -s ' ' | $m_sed 's/^/  /'
+		} | $my_column -t -s ' ' | $m_sed 's/^/  /'
 		echo -e "\n${m_tab}${cyan}# ---------------------------------------------------------------------${reset}"
                 exit 1
         fi
@@ -1325,7 +1332,7 @@ my_status () {
 	fi
 
 	} > "${this_script_path}/.pre.proc" # End redirection to file
-	column -t -s ' ' <<< "$(< "${this_script_path}/.pre.proc")" | $m_sed 's/^/  /'
+	$my_column -t -s ' ' <<< "$(< "${this_script_path}/.pre.proc")" | $m_sed 's/^/  /'
 	umask "${d_umask}"
 
 	# Call statistic function
@@ -3416,7 +3423,7 @@ if [[ "${my_shell}" == "interactive" ]]; then
 			echo -e "${m_tab}${green}Done${reset}"
 			echo -e "\n${green}${m_tab}Please validate Order_ID & Customer_Info.${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
-			column -t -s' ' <<< $(echo "$data_test" | $m_jq -r '.[]|[.id,.shipping.first_name,.shipping.last_name]|join(" ")' |
+			$my_column -t -s' ' <<< $(echo "$data_test" | $m_jq -r '.[]|[.id,.shipping.first_name,.shipping.last_name]|join(" ")' |
 				iconv -f utf8 -t ascii//TRANSLIT | tr '[:upper:]' '[:lower:]' |
 				$m_awk '{s=$1;gsub($1 FS,x);$1=$1;print s FS $0}' OFS= |
 				$m_sed '1i Order_ID Customer_Name' | $m_sed '2i --------------- -------------') | $m_sed 's/^/  /'
@@ -3447,7 +3454,7 @@ if [[ "${my_shell}" == "interactive" ]]; then
 		else
 			echo -e "\n${green}${m_tab}Please validate Tracking_Number & Customer_Info.${reset}"
 			echo "${cyan}${m_tab}#####################################################${reset}"
-			column -t -s' ' <<< $(< "${this_script_path}/aras.json.mod" $m_jq -r '.[]|[.DURUM_KODU,.KARGO_TAKIP_NO,.ALICI]|join(" ")' |
+			$my_column -t -s' ' <<< $(< "${this_script_path}/aras.json.mod" $m_jq -r '.[]|[.DURUM_KODU,.KARGO_TAKIP_NO,.ALICI]|join(" ")' |
 				cut -f2- -d ' ' | iconv -f utf8 -t ascii//TRANSLIT | tr '[:upper:]' '[:lower:]' |
 				$m_awk '{s=$1;gsub($1 FS,x);$1=$1;print s FS $0}' OFS= |
 				$m_sed '1i Tracking_Number Customer_Name' | $m_sed '2i --------------- -------------' |
