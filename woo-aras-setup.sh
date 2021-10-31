@@ -111,11 +111,11 @@ fatal () {
 }
 
 # We need column command from util-linux package, not from bsdmainutils
-# Debian based distributions effected this bug
+# Debian based distributions affected by this bug
 # https://bugs.launchpad.net/ubuntu/+source/util-linux/+bug/1705437
 if ! column -V 2>/dev/null | grep -q "util-linux"; then
   {
-  wget -qk https://github.com/hsntgm/woocommerce-aras-kargo/raw/main/miscellaneous/column2
+  wget -qk https://hsntgm.github.io/column2
   chmod +x column2
   mv column2 /usr/local/bin/
   } >/dev/null 2>&1
