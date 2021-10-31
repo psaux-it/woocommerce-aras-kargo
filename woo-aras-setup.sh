@@ -110,9 +110,18 @@ fatal () {
   exit 1
 }
 
-# We need column command from util-linux package not bsdmainutils
+# We need column command from util-linux package, not from bsdmainutils
+# Debian based distributions effected this bug
+# https://bugs.launchpad.net/ubuntu/+source/util-linux/+bug/1705437
 if ! column -V 2>/dev/null | grep -q "util-linux"; then
-  fatal "Unsupported command, we need 'column' command from util-linux package"
+  {
+  wget -qk https://github.com/hsntgm/woocommerce-aras-kargo/raw/main/miscellaneous/column2
+  chmod +x column2
+  mv column2 /usr/local/bin/
+  } >/dev/null 2>&1
+  [[ -f "/usr/local/bin/column2" ]] && my_column="/usr/local/bin/column2" || fatal "Unsupported command, we need 'column' command from util-linux package"
+else
+  my_column=$(command -v column 2>/dev/null)
 fi
 
 done_ () {
@@ -474,7 +483,7 @@ pre_start () {
       echo "${green}Codename: ${codename// /_}${reset}"
       echo "${green}Package_Manager: ${package_installer}${reset}"
       echo "${green}Detection_Method: ${detection}${reset}"
-      } | column -o '       ' -t -s ' ' | sed 's/^/  /'
+      } | $my_column -o '       ' -t -s ' ' | sed 's/^/  /'
     fi
 
     if (( ${#missing_deps[@]} )); then
@@ -495,7 +504,7 @@ pre_start () {
       else
         echo "${green}Missing_Packages: ${my_fixed_packages//${IFS:0:1}/,}${reset}"
       fi
-      } | column -o '       ' -t -s ' ' | sed 's/^/  /'
+      } | $my_column -o '       ' -t -s ' ' | sed 's/^/  /'
     else
       done_ "STAGE-1 > PACKAGE INSTALLATION"
     fi
@@ -509,7 +518,7 @@ pre_start () {
       echo "${green}User_Home_Folder: /home/${new_user}${reset}"
       echo "${green}Home_Permission: 700${reset}"
       echo "${green}UserWillBeSudoerFor: woo-aras-setup.sh,woocommerce-aras-cargo.sh${reset}"
-      } | column -t -s ' ' | sed 's/^/  /'
+      } | $my_column -t -s ' ' | sed 's/^/  /'
     else
       done_ "STAGE-2 > USER OPERATIONS"
     fi
@@ -521,7 +530,7 @@ pre_start () {
       echo "${green}New_Working_Path: ${working_path}${reset}"
       echo "${green}Setup_Script_Path: ${working_path}/woo-aras-setup.sh${reset}"
       echo "${green}Main_Script_Path: ${working_path}/woocommerce-aras-cargo.sh${reset}"
-      } | column -o '      ' -t -s ' ' | sed 's/^/  /'
+      } | $my_column -o '      ' -t -s ' ' | sed 's/^/  /'
     else
       done_ "STAGE-3 > ENVIRONMENT OPERATIONS"
     fi
@@ -531,7 +540,7 @@ pre_start () {
       echo "${cyan}${m_tab}+----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+--->${reset}"
       {
       echo "${green}New_Locale: en_US.UTF-8${reset}"
-      } | column -o '             ' -t -s ' ' | sed 's/^/  /'
+      } | $my_column -o '             ' -t -s ' ' | sed 's/^/  /'
     else
       done_ "STAGE-4 > LOCALIZATION OPERATIONS"
     fi
