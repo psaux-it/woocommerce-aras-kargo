@@ -2,7 +2,7 @@
 > We need column command from util-linux package not bsdmainutils
 
 This is a known issue with Debian based distributions.
-They use column command from bsdmainutils.
+They use column command from bsdmainutils that not up to date and lack of features.
 https://bugs.launchpad.net/ubuntu/+source/util-linux/+bug/1705437
 
 'column' compiled from 'util-linux-2.37.2'
