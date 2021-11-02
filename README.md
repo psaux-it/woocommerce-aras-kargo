@@ -14,7 +14,7 @@ The woo-aras-setup.sh script does the following after being downloaded and run u
 * Creates new working environment for Woo-Aras Automation, creates new system user (wooaras) with limited sudo privileges. 
 * Downloads the latest integration source tree to /home/wooaras/scripts/woocommerce-aras-kargo.
 * Install necessary locale [en_US] for iconv character string encoding
-* Trıggers main installation script by running ./woocommerce-aras-cargo.sh from the source tree, with --setup parameter.
+* Calls main installation script by running ./woocommerce-aras-cargo.sh from the source tree, with --setup parameter.
 * Prints a installation status whether installation succeeded or failed for QA purposes.
 
 ---
