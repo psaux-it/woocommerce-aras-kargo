@@ -1259,17 +1259,17 @@ if [[ "$SUDO_USER" ]]; then
   if [[ "$SUDO_USER" != "${new_user}" ]]; then
     if [[ "${1}" == "--force" || "${1}" == "-f" ]]; then
       if ! [[ -f "${working_path}/.env.ready" ]]; then
-        sudo -u "${new_user}" --preserve-env="${my_env}" -s /bin/bash -c 'sudo --preserve-env='"${my_env}"' '"${working_path}"'/woocommerce-aras-cargo.sh --setup'
+        sudo -u "${new_user}" --preserve-env="${my_env}" -s /bin/bash -c 'exec < /dev/tty; sudo --preserve-env='"${my_env}"' '"${working_path}"'/woocommerce-aras-cargo.sh --setup'
       else
         env_info
-        sudo -u "${new_user}" --preserve-env="${my_env}" -s /bin/bash -c 'sudo --preserve-env='"${my_env}"' '"${working_path}"'/woocommerce-aras-cargo.sh --setup'
+        sudo -u "${new_user}" --preserve-env="${my_env}" -s /bin/bash -c 'exec < /dev/tty; sudo --preserve-env='"${my_env}"' '"${working_path}"'/woocommerce-aras-cargo.sh --setup'
       fi
     elif ! [[ -f "${working_path}/.woo.aras.set" ]]; then
       if ! [[ -f "${working_path}/.env.ready" ]]; then
-        sudo -u "${new_user}" --preserve-env="${my_env}" -s /bin/bash -c 'sudo --preserve-env='"${my_env}"' '"${working_path}"'/woocommerce-aras-cargo.sh --setup'
+        sudo -u "${new_user}" --preserve-env="${my_env}" -s /bin/bash -c 'exec < /dev/tty; sudo --preserve-env='"${my_env}"' '"${working_path}"'/woocommerce-aras-cargo.sh --setup'
       else
         env_info
-        sudo -u "${new_user}" --preserve-env="${my_env}" -s /bin/bash -c 'sudo --preserve-env='"${my_env}"' '"${working_path}"'/woocommerce-aras-cargo.sh --setup'
+        sudo -u "${new_user}" --preserve-env="${my_env}" -s /bin/bash -c 'exec < /dev/tty; sudo --preserve-env='"${my_env}"' '"${working_path}"'/woocommerce-aras-cargo.sh --setup'
       fi
     else
       setup_info
@@ -1282,10 +1282,10 @@ if [[ "$SUDO_USER" ]]; then
     setup_info
   fi
 elif ! [[ -f "${working_path}/.env.ready" ]]; then # Pure root
-  sudo -u "${new_user}" --preserve-env="${my_env}" -s /bin/bash -c 'sudo --preserve-env='"${my_env}"' '"${working_path}"'/woocommerce-aras-cargo.sh --setup'
+  sudo -u "${new_user}" --preserve-env="${my_env}" -s /bin/bash -c 'exec < /dev/tty; sudo --preserve-env='"${my_env}"' '"${working_path}"'/woocommerce-aras-cargo.sh --setup'
 else
   env_info
-  sudo -u "${new_user}" --preserve-env="${my_env}" -s /bin/bash -c 'sudo --preserve-env='"${my_env}"' '"${working_path}"'/woocommerce-aras-cargo.sh --setup'
+  sudo -u "${new_user}" --preserve-env="${my_env}" -s /bin/bash -c 'exec < /dev/tty; sudo --preserve-env='"${my_env}"' '"${working_path}"'/woocommerce-aras-cargo.sh --setup'
 fi
 
 # And lastly we exit
