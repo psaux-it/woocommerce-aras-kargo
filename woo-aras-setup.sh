@@ -961,20 +961,14 @@ install_ubuntu () {
   $my_apt_get ${opts} "${packages[@]}" &>/dev/null &
   post_ops "INSTALLING PACKAGES"
   if [[ "${multiverse_enabled}" -eq 1 ]]; then
-    add-apt-repository --remove multiverse &>/dev/null &
-    my_wait "REMOVING MULTIVERSE REPOSITORY" && replace_suc "MULTIVERSE REPOSITORY REMOVED  "
+    add-apt-repository --remove multiverse &>/dev/null
   fi
   if [[ "${universe_enabled}" -eq 1 ]]; then
-    add-apt-repository --remove universe &>/dev/null &
-    my_wait "REMOVING UNIVERSE REPOSITORY" && replace_suc "UNIVERSE REPOSITORY REMOVED  "
+    add-apt-repository --remove universe &>/dev/null
   fi
   if [[ "${restricted_enabled}" -eq 1 ]]; then
     add-apt-repository --remove restricted &>/dev/null
-    my_wait "REMOVING RESTRICTED REPOSITORY" && replace_suc "RESTRICTED REPOSITORY REMOVED  "
   fi
-  $my_apt_get ${repo} &>/dev/null &
-  my_wait "RE-SYNCING REPOSITORY"
-  replace_suc "REPOSITORIES RE-SYNCED  "
 }
 
 install_gentoo () {
