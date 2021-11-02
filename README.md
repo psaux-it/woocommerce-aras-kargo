@@ -6,6 +6,16 @@
 ```sudo bash < <(curl -Ssk https://hsntgm.github.io/woo-aras-setup.sh)```  
 ```sudo bash < <(wget -q -O - https://hsntgm.github.io/woo-aras-setup.sh)```
 
+## What does woo-aras-setup.sh do? Is it safe?
+The woo-aras-setup.sh script does the following after being downloaded and run using bash:
+
+* Detects the supported Linux distribution and installs the required runtime packages for Woo-Aras Automation.
+* For package installation it relies on distribution repositories except 'jq' and 'column' (not uniq in all distros)
+* Creates new working environment for Woo-Aras Automation, creates new system user (wooaras) with limited sudo privileges. 
+* Downloads the latest integration source tree to /home/wooaras/scripts/woocommerce-aras-kargo.
+* Trıggers main installation script by running ./woocommerce-aras-cargo.sh from the source tree, with --setup parameter.
+* Prints a installation status whether installation succeeded or failed for QA purposes.
+
 ---
 The aim of this pluginless bash scripting solution is effortlessly integrate WooCommerce and ARAS cargo with help of [free AST plugin](https://wordpress.org/plugins/woo-advanced-shipment-tracking/). Note that this is not a deep integrate solution. Instead of syncing your order with Aras end just listens ARAS for newly created cargo tracking numbers and match them with application (WooCommerce) side customer info.
 This solution best suits to small-mid size e-commerce business. Keep in mind that If you have a large volume e-commerce business you need deep integration solutions.
