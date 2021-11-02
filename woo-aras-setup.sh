@@ -115,7 +115,11 @@ fatal () {
 # https://bugs.launchpad.net/ubuntu/+source/util-linux/+bug/1705437
 if ! column -V 2>/dev/null | grep -q "util-linux"; then
   {
-  wget -qk https://hsntgm.github.io/column2
+  if command -v curl > /dev/null 2>&1; then
+    curl -q -sSL https://hsntgm.github.io/column2
+  else
+    wget -qk https://hsntgm.github.io/column2
+  fi
   chmod +x column2
   mv column2 /usr/local/bin/
   } >/dev/null 2>&1
@@ -477,7 +481,7 @@ pre_start () {
       echo -e "\n${green}* ${magenta}OS INFORMATION${reset}"
       echo "${cyan}${m_tab}+----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+-----+--->${reset}"
       {
-      echo "${green}Operating_System: $(uname -s)${reset}"
+      echo "${green}Operating_System: $(uname -o 2>/dev/null || uname -rs)${reset}"
       echo "${green}Distribution: ${distribution}${reset}"
       echo "${green}Version: ${version}${reset}"
       echo "${green}Codename: ${codename// /_}${reset}"
@@ -599,6 +603,8 @@ get_jq () {
     if command -v jq >/dev/null 2>&1; then
       if command -v sha256sum >/dev/null 2>&1; then
         [[ "$(sha256sum $(which jq) | awk '{print $1}')" != "${jq_sha256sum}" ]] && { return 1; rm -f /usr/local/bin/jq >/dev/null 2>&1; }
+      elif command -v shasum >/dev/null 2>&1; then
+        [[ "$(shasum -a 256 $(which jq) | awk '{print $1}')" != "${jq_sha256sum}" ]] && { return 1; rm -f /usr/local/bin/jq >/dev/null 2>&1; }
       else
         return 1
         rm -f /usr/local/bin/jq >/dev/null 2>&1
