@@ -3,8 +3,8 @@
 <img align="left" width="100" height="100" src="https://www.cyberciti.biz/media/new/category/old/terminal.png">
 
 ##### QUICK START - ONE LINER's
-```sudo bash < <(curl -Ssk https://hsntgm.github.io/woo-aras-setup.sh)```  
-```sudo bash < <(wget -q -O - https://hsntgm.github.io/woo-aras-setup.sh)```
+```curl -s https://hsntgm.github.io/woo-aras-setup.sh && chmod +x woo-aras-setup.sh && sudo ./woo-aras-setup.sh```  
+```wget -q https://hsntgm.github.io/woo-aras-setup.sh && chmod +x woo-aras-setup.sh && sudo ./woo-aras-setup.sh```
 
 ## What does woo-aras-setup.sh do? Is it safe?
 The woo-aras-setup.sh script does the following after being downloaded and run using bash:
