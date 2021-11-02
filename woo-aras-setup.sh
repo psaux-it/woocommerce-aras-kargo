@@ -938,16 +938,22 @@ install_ubuntu () {
   opts="-yq install"
   repo="update"
   if ! grep -r --include '*.list' '^deb ' /etc/apt/sources.list* | grep -q "multiverse"; then
-    add-apt-repository multiverse &>/dev/null
-    multiverse_enabled=1
+    add-apt-repository multiverse &>/dev/null &
+    my_wait "ADDING MULTIVERSE REPOSITORY" && { replace_suc "MULTIVERSE REPOSITORY ADDED  "; multiverse_enabled=1; } ||
+    { replace_fail "ADDING MULTIVERSE REPOSITORY FAILED"; i_error+=( "multiverse" ); }
   fi
   if ! grep -r --include '*.list' '^deb ' /etc/apt/sources.list* | grep -q "universe"; then
-    add-apt-repository universe &>/dev/null
-    universe_enabled=1
+    add-apt-repository universe &>/dev/null &
+    my_wait "ADDING UNIVERSE REPOSITORY" && { replace_suc "UNIVERSE REPOSITORY ADDED  "; universe_enabled=1; } ||
+    { replace_fail "ADDING UNIVERSE REPOSITORY FAILED"; i_error+=( "universe" ); }
   fi
   if ! grep -r --include '*.list' '^deb ' /etc/apt/sources.list* | grep -q "restricted"; then
-    add-apt-repository restricted &>/dev/null
-    restricted_enabled=1
+    add-apt-repository restricted &>/dev/null &
+    my_wait "ADDING RESTRICTED REPOSITORY" && { replace_suc "RESTRICTED REPOSITORY ADDED  "; restricted_enabled=1; } ||
+    { replace_fail "ADDING RESTRICTED REPOSITORY FAILED"; i_error+=( "restricted" ); }
+  fi
+  if (( ${#i_error[@]} )); then
+    fatal "ADDING REPOSITORIES FAILED --> ${i_error[*]}"
   fi
   $my_apt_get ${repo} &>/dev/null &
   my_wait "SYNCING REPOSITORY"
@@ -955,15 +961,20 @@ install_ubuntu () {
   $my_apt_get ${opts} "${packages[@]}" &>/dev/null &
   post_ops "INSTALLING PACKAGES"
   if [[ "${multiverse_enabled}" -eq 1 ]]; then
-    add-apt-repository --remove multiverse &>/dev/null
+    add-apt-repository --remove multiverse &>/dev/null &
+    my_wait "REMOVING MULTIVERSE REPOSITORY" && replace_suc "MULTIVERSE REPOSITORY REMOVED  "
   fi
   if [[ "${universe_enabled}" -eq 1 ]]; then
-    add-apt-repository --remove universe &>/dev/null
+    add-apt-repository --remove universe &>/dev/null &
+    my_wait "REMOVING UNIVERSE REPOSITORY" && replace_suc "UNIVERSE REPOSITORY REMOVED  "
   fi
   if [[ "${restricted_enabled}" -eq 1 ]]; then
     add-apt-repository --remove restricted &>/dev/null
+    my_wait "REMOVING RESTRICTED REPOSITORY" && replace_suc "RESTRICTED REPOSITORY REMOVED  "
   fi
-  $my_apt_get ${repo} &>/dev/null
+  $my_apt_get ${repo} &>/dev/null &
+  my_wait "RE-SYNCING REPOSITORY"
+  replace_suc "REPOSITORIES RE-SYNCED  "
 }
 
 install_gentoo () {
