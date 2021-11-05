@@ -111,7 +111,6 @@ send_mail_command="mail"
 # Properly configure your mail server and send mail command before enable
 # Set 0 to disable
 send_mail_err="1"
-send_mail_suc="1"
 
 # Set notify mail info
 mail_to="order_info@${company_domain}"
@@ -147,7 +146,6 @@ if command -v lsof >/dev/null 2>&1; then
 		check_mail_server=0
 	else
 		send_mail_err=0
-		send_mail_suc=0
 		check_mail_server=1
         fi
 elif command -v netstat >/dev/null 2>&1; then
@@ -155,7 +153,6 @@ elif command -v netstat >/dev/null 2>&1; then
 		check_mail_server=0
 	else
 		send_mail_err=0
-		send_mail_suc=0
 		check_mail_server=1
 	fi
 elif command -v ss >/dev/null 2>&1; then
@@ -163,7 +160,6 @@ elif command -v ss >/dev/null 2>&1; then
 		check_mail_server=0
 	else
 		send_mail_err=0
-		send_mail_suc=0
 		check_mail_server=1
 	fi
 fi
@@ -2235,7 +2231,7 @@ download () {
 			   "t_date" "s_date" "e_date" "wooaras_log" "send_mail_err"
 			   "company_name" "company_domain" "cron_minute" "cron_minute_update"
 			   "on_calendar" "delivery_time" "max_distance" "send_mail_command"
-			   "maxsize" "l_maxsize" "keep_debug" "send_mail_suc")
+			   "maxsize" "l_maxsize" "keep_debug")
 
 	for i in "${getold[@]}"
 	do
@@ -3804,15 +3800,13 @@ if [[ -e "${this_script_path}/.woo.aras.enb" ]]; then
 				# If you use 'sequential order number' plugins
 				order_number=$($m_curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/orders/$id" -K- <<< "-u ${api_key}:${api_secret}" -H "Content-Type: application/json" | $m_jq -r '[.meta_data]' | $m_awk '/_order_number/{getline; print}' | $m_awk -F: '{print $2}' | tr -d '"' | $m_sed -r 's/\s+//g' | tr " " "*" | tr "\t" "&")
 				# Notify shop manager -- HTML mail
-				if [[ "${send_mail_suc}" -eq 1 ]]; then
-					send_mail_suc < <($m_sed \
-								-e 's|$track|'"${track}"'|g' \
-								-e 's|$company_name|'"${company_name}"'|g' \
-								-e 's|$id|'"${id}"'|g' \
-								-e 's|$c_name|'"${c_name}"'|g' \
-								-e 's|$order_number|'"${order_number}"'|g' \
-								-e 's|$t_date|'"${t_date}"'|g' "${this_script_path}/emails/shipped.min.html") >/dev/null 2>&1
-				fi
+				send_mail_suc < <($m_sed \
+							-e 's|$track|'"${track}"'|g' \
+							-e 's|$company_name|'"${company_name}"'|g' \
+							-e 's|$id|'"${id}"'|g' \
+							-e 's|$c_name|'"${c_name}"'|g' \
+							-e 's|$order_number|'"${order_number}"'|g' \
+							-e 's|$t_date|'"${t_date}"'|g' "${this_script_path}/emails/shipped.min.html") >/dev/null 2>&1
 				echo "$(date +"%T,%d-%b-%Y"): ORDER MARKED AS SHIPPED: Order_Id=$id Order_Number=$order_number Aras_Tracking_Number=$track Customer_Info=$c_name" >> "${wooaras_log}"
 				echo "${green}*${reset} ${green}ORDER UPDATED AS COMPLETED: Order_Id=$id Order_Number=$order_number Aras_Tracking_Number=$track Customer_Info=$c_name${reset}"
 				sleep 10
@@ -3845,15 +3839,13 @@ if [[ -e "${this_script_path}/.woo.aras.enb" ]]; then
 					# Get order number if you use 'sequential order number' plugin
 					order_number=$($m_curl -s -X GET "https://$api_endpoint/wp-json/wc/v3/orders/$id" -K- <<< "-u ${api_key}:${api_secret}" -H "Content-Type: application/json" | $m_jq -r '[.meta_data]' | $m_awk '/_order_number/{getline; print}' | $m_awk -F: '{print $2}' | tr -d '"' | $m_sed -r 's/\s+//g' | tr " " "*" | tr "\t" "&")
 					# Notify shop manager -- HTML mail
-					if [[ "${send_mail_suc}" -eq 1 ]]; then
-						send_mail_suc < <($m_sed \
-									-e 's|$track|'"${track}"'|g' \
-									-e 's|$company_name|'"${company_name}"'|g' \
-									-e 's|$id|'"${id}"'|g' \
-									-e 's|$c_name|'"${c_name}"'|g' \
-									-e 's|$order_number|'"${order_number}"'|g' \
-									-e 's|$t_date|'"${t_date}"'|g' "${this_script_path}/emails/delivered.min.html") >/dev/null 2>&1
-					fi
+					send_mail_suc < <($m_sed \
+								-e 's|$track|'"${track}"'|g' \
+								-e 's|$company_name|'"${company_name}"'|g' \
+								-e 's|$id|'"${id}"'|g' \
+								-e 's|$c_name|'"${c_name}"'|g' \
+								-e 's|$order_number|'"${order_number}"'|g' \
+								-e 's|$t_date|'"${t_date}"'|g' "${this_script_path}/emails/delivered.min.html") >/dev/null 2>&1
 					echo "$(date +"%T,%d-%b-%Y"): ORDER MARKED AS DELIVERED: Order_Id=$id Order_Number=$order_number Customer_Info=$c_name" >> "${wooaras_log}"
 					echo "${green}*${reset} ${green}ORDER UPDATED AS DELIVERED: Order_Id=$id Order_Number=$order_number Customer_Info=$c_name${reset}"
 					sleep 10
