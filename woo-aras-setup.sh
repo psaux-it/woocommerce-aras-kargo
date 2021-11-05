@@ -397,6 +397,10 @@ get_package_list () {
     ['default']="jq"
   )
 
+  declare -A pkg_perl=(
+    ['default']="perl"
+  )
+
   declare -A pkg_perl_app_cpanminus=(
     ['centos']="perl-App-cpanminus"
     ['fedora']="perl-App-cpanminus"
