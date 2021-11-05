@@ -914,14 +914,14 @@ pre_start
 install_centos () {
   local group
   if [[ "${missing_deps[@]}" =~ "make" ]]; then
-    group="@'Development Tools'"
+    group=$'@\'Development Tools\''
   fi
   opts="-yq install"
   repo="update"
   echo n | $my_yum ${repo} &>/dev/null &
   my_wait "SYNCING REPOSITORY"
   replace_suc "REPOSITORIES SYNCED"
-  $my_yum ${opts} "${packages[@]}" ${group} &>/dev/null &
+  $my_yum ${opts} "${packages[@]}" "${group}" &>/dev/null &
   post_ops "INSTALLING PACKAGES"
 }
 
@@ -1060,21 +1060,21 @@ install_opensuse-tumbleweed () {
 install_fedora () {
   local group
   if [[ "${missing_deps[@]}" =~ "make" ]]; then
-    group="@'Development Tools'"
+    group=$'@\'Development Tools\''
   fi
   opts="-yq --setopt=strict=0 install"
   repo="distro-sync"
   echo n | $my_dnf ${repo} &>/dev/null &
   my_wait "SYNCING REPOSITORY"
   replace_suc "REPOSITORIES SYNCED"
-  $my_dnf ${opts} "${packages[@]}" ${group} &>/dev/null &
+  $my_dnf ${opts} "${packages[@]}" "${group}" &>/dev/null &
   post_ops "INSTALLING PACKAGES"
 }
 
 install_rhel () {
   local group
   if [[ "${missing_deps[@]}" =~ "make" ]]; then
-    group="@'Development Tools'"
+    group=$'@\'Development Tools\''
   fi
   if [[ "${my_yum}" ]]; then
     opts="-yq install"
@@ -1082,7 +1082,7 @@ install_rhel () {
     echo n | $my_yum ${repo} &>/dev/null &
     my_wait "SYNCING REPOSITORY"
     replace_suc "REPOSITORIES SYNCED"
-    $my_yum ${opts} "${packages[@]}" ${group} &>/dev/null &
+    $my_yum ${opts} "${packages[@]}" "${group}" &>/dev/null &
     post_ops "INSTALLING PACKAGES"
   else
     opts="-yq --setopt=strict=0 install"
@@ -1090,7 +1090,7 @@ install_rhel () {
     echo n | $my_dnf ${repo} &>/dev/null &
     my_wait "SYNCING REPOSITORY"
     replace_suc "REPOSITORIES SYNCED "
-    $my_dnf ${opts} "${packages[@]}" ${group} &>/dev/null &
+    $my_dnf ${opts} "${packages[@]}" "${group}" &>/dev/null &
     post_ops "INSTALLING PACKAGES"
   fi
 }
