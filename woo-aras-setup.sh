@@ -398,6 +398,7 @@ get_package_list () {
   )
 
   declare -A pkg_perl=(
+    ['gentoo']="dev-lang/perl"
     ['default']="perl"
   )
 
