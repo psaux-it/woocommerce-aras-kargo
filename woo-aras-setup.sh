@@ -20,6 +20,9 @@
 # -This is a wrapper/helper script for woocommerce and ARAS cargo integration setup.
 # -This script prepares environment for ARAS cargo integration.
 
+# Be nice on production
+renice 19 $$ > /dev/null 2> /dev/null
+
 # Set color
 setup_terminal () {
   green=""; red=""; reset=""; cyan=""; magenta=""; yellow=""; TPUT_RESET="";
