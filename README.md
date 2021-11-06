@@ -188,6 +188,7 @@ Critical part such as success mails, fronted&admin side custom order status labe
 - Ubuntu
 - CentOS
 - Fedora
+- Oracle Linux
 - RHEL
 - Arch
 - Manjaro
