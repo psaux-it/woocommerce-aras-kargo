@@ -1958,6 +1958,22 @@ enable () {
 }
 
 un_install () {
+	# Ask for integration system user removal
+	if grep -qE "^$(cat "${this_script_path}"/.env.ready 2>/dev/null | awk '{print $2}'):" "${pass_file}"; then
+		u_user="$(cat "${this_script_path}"/.env.ready 2>/dev/null | awk '{print $2}')"
+		while true; do
+			echo -e "\n${yellow}*${reset}${red}ATTENTION: ${yellow}You are about to remove integration system user with home folder!${reset}"
+			echo "${cyan}${m_tab}#####################################################${reset}"
+			read -r -n 1 -p "${m_tab}${BC}Do you want to remove system user ${u_user} with home folder /home/${u_user}? --> (Y)es | (N)o${EC} " yn < /dev/tty
+			echo ""
+			case "${yn}" in
+				[Yy]* ) remove_user=1; break;;
+				[Nn]* ) remove_user=0; break;;
+				* ) echo -e "\n${m_tab}${magenta}Please answer yes or no.${reset}";;
+			esac
+		done
+	fi
+
 	# Remove twoway fulfillment workflow
 	if [[ -e "${this_script_path}/.two.way.set" ]]; then
 		uninstall_twoway
@@ -1983,13 +1999,34 @@ un_install () {
 	fi
 
 	# Remove runtime files & debug data
-	rm -rf "${this_script_lck_path:?}"/.*lck >/dev/null 2>&1
-	rm -f "${this_script_path:?}/.woo.aras.set" >/dev/null 2>&1
-	rm -f "${this_script_path:?}/.woo.aras.enb" >/dev/null 2>&1
-	rm -rf "${my_tmp_folder:?}"/{*aras*,*wc*,*main*} >/dev/null 2>&1
+	if [[ "${remove_user}" ]]; then
+		if [[ "${remove_user}" -eq 0 ]]; then
+			rm -rf "${this_script_lck_path:?}"/.*lck >/dev/null 2>&1
+			rm -f "${this_script_path:?}/.woo.aras.set" >/dev/null 2>&1
+			rm -f "${this_script_path:?}/.woo.aras.enb" >/dev/null 2>&1
+			rm -rf "${my_tmp_folder:?}"/{*aras*,*wc*,*main*} >/dev/null 2>&1
 
-	echo "${yellow}*${reset} ${yellow}Runtime files & debug data removed:${reset}"
-	echo -e "${cyan}${m_tab}#####################################################${reset}\n"
+			echo "${yellow}*${reset} ${yellow}Runtime files & debug data removed:${reset}"
+			echo -e "${cyan}${m_tab}#####################################################${reset}\n"
+		else
+			rm -rf /home/"${u_user:?}" >/dev/null 2>&1
+			userdel "${u_user:?}" >/dev/null 2>&1
+			groupdel "${u_user:?}" >/dev/null 2>&1
+			rm -f /etc/sudoers.d/"${u_user:?}" >/dev/null 2>&1
+
+			echo "${yellow}*${reset} ${yellow}Integration system user with home folder removed:${reset}"
+			echo "${cyan}${m_tab}#####################################################${reset}"
+			echo -e "${yellow}${m_tab}User:${u_user}, Home_Folder=/home/${u_user}${reset}\n"
+		fi
+	else
+		rm -rf "${this_script_lck_path:?}"/.*lck >/dev/null 2>&1
+		rm -f "${this_script_path:?}/.woo.aras.set" >/dev/null 2>&1
+		rm -f "${this_script_path:?}/.woo.aras.enb" >/dev/null 2>&1
+		rm -rf "${my_tmp_folder:?}"/{*aras*,*wc*,*main*} >/dev/null 2>&1
+
+		echo "${yellow}*${reset} ${yellow}Runtime files & debug data removed:${reset}"
+		echo -e "${cyan}${m_tab}#####################################################${reset}\n"
+	fi
 
 	echo "${green}*${reset} ${green}Uninstallation completed${reset}"
 	echo -e "${cyan}${m_tab}#####################################################${reset}\n"
