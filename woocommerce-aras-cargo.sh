@@ -1024,13 +1024,13 @@ statistics () {
 			if (( ${#long_waiting_del[@]} )); then
 				echo -e "\n${green}*${reset} ${magenta}Automation Long Waiting Statistics:${reset}"
 				echo "${cyan}${m_tab}#####################################################${reset}"
-				echo "${green}  Tracking_Number          Order_ID      Customer Info${reset}"
+				echo "${green}  Tracking_Number  Order_ID  Waiting  Customer_Info  Status${reset}"
 
 				{ # Start redirection
 				for long in "${long_waiting_del[@]}"; do
 					echo "${magenta}${long}${reset}"
 				done
-				} | $my_column -o '            ' -t -s ' ' | $m_sed 's/^/  /' # End redirection { Piping created subshell and we lost all variables in command grouping }
+				} | $my_column -o '    ' -t -s ' ' | $m_sed 's/^/  /' # End redirection { Piping created subshell and we lost all variables in command grouping }
 			fi
 		fi
 	fi
