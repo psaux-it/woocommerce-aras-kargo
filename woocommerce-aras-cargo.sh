@@ -980,7 +980,57 @@ statistics () {
 		fi
 	fi
 
-	} | $my_column -o '       ' -t -s ' ' | $m_sed 's/^/  /' # End redirection { Piping created subshell and we lost all variables in command grouping }
+	} > "${this_script_path}/.stat.proc" # NOTE: End redirection to file
+	$my_column -o '       ' -t -s ' ' <<< "$(< "${this_script_path}/.stat.proc")" | $m_sed 's/^/  /'
+
+	if [[ $(( total_processed-total_processed_del )) -gt 0 ]]; then
+		if command -v zgrep >/dev/null 2>&1; then
+			declare -a waiting_del_ids
+			waiting_del_ids=( "$(comm -23 <(find "${wooaras_log%/*}/" -name \*.log* -print0 2>/dev/null | xargs -0 zgrep -i "SHIPPED" | cut -d : -f 2- | awk '{print $6}' | awk -F= '{print $2}' | sort -n) <(find "${wooaras_log%/*}/" -name \*.log* -print0 2>/dev/null | xargs -0 zgrep -i "DELIVERED" | cut -d : -f 2- | awk '{print $6}' | awk -F= '{print $2}' | sort -n))" )
+
+			if ! [[ -e "${this_script_path}/long.proc.del" ]]; then # These are always appended file and trap(cleanup) can fail
+				for id in "${waiting_del_ids[@]}"; do
+					find "${wooaras_log%/*}/" -name \*.log* -print0 2>/dev/null | xargs -0 zgrep -i "SHIPPED" | cut -d : -f 2- | grep "${id}" >> "${this_script_path}"/long.proc.del
+				done
+			fi
+
+			if [[ -s "${this_script_path}/long.proc.del" ]]; then
+				declare -a long_waiting_del
+				long_waiting_del=( "$(grep "SHIPPED" "${this_script_path}"/long.proc.del | $m_awk '{print $1,$6,$8}' | tr = ' ' | $m_awk '{print $1,$3,$5}' | $m_sed "s|^|$(date +"%T,%d-%b-%Y") |" | $m_awk '{print $3,$4,$1,$2}' |
+				$m_awk '
+				BEGIN{
+					num=split("jan,feb,mar,apr,may,jun,jul,aug,sep,oct,nov,dec",month,",")
+					for(i=1;i<=12;i++){
+					a[month[i]]=i
+					}
+				}
+				{
+				split($(NF-1),array,"[:,-]")
+				split($(NF),array1,"[:,-]")
+				val=mktime(array[6]" "a[tolower(array[5])]" "array[4]" "array[1]" "array[2]" "array[3])
+				val1=mktime(array1[6]" "a[tolower(array1[5])]" "array1[4]" "array1[1]" "array1[2]" "array1[3])
+				delta=val>=val1?val-val1:val1-val
+				hrs = int(delta/3600)
+				min = int((delta - hrs*3600)/60)
+				sec = delta - (hrs*3600 + min*60)
+				printf "%s\t%02d:%02d:%02d\n", $0, hrs, min, sec
+				hrs=min=sec=delta=""
+				}
+				' |
+				$m_awk '{print $1,$2,$5}' | tr : ' ' | $m_awk '{print $1,$2,$3/24}' | tr . ' ' | $m_awk '{print $3,$2,$1}' | $m_awk '(NR>0) && ($1 >= '"$delivery_time"')' | cut -f2- -d ' ')" )
+			fi
+
+			if (( ${#long_waiting_del[@]} )); then
+				echo -e "\n${green}*${reset} ${magenta}Automation Long Waiting Statistics:${reset}"
+				echo "${cyan}${m_tab}#####################################################${reset}"
+
+				{ # Start redirection
+				for long in "${long_waiting_del[@]}"; do
+					echo "${green}Today_New_Order: ${magenta}${today_new_order}${reset}"
+				done
+			fi
+		fi
+	fi
 
 	if ! command -v zgrep >/dev/null 2>&1; then
 		echo -e "\n${red}*${reset} ${red}zgrep not found!${reset}"
