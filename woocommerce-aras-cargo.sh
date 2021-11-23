@@ -768,7 +768,9 @@ fi
 # Debian based distributions affected by this bug
 # https://bugs.launchpad.net/ubuntu/+source/util-linux/+bug/1705437
 if ! column -V 2>/dev/null | grep -q "util-linux"; then
-  [[ -f "/usr/local/bin/column2" ]] && my_column="/usr/local/bin/column2" || my_column="${this_script_path}/miscellaneous/column2"
+	[[ -f "/usr/local/bin/column2" ]] && my_column="/usr/local/bin/column2" || my_column="${this_script_path}/miscellaneous/column2"
+else
+	my_column="$m_column"
 fi
 
 # Prevent iconv text translation errors
@@ -953,8 +955,8 @@ statistics () {
 	echo -e "\n${green}*${reset} ${magenta}Automation Statistics:${reset}"
 	echo "${cyan}${m_tab}#####################################################${reset}"
 
-	{ # Start redirection
 	if command -v zgrep >/dev/null 2>&1; then
+		{ # Start redirection
 		if [[ -s "${wooaras_log}" ]]; then
 			currentime_d=$(date +"%T,%d-%b-%Y" | awk -F, '{print $2}')
 			today_new_order=$(grep -c $(date +%Y-%m-%d) < <(echo "${date_created[@]}"))
@@ -968,6 +970,7 @@ statistics () {
 							xargs -0 zgrep -ci "DELIVERED" |
 							$m_awk 'BEGIN {cnt=0;FS=":"}; {cnt+=$2;}; END {print cnt;}')
 			fi
+
 			echo "${green}Today_New_Order: ${magenta}${today_new_order}${reset}"
 			echo "${green}Today_Shipped: ${magenta}${today_processed}${reset}"
 			echo "${green}Total_Shipped: ${magenta}${total_processed}${reset}"
@@ -1021,12 +1024,13 @@ statistics () {
 			if (( ${#long_waiting_del[@]} )); then
 				echo -e "\n${green}*${reset} ${magenta}Automation Long Waiting Statistics:${reset}"
 				echo "${cyan}${m_tab}#####################################################${reset}"
+				echo "${green}  Tracking_Number          Order_ID      Customer Info${reset}"
 
 				{ # Start redirection
 				for long in "${long_waiting_del[@]}"; do
 					echo "${magenta}${long}${reset}"
 				done
-				} | $my_column -o '       ' -t -s ' ' | $m_sed 's/^/  /' # End redirection { Piping created subshell and we lost all variables in command grouping }
+				} | $my_column -o '            ' -t -s ' ' | $m_sed 's/^/  /' # End redirection { Piping created subshell and we lost all variables in command grouping }
 			fi
 		fi
 	fi
