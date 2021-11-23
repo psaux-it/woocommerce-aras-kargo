@@ -978,13 +978,11 @@ statistics () {
 				echo "${green}Awaiting_Delivery: ${magenta}$((total_processed-total_processed_del))${reset}"
 			fi
 		fi
-	fi
 
-	} > "${this_script_path}/.stat.proc" # NOTE: End redirection to file
-	$my_column -o '       ' -t -s ' ' <<< "$(< "${this_script_path}/.stat.proc")" | $m_sed 's/^/  /'
+		} > "${this_script_path}/.stat.proc" # NOTE: End redirection to file
+		$my_column -o '       ' -t -s ' ' <<< "$(< "${this_script_path}/.stat.proc")" | $m_sed 's/^/  /'
 
-	if [[ $(( total_processed-total_processed_del )) -gt 0 ]]; then
-		if command -v zgrep >/dev/null 2>&1; then
+		if [[ $(( total_processed-total_processed_del )) -gt 0 ]]; then
 			declare -a waiting_del_ids
 			waiting_del_ids=( "$(comm -23 <(find "${wooaras_log%/*}/" -name \*.log* -print0 2>/dev/null | xargs -0 zgrep -i "SHIPPED" | cut -d : -f 2- | awk '{print $6}' | awk -F= '{print $2}' | sort -n) <(find "${wooaras_log%/*}/" -name \*.log* -print0 2>/dev/null | xargs -0 zgrep -i "DELIVERED" | cut -d : -f 2- | awk '{print $6}' | awk -F= '{print $2}' | sort -n))" )
 
@@ -1026,8 +1024,9 @@ statistics () {
 
 				{ # Start redirection
 				for long in "${long_waiting_del[@]}"; do
-					echo "${green}Today_New_Order: ${magenta}${today_new_order}${reset}"
+					echo "${magenta}${long}${reset}"
 				done
+				} | $my_column -o '       ' -t -s ' ' | $m_sed 's/^/  /' # End redirection { Piping created subshell and we lost all variables in command grouping }
 			fi
 		fi
 	fi
