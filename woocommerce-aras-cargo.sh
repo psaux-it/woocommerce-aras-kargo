@@ -984,7 +984,7 @@ statistics () {
 			} > "${this_script_path}/.stat.proc" # NOTE: End redirection to file
 			$my_column -o '       ' -t -s ' ' <<< "$(< "${this_script_path}/.stat.proc")" | $m_sed 's/^/  /'
 
-			# Awaiting delivery(long) statistics
+			# Awaiting delivery(long pending) statistics
 			if [[ $(( total_processed-total_processed_del )) -gt 0 ]]; then
 				declare -a waiting_del_ids
 				waiting_del_ids=( "$(comm -23 <(find "${wooaras_log%/*}/" -name \*.log* -print0 2>/dev/null | xargs -0 zgrep -i "SHIPPED" | cut -d : -f 2- | awk '{print $6}' | awk -F= '{print $2}' | sort -n) <(find "${wooaras_log%/*}/" -name \*.log* -print0 2>/dev/null | xargs -0 zgrep -i "DELIVERED" | cut -d : -f 2- | awk '{print $6}' | awk -F= '{print $2}' | sort -n))" )
@@ -1033,6 +1033,8 @@ statistics () {
 					} | $my_column -o '    ' -t -s ' ' | $m_sed 's/^/  /' # End redirection { Piping created subshell and we lost all variables in command grouping }
 				fi
 			fi
+
+			# Awaiting shipping(long pending) statistics
 		else
 			echo -e "\n${red}*${reset} ${red}${wooaras_log} not found!${reset}"
 			echo "${cyan}${m_tab}#######################################################################${reset}"
