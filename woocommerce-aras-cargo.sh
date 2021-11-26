@@ -997,7 +997,7 @@ statistics () {
 
 				if [[ -s "${this_script_path}/long.proc.del" ]]; then
 					declare -a long_waiting_del
-					long_waiting_del=( "$(grep "SHIPPED" "${this_script_path}"/long.proc.del | $m_awk '{print $1,$6,$8}' | tr = ' ' | $m_awk '{print $1,$3,$5}' | $m_sed "s|^|$(date +"%T,%d-%b-%Y") |" | $m_awk '{print $3,$4,$1,$2}' |
+					long_waiting_del=( "$(grep "SHIPPED" "${this_script_path}"/long.proc.del | $m_awk '{print $1,$6,$8,$9,$10}' | tr = ' ' | $m_awk '{print $1,$3,$5,$7,$8}' | $m_sed "s|^|$(date +"%T,%d-%b-%Y") |" | $m_awk '{print $5,$6,$3,$4,$1,$2}' |
 					$m_awk '
 					BEGIN{
 						num=split("jan,feb,mar,apr,may,jun,jul,aug,sep,oct,nov,dec",month,",")
@@ -1018,7 +1018,7 @@ statistics () {
 					hrs=min=sec=delta=""
 					}
 					' |
-					$m_awk '{print $1,$2,$5}' | tr : ' ' | $m_awk '{print $1,$2,$3/24}' | tr . ' ' | $m_awk '{print $3,$2,$1}' | $m_awk '(NR>0) && ($1 >= '"$delivery_time"')' | cut -f2- -d ' ')" )
+					$m_awk '{print $1,$2,$3,$4,$7}' | tr : ' ' | $m_awk '{print $5/24,$4,$3,$1,$2}' | tr . ' ' | $m_awk '{print $1,$3,$4,$5,$6}' | $m_awk '(NR>0) && ($1 >= '"$delivery_time"')' | $m_awk '{print $2,$3,$1,$4,$5}')" )
 				fi
 
 				if (( ${#long_waiting_del[@]} )); then
