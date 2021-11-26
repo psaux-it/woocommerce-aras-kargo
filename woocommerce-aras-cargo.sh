@@ -1018,19 +1018,26 @@ statistics () {
 					hrs=min=sec=delta=""
 					}
 					' |
-					$m_awk '{print $1,$2,$3,$4,$7}' | tr : ' ' | $m_awk '{print $5/24,$4,$3,$1,$2}' | tr . ' ' | $m_awk '{print $1,$3,$4,$5,$6}' | $m_awk '(NR>0) && ($1 >= '"$delivery_time"')' | $m_awk '{print $2,$3,$1,$4,$5}')" )
+					$m_awk '{print $1,$2,$3,$4,$7}' | tr : ' ' | $m_awk '{print $5/24,$4,$3,$1,$2}' | tr . ' ' | $m_awk '{print $1,$3,$4,$5,$6}' | $m_awk '(NR>0) && ($1 >= '"$delivery_time"')' | $m_awk '{print $2,$3,$1,$4"_"$5}')" )
 				fi
 
 				if (( ${#long_waiting_del[@]} )); then
 					echo -e "\n${green}*${reset} ${magenta}Automation Long Pending Deliveries Statistics:${reset}"
 					echo "${cyan}${m_tab}#####################################################${reset}"
-					echo "${green}  Tracking_Number  Order_ID  Waiting  Customer_Info  Status${reset}"
+					for ((i=0;i<${#long_waiting_del[@]};i++)); do
+						long_waiting_del[i]="${long_waiting_del[i]} AwaitingDelivery"
+					done
+					long_waiting_del=( "Tracking_Number Order_ID Waiting_Days Customer_Info Status" "${long_waiting_del[@]}" )
 
 					{ # Start redirection
 					for long in "${long_waiting_del[@]}"; do
-						echo "${magenta}${long}${reset}"
+						if [[ "${long}" == "${long_waiting_del[0]}" ]]; then
+							echo "${green}${long}${reset}"
+						else
+							echo "${magenta}${long}${reset}"
+						fi
 					done
-					} | $my_column -o '    ' -t -s ' ' | $m_sed 's/^/  /' # End redirection { Piping created subshell and we lost all variables in command grouping }
+					} | $my_column -o '  ' -t -s ' ' | $m_sed 's/^/  /' # End redirection { Piping created subshell and we lost all variables in command grouping }
 				fi
 			fi
 
