@@ -5,6 +5,7 @@
 ##### QUICK START - ONE LINER's
 ```sudo bash < <(curl -Ss https://hsntgm.github.io/woo-aras-setup.sh)```  
 ```sudo bash < <(wget -q -O - https://hsntgm.github.io/woo-aras-setup.sh)```
+![wooaras](https://user-images.githubusercontent.com/25556606/143774502-e322336d-f315-464f-8cab-1c0c009e23ff.gif)
 
 ## What does woo-aras-setup.sh do? Is it safe?
 The woo-aras-setup.sh script does the following after being downloaded and run using bash:
