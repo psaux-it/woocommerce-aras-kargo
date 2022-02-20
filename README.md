@@ -12,10 +12,10 @@ The woo-aras-setup.sh script does the following after being downloaded and run u
 
 * Detects the supported Linux distribution and installs the required runtime packages for Woo-Aras Automation.
 * For package installation it relies on distribution repositories except 'jq' and 'column' (not uniq in all distros)
-* Creates new working environment for Woo-Aras Automation, creates new system user (wooaras) with limited sudo privileges. 
-* Downloads the latest integration source tree to /home/wooaras/scripts/woocommerce-aras-kargo.
+* Creates new working environment for Woo-Aras Automation, creates new system user with limited sudo privileges. 
+* Downloads the latest integration source tree to user HOME path.
 * Install necessary locale [en_US] for iconv character string encoding
-* Calls main installation script by running ./woocommerce-aras-cargo.sh from the source tree, with --setup parameter.
+* Calls main installation script by running woocommerce-aras-cargo.sh.
 * Prints a installation status whether installation succeeded or failed for QA purposes.
 
 ---
