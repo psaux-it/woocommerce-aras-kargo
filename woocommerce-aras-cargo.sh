@@ -2810,7 +2810,7 @@ add_systemd () {
 		if ! grep -qi 'Permission denied' <<< "$(touch ${systemd_dir}/${service_filename} 2>&1)"; then
 			cat <<- WOOARAS > "${systemd_dir}/${service_filename}"
 			[Unit]
-			Description=woocommerce aras cargo integration script.
+			Description=WooCommerce Aras Cargo Integration
 			RequiresMountsFor=/var/log
 			RequiresMountsFor=/tmp
 			[Service]
