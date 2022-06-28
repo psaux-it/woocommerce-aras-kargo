@@ -2810,7 +2810,7 @@ add_systemd () {
 		if ! grep -qi 'Permission denied' <<< "$(touch ${systemd_dir}/${service_filename} 2>&1)"; then
 			cat <<- WOOARAS > "${systemd_dir}/${service_filename}"
 			[Unit]
-			Description=WooCommerce Aras Cargo Integration
+			Description=woocommerce aras cargo integration script.
 			RequiresMountsFor=/var/log
 			RequiresMountsFor=/tmp
 			[Service]
@@ -2827,6 +2827,8 @@ add_systemd () {
 			ReadWritePaths=/var /run ${this_script_path}
 			InaccessiblePaths=-/lost+found
 			ExecStart=${my_bash} ${systemd_script_full_path}
+			[Install]
+			WantedBy=multi-user.target
 			WOOARAS
 			[[ $? -ne 0 ]] && good_main=1
 		else
@@ -2838,11 +2840,12 @@ add_systemd () {
 		if ! grep -qi 'Permission denied' <<< "$(touch ${systemd_dir}/${timer_filename} 2>&1)"; then
 			cat <<- WOOARAS > "${systemd_dir}/${timer_filename}"
 			[Unit]
-			Description=woocommerce-aras timer - at every 30 minute from 9 through 19 on every day-of-week except Sunday
+			Description=woocommerce-aras timer - At every 30th minute past every hour from 9AM through 20PM expect Sunday
+			After=network-online.target
+			Requires=network-online.target
 			[Timer]
 			OnCalendar=${on_calendar}
 			Persistent=true
-			OnBootSec=2m
 			Unit=${service_filename}
 			[Install]
 			WantedBy=timers.target
@@ -3786,9 +3789,12 @@ do
 		good=true
 		while read -ra fields
 		do
-			if [[ ! (${fields[0]} =~ ^[+-]?[[:digit:]]+$ && ${fields[1]} =~ ^[a-z]+$ ) ]]; then
+			if [[ ! ${fields[0]} =~ ^[+-]?[[:digit:]]+$ ]]; then
 				good=false
 				break
+			fi
+			if [[ ! ${fields[1]} =~ ^[a-z]+$ ]]; then
+				$m_awk '{gsub("[0-9]","",$2)}1' "${en}" > "${en}.tmp" && mv "${en}.tmp" "${en}"
 			fi
 		done < "${en}"
 		if $good; then
