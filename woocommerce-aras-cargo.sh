@@ -3421,9 +3421,39 @@ aras_request () {
 	$m_php "${this_script_path}/aras_request.php" > "${this_script_path}/aras.json"
 	umask "${d_umask}"
 }
+aras_request
+
+# Check ARAS SOAP subscription type & merchant code is correct
+if [[ "${my_shell}" == "interactive" ]]; then
+	try=0
+	while ! [[ -s "${this_script_path}/aras.json" ]]
+	do
+		try=$((try+1))
+		[[ $try -eq 3 ]] && control_ops_try_exit "Too many bad try, could not get data from ARAS SOAP endpoint."
+		echo ""
+		echo -e "\n${red}*${reset} ${red}ARAS SOAP API connection error${reset}"
+		echo "${cyan}${m_tab}#####################################################${reset}"
+		echo "${m_tab}${red}Check your ARAS SOAP subscription type and merchant code!${reset}"
+		echo "${m_tab}${red}Make sure you subscripted to JSON membership,${reset}"
+		echo -e "${m_tab}${red}on ARAS commercial user control panel and try again.${reset}\n"
+		echo "$(timestamp): ARAS SOAP API connection error, check your ARAS SOAP subscription type is set to JSON on ARAS commercial user control panel. Also check your ARAS merchant code is correct." >> "${wooaras_log}"
+		while true
+		do
+			echo "${m_tab}${cyan}###########################################################################${reset}"
+			read -r -n 1 -p "${m_tab}${BC}Do you want to try again? --> (Y)es | (N)o${EC}" yn < /dev/tty
+			echo ""
+			case "${yn}" in
+				[Yy]* ) aras_request; break;;
+				[Nn]* ) exit 1;;
+				* ) echo -e "\n${m_tab}${magenta}Please answer yes or no.${reset}"; echo "${m_tab}${cyan}###########################################################################${reset}";;
+			esac
+		done
+	done
+elif ! [[ -s "${this_script_path}/aras.json" ]]; then
+	control_ops_exit "ARAS SOAP API connection error, check your ARAS SOAP subscription type is set to JSON on ARAS commercial user control panel. Also check your ARAS merchant code is correct."
+fi
 
 # Test Aras SOAP Endpoint
-aras_request
 if [[ "${my_shell}" == "interactive" ]]; then
 	try=0
 	while grep -q "error_4625264224" "${this_script_path}/aras.json"
@@ -3540,7 +3570,7 @@ if [[ "${my_shell}" == "interactive" ]]; then
 			done
 		fi
 
-		if [ -s "${this_script_path}/aras.json" ]; then
+		if [[ -s "${this_script_path}/aras.json" ]]; then
 			< "${this_script_path}/aras.json" $m_sed 's/^[^[]*://g' | $m_awk 'BEGIN{OFS=FS="]"};{$NF="";print $0}' > "${this_script_path}/aras.json.mod" || { echo "Couldn't modify aras.json"; exit 1; }
 		fi
 
@@ -3736,7 +3766,7 @@ fi
 
 # Two-way workflow, Parse ARAS JSON data with jq to get necessary data --> status, recipient{name,surname}, tracking number(delivered)
 if [[ -e "${this_script_path}/.two.way.enb" ]]; then
-	if [ -s "${this_script_path}/aras.json.mod" ]; then
+	if [[ -s "${this_script_path}/aras.json.mod" ]]; then
 		< "${this_script_path}/aras.json.mod" $m_jq -r '.[]|[.DURUM_KODU,.KARGO_TAKIP_NO,.ALICI]|join(" ")' | $m_sed '/^6/!d' | cut -f2- -d ' ' | $m_awk '{print $1}' | $m_awk '{if(NF>0) {print $0}}' > "${this_script_path}/aras.proc.del"
 	fi
 fi
