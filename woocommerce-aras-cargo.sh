@@ -949,6 +949,17 @@ curl_helper () {
 	hide_me --disable
 }
 
+# 
+zgrep_helper () {
+        if [[ "$(find "${wooaras_log%/*}/" -name \*.log* -type f | wc -l)" -gt 1 ]]; then
+                find "${wooaras_log%/*}/" -name \*.log* -print0 2>/dev/null |
+                        xargs -0 zgrep -ci "$1" |
+                        $m_awk 'BEGIN {cnt=0;FS=":"}; {cnt+=$2;}; END {print cnt;}'
+        else
+                find "${wooaras_log%/*}/" -name \*.log* -print0 2>/dev/null | xargs -0 zgrep -ci "$1"
+        fi
+}
+
 # Get total processed orders via automation (include rotated logs)
 # Variables in this function not visible by rest of script (caused by pipe) So no! need to set variables locally
 statistics () {
@@ -960,14 +971,10 @@ statistics () {
 			currentime_d=$(date +"%T,%d-%b-%Y" | awk -F, '{print $2}')
 			today_new_order=$(grep -c $(date +%Y-%m-%d) < <(echo "${date_created[@]}"))
 			today_processed=$(grep -c "SHIPPED" < <(grep "${currentime_d}" "${wooaras_log}"))
-			total_processed=$(find "${wooaras_log%/*}/" -name \*.log* -print0 2>/dev/null |
-						xargs -0 zgrep -ci "SHIPPED" |
-						$m_awk 'BEGIN {cnt=0;FS=":"}; {cnt+=$2;}; END {print cnt;}')
+			total_processed=$(zgrep_helper "SHIPPED")
 			if [[ "${ts_status}" == "Completed" ]]; then
 				today_processed_del=$(grep -c "DELIVERED" < <(grep "${currentime_d}" "${wooaras_log}"))
-				total_processed_del=$(find "${wooaras_log%/*}/" -name \*.log* -print0 2>/dev/null |
-							xargs -0 zgrep -ci "DELIVERED" |
-							$m_awk 'BEGIN {cnt=0;FS=":"}; {cnt+=$2;}; END {print cnt;}')
+				total_processed_del=$(zgrep_helper "DELIVERED")
 			fi
 
 			{ # Start redirection
