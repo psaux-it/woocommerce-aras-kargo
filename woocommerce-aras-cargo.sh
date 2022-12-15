@@ -3390,6 +3390,7 @@ if [[ ! -e "${this_script_path}/.woo.aras.set" ]]; then
 		exit 1
 	fi
 fi
+
 umask 066
 hide_me --enable
 # Create SOAP client to request ARAS cargo end
