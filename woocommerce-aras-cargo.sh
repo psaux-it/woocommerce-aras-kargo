@@ -3376,18 +3376,20 @@ fi
 # After successful curl respond with credentials we send a new curl request without credentials
 # CRITICAL: Throwing in error? Caching json requests!
 # If you have server side caching setup like fastcgi cache skip caching json requests
-w_curl_s
-if ! grep -q "401" "${this_script_path}/curl.proc"; then
-        echo -e "\n${red}*${reset}${red} You are caching wp-json request !${reset}"
-        echo "${cyan}${m_tab}#####################################################${reset}"
-        echo "${m_tab}${red}Deadly security vulnerability detected.${reset}"
-        echo "${m_tab}${red}Check your wordpress caching plugin configuration and be sure wp-json exluded.${reset}"
-        echo "${m_tab}${red}If you have server side caching setup,${reset}"
-	echo -e "${m_tab}${red}like fastcgi cache skip caching json requests.${reset}\n"
-	echo "$(timestamp): CRITICAL: You are caching wp-json requests, check your wordpress caching plugin configuration and be sure wp-json exluded" >> "${wooaras_log}"
-	exit 1
+# causes too many 401, now only triggers in setup time once --> patched in: 16.12.2022
+if [[ ! -e "${this_script_path}/.woo.aras.set" ]]; then
+	w_curl_s
+	if ! grep -q "401" "${this_script_path}/curl.proc"; then
+		echo -e "\n${red}*${reset}${red} You are caching wp-json request !${reset}"
+		echo "${cyan}${m_tab}#####################################################${reset}"
+		echo "${m_tab}${red}Deadly security vulnerability detected.${reset}"
+		echo "${m_tab}${red}Check your wordpress caching plugin configuration and be sure wp-json exluded.${reset}"
+		echo "${m_tab}${red}If you have server side caching setup,${reset}"
+		echo -e "${m_tab}${red}like fastcgi cache skip caching json requests.${reset}\n"
+		echo "$(timestamp): CRITICAL: You are caching wp-json requests, check your wordpress caching plugin configuration and be sure wp-json exluded" >> "${wooaras_log}"
+		exit 1
+	fi
 fi
-
 umask 066
 hide_me --enable
 # Create SOAP client to request ARAS cargo end
