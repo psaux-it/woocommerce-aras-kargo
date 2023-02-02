@@ -120,11 +120,13 @@ if ! column -V 2>/dev/null | grep -q "util-linux"; then
   {
   if command -v curl > /dev/null 2>&1; then
     curl -q -sSL https://psaux-it.github.io/column2
-  else
+  elif command -v wget > /dev/null 2>&1; then
     wget -qk https://psaux-it.github.io/column2
+  else
+    fatal "Install curl or wget, unsupported command, we need 'column' command from util-linux package"
   fi
   chmod +x column2
-  mkdir -p /usr/local/bin
+  [[ ! -d "/usr/local/bin" ]] && mkdir -p /usr/local/bin
   mv column2 /usr/local/bin/
   } >/dev/null 2>&1
   [[ -f "/usr/local/bin/column2" ]] && my_column="/usr/local/bin/column2" || fatal "Unsupported command, we need 'column' command from util-linux package"
