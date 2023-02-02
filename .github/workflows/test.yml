@@ -42,10 +42,7 @@ jobs:
       - name: Check out the repo
         uses: actions/checkout@v3
       - name: chmod woo-aras-setup.sh
-        run: |
-          chmod +x "${GITHUB_WORKSPACE}/woo-aras-setup.sh"
-          shell: bash
+        run: chmod +x "${GITHUB_WORKSPACE}/woo-aras-setup.sh"
       - name: run woo-aras-setup.sh
-        run: |
-          "${GITHUB_WORKSPACE}/woo-aras-setup.sh
-          shell: bash
+        run: bash "${GITHUB_WORKSPACE}/woo-aras-setup.sh
+        shell: bash
