@@ -25,13 +25,15 @@ permissions:
 
 jobs:
   run_tests:
-     matrix:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
         os: [ubuntu-latest ]
-	 runs-on: ${{ matrix.os }}
+    name:  woo-aras-setup.sh on ${{ matrix.os }}
     steps:
-    - uses: actions/checkout@v3
-    - name: Run script file
-      run: |
-         chmod +x ./woocommerce-aras-kargo/woo-aras-setup.sh
-         ./woocommerce-aras-kargo/woo-aras-setup.sh
-      shell: bash
+      - uses: actions/checkout@v3
+      - name: Run script file
+        run: |
+          chmod +x ./woocommerce-aras-kargo/woo-aras-setup.sh
+          ./woocommerce-aras-kargo/woo-aras-setup.sh
+          shell: bash
