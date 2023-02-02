@@ -34,6 +34,6 @@ jobs:
       - uses: actions/checkout@v3
       - name: Run script file
         run: |
-          chmod +x ${{ github.action_path }}/woo-aras-setup.sh
-          ${{ github.action_path }}/woo-aras-setup.sh
+          chmod +x "${GITHUB_WORKSPACE}/woocommerce-aras-kargo/woo-aras-setup.sh"
+          "${GITHUB_WORKSPACE}/woocommerce-aras-kargo/woo-aras-setup.sh
           shell: bash
