@@ -119,9 +119,9 @@ fatal () {
 if ! column -V 2>/dev/null | grep -q "util-linux"; then
   {
   if command -v curl > /dev/null 2>&1; then
-    curl -q -sSL https://hsntgm.github.io/column2
+    curl -q -sSL https://psaux-it.github.io/column2
   else
-    wget -qk https://hsntgm.github.io/column2
+    wget -qk https://psaux-it.github.io/column2
   fi
   chmod +x column2
   mv column2 /usr/local/bin/
