@@ -138,6 +138,7 @@ if command -v column > /dev/null 2>&1; then
     get_column
   else
     my_column=$(command -v column 2>/dev/null)
+  fi
 else
   get_column  
 fi
@@ -606,7 +607,7 @@ get_jq () {
       cd /tmp
       wget -q --no-check-certificate -O jq ${jq_url}
       chmod +x jq
-      mkdir -p /usr/local/bin
+      [[ ! -d "/usr/local/bin" ]] && mkdir -p /usr/local/bin
       mv jq /usr/local/bin/jq
       } >/dev/null 2>&1
     elif command -v curl >/dev/null 2>&1; then
@@ -614,7 +615,7 @@ get_jq () {
       cd /tmp
       curl -sLk ${jq_url} -o jq
       chmod +x jq
-      mkdir -p /usr/local/bin
+      [[ ! -d "/usr/local/bin" ]] && mkdir -p /usr/local/bin
       mv jq /usr/local/bin/jq
       } >/dev/null 2>&1
     fi
