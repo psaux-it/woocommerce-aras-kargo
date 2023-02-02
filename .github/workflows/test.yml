@@ -47,5 +47,5 @@ jobs:
       - name: Run woo-aras-setup.sh
         run: |
           chmod +x "${GITHUB_WORKSPACE}/woo-aras-setup.sh"
-          "${GITHUB_WORKSPACE}/woo-aras-setup.sh
+          /bin/bash "${GITHUB_WORKSPACE}/woo-aras-setup.sh
           shell: bash
