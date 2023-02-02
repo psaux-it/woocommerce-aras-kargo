@@ -46,5 +46,7 @@ jobs:
       - name: run woo-aras-setup.sh
         run: |
           chmod +x "${GITHUB_WORKSPACE}/woo-aras-setup.sh"
+          chmod +x "${GITHUB_WORKSPACE}/woocommerce-aras-cargo.sh"
+          sudo apt-get install -y iproute2
           "${GITHUB_WORKSPACE}/woo-aras-setup.sh"
           shell: bash
