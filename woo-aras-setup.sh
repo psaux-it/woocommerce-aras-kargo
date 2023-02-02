@@ -571,7 +571,7 @@ pre_start () {
 
     while :; do
       echo -e "\n${cyan}${m_tab}###################################################${reset}"
-      read -r -n 1 -p "${m_tab}${BC}Do you want to continue pre-setup? --> (Y)es | (N)o${EC} " yn < /dev/tty
+      read -r -n 1 -p "${m_tab}${BC}Do you want to continue pre-setup? --> (Y)es | (N)o${EC} " yn
       echo ""
       case "${yn}" in
         [Yy]* ) break;;
