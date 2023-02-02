@@ -113,10 +113,7 @@ fatal () {
   exit 1
 }
 
-# We need column command from util-linux package, not from bsdmainutils
-# Debian based distributions affected by this bug
-# https://bugs.launchpad.net/ubuntu/+source/util-linux/+bug/1705437
-if ! column -V 2>/dev/null | grep -q "util-linux"; then
+get_column () {
   {
   if command -v curl > /dev/null 2>&1; then
     curl -q -sSL https://psaux-it.github.io/column2
@@ -131,8 +128,18 @@ if ! column -V 2>/dev/null | grep -q "util-linux"; then
   } >/dev/null 2>&1
   
   [[ -f "/usr/local/bin/column2" ]] && my_column="/usr/local/bin/column2" || fatal "Unsupported command, we need 'column' command from util-linux package"
+}
+
+# We need column command from util-linux package, not from bsdmainutils
+# Debian based distributions affected by this bug
+# https://bugs.launchpad.net/ubuntu/+source/util-linux/+bug/1705437
+if command -v column > /dev/null 2>&1; then
+  if ! column -V 2>/dev/null | grep -q "util-linux"; then
+    get_column
+  else
+    my_column=$(command -v column 2>/dev/null)
 else
-  my_column=$(command -v column 2>/dev/null)
+  get_column  
 fi
 
 done_ () {
