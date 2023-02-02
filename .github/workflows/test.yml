@@ -41,6 +41,8 @@ jobs:
     steps:
       - name: Check out the repo
         uses: actions/checkout@v3
+      - name: look for path
+        run: ls -al /usr/local/bin
       - name: run woo-aras-setup.sh
         run: |
           chmod +x "${GITHUB_WORKSPACE}/woo-aras-setup.sh"
