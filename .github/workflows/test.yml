@@ -6,8 +6,8 @@ on:
       - 'custom-order-status-package/**'
       - 'emails/**'
       - 'miscellaneous/**'
-	  - 'tmp/**'
-	  - '.lck/**'
+      - 'tmp/**'
+      - '.lck/**'
       - '**.md'
       - 'CHANGELOG'
   pull_request:
@@ -15,8 +15,8 @@ on:
       - 'custom-order-status-package/**'
       - 'emails/**'
       - 'miscellaneous/**'
-	  - 'tmp/**'
-	  - '.lck/**'
+      - 'tmp/**'
+      - '.lck/**'
       - '**.md'
       - 'CHANGELOG'
 
