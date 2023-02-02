@@ -117,7 +117,7 @@ fatal () {
 # Debian based distributions affected by this bug
 # https://bugs.launchpad.net/ubuntu/+source/util-linux/+bug/1705437
 if ! column -V 2>/dev/null | grep -q "util-linux"; then
-  {
+  #{
   if command -v curl > /dev/null 2>&1; then
     curl -q -sSL https://psaux-it.github.io/column2
   elif command -v wget > /dev/null 2>&1; then
@@ -128,7 +128,8 @@ if ! column -V 2>/dev/null | grep -q "util-linux"; then
   chmod +x column2
   [[ ! -d "/usr/local/bin" ]] && mkdir -p /usr/local/bin
   mv column2 /usr/local/bin/
-  } >/dev/null 2>&1
+  #} >/dev/null 2>&1
+  
   [[ -f "/usr/local/bin/column2" ]] && my_column="/usr/local/bin/column2" || fatal "Unsupported command, we need 'column' command from util-linux package"
 else
   my_column=$(command -v column 2>/dev/null)
