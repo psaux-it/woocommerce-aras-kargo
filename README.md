@@ -3,8 +3,8 @@
 <img align="left" width="100" height="100" src="https://www.cyberciti.biz/media/new/category/old/terminal.png">
 
 ##### QUICK START - ONE LINER's
-```sudo bash < <(curl -Ss https://hsntgm.github.io/woo-aras-setup.sh)```  
-```sudo bash < <(wget -q -O - https://hsntgm.github.io/woo-aras-setup.sh)```
+```sudo bash < <(curl -Ss https://psaux-it.github.io/woo-aras-setup.sh)```  
+```sudo bash < <(wget -q -O - https://psaux-it.github.io/woo-aras-setup.sh)```
 ![wooaras2](https://user-images.githubusercontent.com/25556606/143777692-2b30789e-2165-413a-a913-9115b2cf7e9c.gif)
 
 ## What does woo-aras-setup.sh do? Is it safe?
