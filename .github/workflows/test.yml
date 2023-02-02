@@ -24,15 +24,27 @@ permissions:
   contents: read
 
 jobs:
-  run_tests:
-    runs-on: ${{ matrix.os }}
+  run-tests:
+    runs-on: ubuntu-latest
     strategy:
       matrix:
-        os: [ubuntu-latest ]
-    name:  woo-aras-setup.sh on ${{ matrix.os }}
+        container:
+          - 'debian:latest'
+          - 'ubuntu:latest'
+          - 'fedora:latest'
+          - 'centos:latest'
+          - 'manjarolinux/build'
+          - 'gentoo/stage3'
+          - 'arch:latest'
+          - 'oraclelinux:9'
+          - 'opensuse/leap:latest'
+          - 'opensuse/tumbleweed:latest'
+    container: ${{ matrix.container }}
+    name: woo-aras-setup.sh on ${{ matrix.container }}
     steps:
-      - uses: actions/checkout@v3
-      - name: Run script file
+      - name: Check out the repo
+        uses: actions/checkout@v3
+      - name: Run woo-aras-setup.sh
         run: |
           chmod +x "${GITHUB_WORKSPACE}/woo-aras-setup.sh"
           "${GITHUB_WORKSPACE}/woo-aras-setup.sh
