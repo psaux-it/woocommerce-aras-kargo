@@ -517,6 +517,11 @@ get_package_list () {
     ['opensuse-leap']="glibc-locale"
   )
 
+  declare -A pkg_gzip=(
+    ['gentoo']="app-arch/gzip"
+    ['default']="gzip"
+  )
+
   # Get package names from missing dependencies for running distribution
   for dep in "${missing_deps[@]}"
   do
@@ -930,7 +935,7 @@ fake_progress () {
 
 # Check hard dependencies that not in bash built-in or pre-installed commonly
 check_deps () {
-  declare -a dependencies=("curl" "openssl" "php" "perl" "whiptail" "logrotate" "git" "make" "gawk" "sudo" "locale-gen" "column")
+  declare -a dependencies=("curl" "openssl" "php" "perl" "whiptail" "logrotate" "git" "make" "gawk" "sudo" "locale-gen" "column" "gzip")
   if ! get_jq; then
     dependencies+=( "jq" )
   fi
