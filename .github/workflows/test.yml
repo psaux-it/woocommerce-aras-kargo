@@ -40,6 +40,6 @@ jobs:
           chmod +x "${GITHUB_WORKSPACE}/woocommerce-aras-cargo.sh"
           export github_2023=1
           apt-get -y update
-          apt-get -y install curl
+          apt-get -y install curl coreutils iproute2
           yes | "${GITHUB_WORKSPACE}/woo-aras-setup.sh"
           shell: bash
