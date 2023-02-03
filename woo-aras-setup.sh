@@ -387,10 +387,12 @@ check_locale () {
     m_ctype=$(locale | grep LC_CTYPE | cut -d= -f2 | cut -d_ -f1 | tr -d '"')
     if [[ "${m_ctype}" != "en" ]]; then
       if ! locale -a | grep -iq "en_US.utf8"; then
-        return 1
         locale_missing=1
+        return 1
       fi
     fi
+  else
+    return 1
   fi
   return 0
 }
