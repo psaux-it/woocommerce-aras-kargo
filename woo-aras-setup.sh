@@ -951,6 +951,7 @@ autodetect_package_manager || un_supported --pm
 } ||
 un_supported --os
 export distribution
+util_linux
 pre_start
 # +-----+-----+--->
 
