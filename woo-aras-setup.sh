@@ -1328,7 +1328,7 @@ locale_gen () {
 }
 
 # Try to generate needed locale kindly
-if [[ "${locale_missing}" ]]; then
+if ! check_locale; then
   if command -v locale-gen >/dev/null 2>&1; then
     if grep -iq "en_US.UTF-8" /etc/locale.gen; then
       sed -i -e 's/^# en_US\.UTF-8/en_US\.UTF-8/' /etc/locale.gen
@@ -1343,6 +1343,9 @@ if [[ "${locale_missing}" ]]; then
     replace_fail "INSTALLING LOCALE FAILED"
     fatal "FAIL_STAGE-4 --> CANNOT INSTALL en_US.UTF-8 LOCALE"
   fi
+else
+  fake_progress "INSTALLING LOCALE"
+  replace_suc "LOCALE INSTALLED "
 fi
 
 # @START THE SETUP
