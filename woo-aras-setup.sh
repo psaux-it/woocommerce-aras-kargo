@@ -495,8 +495,6 @@ get_package_list () {
   declare -A pkg_locale_gen=(
     ['debian']="locales"
     ['ubuntu']="locales"
-    ['opensuse-leap']="glibc-locale"
-    ['opensuse-tumbleweed']="glibc-locale"
     ['centos']="glibc"
     ['fedora']="glibc"
     ['rhel']="glibc"
@@ -515,8 +513,8 @@ get_package_list () {
     ['fedora']="glibc-langpack-en"
     ['centos']="glibc-langpack-en"
     ['rhel']="glibc-langpack-en"
-    ['opensuse-tumbleweed']="glibc-lang-base"
-    ['opensuse-leap']="glibc-lang-base"
+    ['opensuse-tumbleweed']="glibc-locale"
+    ['opensuse-leap']="glibc-locale"
   )
 
   # Get package names from missing dependencies for running distribution
