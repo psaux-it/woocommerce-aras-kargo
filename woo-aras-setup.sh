@@ -659,9 +659,9 @@ get_jq () {
 
     if command -v jq >/dev/null 2>&1; then
       if command -v sha256sum >/dev/null 2>&1; then
-        [[ "$(sha256sum $(type jq) | awk '{print $1}')" != "${jq_sha256sum}" ]] && { return 1; rm -f /usr/local/bin/jq >/dev/null 2>&1; }
+        [[ "$(sha256sum $(type jq | awk '{print $3}')" != "${jq_sha256sum}" ]] && { return 1; rm -f /usr/local/bin/jq >/dev/null 2>&1; }
       elif command -v shasum >/dev/null 2>&1; then
-        [[ "$(shasum -a 256 $(type jq) | awk '{print $1}')" != "${jq_sha256sum}" ]] && { return 1; rm -f /usr/local/bin/jq >/dev/null 2>&1; }
+        [[ "$(shasum -a 256 $(type jq | awk '{print $3}')" != "${jq_sha256sum}" ]] && { return 1; rm -f /usr/local/bin/jq >/dev/null 2>&1; }
       else
         return 1
         rm -f /usr/local/bin/jq >/dev/null 2>&1
