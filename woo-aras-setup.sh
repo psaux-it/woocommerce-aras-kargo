@@ -999,12 +999,19 @@ install_debian () {
   $my_apt_get ${repo} &>/dev/null &
   my_wait "SYNCING REPOSITORY"
   replace_suc "REPOSITORIES SYNCED"
-  $my_apt_get ${opts} "${packages[@]}" &>/dev/null &
+  DEBIAN_FRONTEND=noninteractive $my_apt_get ${opts} "${packages[@]}" &>/dev/null &
   post_ops "INSTALLING PACKAGES"
 }
 
+properties_common () {
+  if ! command -v add-apt-repository; then
+    apt-get -yq install software-properties-common &>/dev/null &
+    my_wait "INSTALLING PROPERTIES COMMON" && replace_suc "PROPERTIES COMMON INSTALLED  " || fatal "FAIL_STAGE-1 --> PROPERTIES COMMON CANNOT INSTALLED"
+  fi
+}
+
 install_ubuntu () {
-  # These are ubuntu based distro extra repositories
+  # These are ubuntu extra repositories
   local multiverse_enabled universe_enabled restricted_enabled
   multiverse_enabled=0
   universe_enabled=0
@@ -1012,16 +1019,19 @@ install_ubuntu () {
   opts="-yq install"
   repo="update"
   if ! grep -r --include '*.list' '^deb ' /etc/apt/sources.list* | grep -q "multiverse"; then
+    properties_common
     add-apt-repository multiverse &>/dev/null &
     my_wait "ADDING MULTIVERSE REPOSITORY" && { replace_suc "MULTIVERSE REPOSITORY ADDED  "; multiverse_enabled=1; } ||
     { replace_fail "ADDING MULTIVERSE REPOSITORY FAILED"; i_error+=( "multiverse" ); }
   fi
   if ! grep -r --include '*.list' '^deb ' /etc/apt/sources.list* | grep -q "universe"; then
+    properties_common
     add-apt-repository universe &>/dev/null &
     my_wait "ADDING UNIVERSE REPOSITORY" && { replace_suc "UNIVERSE REPOSITORY ADDED  "; universe_enabled=1; } ||
     { replace_fail "ADDING UNIVERSE REPOSITORY FAILED"; i_error+=( "universe" ); }
   fi
   if ! grep -r --include '*.list' '^deb ' /etc/apt/sources.list* | grep -q "restricted"; then
+    properties_common
     add-apt-repository restricted &>/dev/null &
     my_wait "ADDING RESTRICTED REPOSITORY" && { replace_suc "RESTRICTED REPOSITORY ADDED  "; restricted_enabled=1; } ||
     { replace_fail "ADDING RESTRICTED REPOSITORY FAILED"; i_error+=( "restricted" ); }
@@ -1032,7 +1042,7 @@ install_ubuntu () {
   $my_apt_get ${repo} &>/dev/null &
   my_wait "SYNCING REPOSITORY"
   replace_suc "REPOSITORIES SYNCED"
-  $my_apt_get ${opts} "${packages[@]}" &>/dev/null &
+  DEBIAN_FRONTEND=noninteractive $my_apt_get ${opts} "${packages[@]}" &>/dev/null &
   post_ops "INSTALLING PACKAGES"
   if [[ "${multiverse_enabled}" -eq 1 ]]; then
     add-apt-repository --remove multiverse &>/dev/null
