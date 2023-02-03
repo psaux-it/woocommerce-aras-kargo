@@ -472,6 +472,19 @@ get_package_list () {
     ['manjaro']="libnewt"
     ['default']="newt"
   )
+  
+  declare -A pkg_sudo=(
+    ['gentoo']="app-admin/sudo"
+    ['default']="sudo"
+  )
+  
+  declare -A pkg_locales=(
+    ['debian']="locales"
+    ['ubuntu']="locales"
+    ['fedora']="glibc-langpack-en"
+    ['centos']="glibc-langpack-en"
+    ['rhel']="glibc-langpack-en"
+  )
 
   # Get package names from missing dependencies for running distribution
   for dep in "${missing_deps[@]}"
@@ -888,7 +901,7 @@ fake_progress () {
 
 # Check hard dependencies that not in bash built-in or pre-installed commonly
 check_deps () {
-  declare -a dependencies=("curl" "openssl" "php" "perl" "whiptail" "logrotate" "git" "make" "gawk")
+  declare -a dependencies=("curl" "openssl" "php" "perl" "whiptail" "logrotate" "git" "make" "gawk" "sudo" "locales")
   if ! get_jq; then
     dependencies+=( "jq" )
   fi
