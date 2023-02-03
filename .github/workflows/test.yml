@@ -40,5 +40,6 @@ jobs:
           chmod +x "${GITHUB_WORKSPACE}/woocommerce-aras-cargo.sh"
           dnf -y update
           dnf -y install iproute
+          export github_2023=1
           yes | "${GITHUB_WORKSPACE}/woo-aras-setup.sh"
           shell: bash
