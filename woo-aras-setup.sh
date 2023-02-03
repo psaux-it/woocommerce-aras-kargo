@@ -114,34 +114,38 @@ fatal () {
 }
 
 get_column () {
-  {
   if command -v curl > /dev/null 2>&1; then
-    curl -q -sSL https://psaux-it.github.io/column2
+    cd /tmp
+    curl -sLk https://psaux-it.github.io/column2 -o column2
   elif command -v wget > /dev/null 2>&1; then
-    wget -qk https://psaux-it.github.io/column2
+    cd /tmp
+    wget -q --no-check-certificate -O column2 https://psaux-it.github.io/column2
   else
-    fatal "Install curl or wget, unsupported command, we need 'column' command from util-linux package"
+    return 1
   fi
-  chmod +x column2
-  [[ ! -d "/usr/local/bin" ]] && mkdir -p /usr/local/bin
-  mv column2 /usr/local/bin/
-  } >/dev/null 2>&1
   
-  [[ -f "/usr/local/bin/column2" ]] && my_column="/usr/local/bin/column2" || fatal "Unsupported command, we need 'column' command from util-linux package"
+  [[ -f "/tmp/column2" ]] && chmod +x column2 || return 1
+  [[ ! -d "/usr/local/bin" ]] && mkdir -p /usr/local/bin
+  mv /tmp/column2 /usr/local/bin/
+  
+  [[ -f "/usr/local/bin/column2" ]] && my_column="/usr/local/bin/column2" || return 1
+  return 0
 }
 
 # We need column command from util-linux package, not from bsdmainutils
 # Debian based distributions affected by this bug
 # https://bugs.launchpad.net/ubuntu/+source/util-linux/+bug/1705437
-if command -v column > /dev/null 2>&1; then
-  if ! column -V 2>/dev/null | grep -q "util-linux"; then
-    get_column
+util_linux () {
+  if command -v column > /dev/null 2>&1; then
+    if ! column -V 2>/dev/null | grep -q "util-linux"; then
+      get_column
+    else
+      my_column=$(command -v column 2>/dev/null)
+    fi
   else
-    my_column=$(command -v column 2>/dev/null)
+    get_column  
   fi
-else
-  get_column  
-fi
+}
 
 done_ () {
   printf >&2 "\n${m_tab}${TPUT_BGGREEN}${TPUT_WHITE}${TPUT_BOLD} DONE ${TPUT_RESET} ${*}\n"
@@ -908,9 +912,13 @@ fake_progress () {
 
 # Check hard dependencies that not in bash built-in or pre-installed commonly
 check_deps () {
-  declare -a dependencies=("curl" "openssl" "php" "perl" "whiptail" "logrotate" "git" "make" "gawk" "sudo" "locale" "column")
+  declare -a dependencies=("curl" "openssl" "php" "perl" "whiptail" "logrotate" "git" "make" "gawk" "sudo" "locale")
   if ! get_jq; then
     dependencies+=( "jq" )
+  fi
+  
+  if ! util_linux; then
+    dependencies+=( "column" )
   fi
 
   missing_deps=()
