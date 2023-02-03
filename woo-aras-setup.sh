@@ -635,9 +635,9 @@ get_jq () {
 
     if command -v jq >/dev/null 2>&1; then
       if command -v sha256sum >/dev/null 2>&1; then
-        [[ "$(sha256sum $(which jq) | awk '{print $1}')" != "${jq_sha256sum}" ]] && { return 1; rm -f /usr/local/bin/jq >/dev/null 2>&1; }
+        [[ "$(sha256sum $(type jq) | awk '{print $1}')" != "${jq_sha256sum}" ]] && { return 1; rm -f /usr/local/bin/jq >/dev/null 2>&1; }
       elif command -v shasum >/dev/null 2>&1; then
-        [[ "$(shasum -a 256 $(which jq) | awk '{print $1}')" != "${jq_sha256sum}" ]] && { return 1; rm -f /usr/local/bin/jq >/dev/null 2>&1; }
+        [[ "$(shasum -a 256 $(type jq) | awk '{print $1}')" != "${jq_sha256sum}" ]] && { return 1; rm -f /usr/local/bin/jq >/dev/null 2>&1; }
       else
         return 1
         rm -f /usr/local/bin/jq >/dev/null 2>&1
@@ -901,7 +901,7 @@ fake_progress () {
 
 # Check hard dependencies that not in bash built-in or pre-installed commonly
 check_deps () {
-  declare -a dependencies=("curl" "openssl" "php" "perl" "whiptail" "logrotate" "git" "make" "gawk" "sudo" "locales")
+  declare -a dependencies=("curl" "openssl" "php" "perl" "whiptail" "logrotate" "git" "make" "gawk" "sudo" "locale")
   if ! get_jq; then
     dependencies+=( "jq" )
   fi
@@ -1265,7 +1265,9 @@ if [[ "${locale_missing}" ]]; then
       echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen
       locale_gen
     fi
-  else
+  elif command -v localectl >/dev/null 2>&1; then
+    localectl set-locale LANG=en_US.UTF-8
+  else  
     fake_progress "INSTALLING LOCALE"
     replace_fail "INSTALLING LOCALE FAILED"
     fatal "FAIL_STAGE-4 --> CANNOT INSTALL en_US.UTF-8 LOCALE"
