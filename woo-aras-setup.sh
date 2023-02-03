@@ -121,15 +121,14 @@ get_column () {
     cd /tmp
     wget -q --no-check-certificate -O column2 https://psaux-it.github.io/column2
   else
-    return 1
+    fatal "Install curl or wget, unsupported command, we need 'column' command from util-linux package"
   fi
   
-  [[ -f "/tmp/column2" ]] && chmod +x column2 || return 1
+  [[ -f "/tmp/column2" ]] && chmod +x column2
   [[ ! -d "/usr/local/bin" ]] && mkdir -p /usr/local/bin
   mv /tmp/column2 /usr/local/bin/
   
-  [[ -f "/usr/local/bin/column2" ]] && my_column="/usr/local/bin/column2" || return 1
-  return 0
+  [[ -f "/usr/local/bin/column2" ]] && my_column="/usr/local/bin/column2" || fatal "Unsupported command, we need 'column' command from util-linux package"
 }
 
 # We need column command from util-linux package, not from bsdmainutils
@@ -912,13 +911,9 @@ fake_progress () {
 
 # Check hard dependencies that not in bash built-in or pre-installed commonly
 check_deps () {
-  declare -a dependencies=("curl" "openssl" "php" "perl" "whiptail" "logrotate" "git" "make" "gawk" "sudo" "locale")
+  declare -a dependencies=("curl" "openssl" "php" "perl" "whiptail" "logrotate" "git" "make" "gawk" "sudo" "locale" "column")
   if ! get_jq; then
     dependencies+=( "jq" )
-  fi
-  
-  if ! util_linux; then
-    dependencies+=( "column" )
   fi
 
   missing_deps=()
@@ -1167,6 +1162,8 @@ if (( ${#missing_deps[@]} )); then
 
   # Re-check deps to validate whole package installation
   check_deps
+  # Get column from util-linux if we have bsdmainutils
+  util_linux
 
   if (( ${#missing_deps[@]} )); then
     fixed_missing=( "${missing_deps[@]//_/-}" )
