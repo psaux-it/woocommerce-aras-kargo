@@ -384,6 +384,19 @@ autodetect_distribution () {
   esac
 }
 
+check_locale () {
+  if command -v locale >/dev/null 2>&1; then
+    m_ctype=$(locale | grep LC_CTYPE | cut -d= -f2 | cut -d_ -f1 | tr -d '"')
+    if [[ "${m_ctype}" != "en" ]]; then
+      if ! locale -a | grep -iq "en_US.utf8"; then
+        return 1
+        locale_missing=1
+      fi
+    fi
+  fi
+  return 0
+}
+
 # Package lists for distributions
 get_package_list () {
   declare -A pkg_make=(
@@ -484,16 +497,25 @@ get_package_list () {
   declare -A pkg_locale=(
     ['debian']="locales"
     ['ubuntu']="locales"
-    ['fedora']="glibc-langpack-en"
-    ['centos']="glibc-langpack-en"
-    ['rhel']="glibc-langpack-en"
+    ['opensuse-leap']="glibc-locale"
+    ['opensuse-tumbleweed']="glibc-locale"
   )
   
-    declare -A pkg_column=(
+  declare -A pkg_column=(
     ['gentoo']="sys-apps/util-linux"
     ['debian']="bsdmainutils"
     ['ubuntu']="bsdmainutils"
     ['default']="util-linux"
+  )
+  
+  declare -A pkg_lang=(
+    ['debian']="language-pack-en"
+    ['ubuntu']="language-pack-en"
+    ['fedora']="glibc-langpack-en"
+    ['centos']="glibc-langpack-en"
+    ['rhel']="glibc-langpack-en"
+    ['opensuse-tumbleweed']="glibc-lang-base"
+    ['opensuse-leap']="glibc-lang-base"
   )
 
   # Get package names from missing dependencies for running distribution
@@ -503,16 +525,10 @@ get_package_list () {
     [[ ! "${p}" ]] && eval "p=\${pkg_${dep}['default']}"
     [[ "${p}" ]] && packages+=( "${p}" )
   done
-}
-
-check_locale () {
-  if command -v locale >/dev/null 2>&1; then
-    m_ctype=$(locale | grep LC_CTYPE | cut -d= -f2 | cut -d_ -f1 | tr -d '"')
-    if [[ "${m_ctype}" != "en" ]]; then
-      if ! locale -a | grep -iq "en_US.utf8"; then
-        locale_missing=1
-      fi
-    fi
+  
+  if ! check_locale; then
+    eval "p=\${pkg_lang['${distribution,,}']}"
+    [[ "${p}" ]] && packages+=( "${p}" )
   fi
 }
 
@@ -1278,8 +1294,6 @@ if [[ "${locale_missing}" ]]; then
       echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen
       locale_gen
     fi
-  elif command -v localectl >/dev/null 2>&1; then
-    localectl set-locale LANG=en_US.UTF-8
   else  
     fake_progress "INSTALLING LOCALE"
     replace_fail "INSTALLING LOCALE FAILED"
