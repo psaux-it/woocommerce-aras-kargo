@@ -102,7 +102,7 @@ usage () {
 export new_user="wooaras"
 export setup_key="$(cat /sys/class/net/$(ip route show default | awk '/default/ {print $5}')/address | tr -d ':')"
 export working_path="/home/${new_user}/scripts/woocommerce-aras-kargo"
-git_repo="https://github.com/hsntgm/woocommerce-aras-kargo.git"
+git_repo="https://github.com/psaux-it/woocommerce-aras-kargo.git"
 sudoers_file="/etc/sudoers"
 pass_file="/etc/passwd"
 portage_php="/etc/portage/package.use/woo_php"
