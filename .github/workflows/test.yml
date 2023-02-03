@@ -41,5 +41,5 @@ jobs:
           export github_2023=1
           apt-get -y update
           apt-get -y install curl sudo iproute2
-          yes | "${GITHUB_WORKSPACE}/woo-aras-setup.sh"
+          yes | bash -x "${GITHUB_WORKSPACE}/woo-aras-setup.sh"
           shell: bash
