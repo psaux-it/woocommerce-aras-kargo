@@ -39,6 +39,6 @@ jobs:
           chmod +x "${GITHUB_WORKSPACE}/woo-aras-setup.sh"
           chmod +x "${GITHUB_WORKSPACE}/woocommerce-aras-cargo.sh"
           apt-get update
-          apt-get install -y iproute2 curl wget bsdmainutils sudo
+          apt-get install -y iproute2 curl wget bsdmainutils sudo locales
           yes | "${GITHUB_WORKSPACE}/woo-aras-setup.sh"
           shell: bash
