@@ -28,7 +28,7 @@ jobs:
     strategy:
       matrix:
         container:
-          - 'fedora:latest'
+          - 'debian:latest'
     container: ${{ matrix.container }}
     name: woo-aras-setup.sh on ${{ matrix.container }}
     steps:
@@ -38,8 +38,6 @@ jobs:
         run: |
           chmod +x "${GITHUB_WORKSPACE}/woo-aras-setup.sh"
           chmod +x "${GITHUB_WORKSPACE}/woocommerce-aras-cargo.sh"
-          dnf -y update
-          dnf -y install iproute
           export github_2023=1
           yes | "${GITHUB_WORKSPACE}/woo-aras-setup.sh"
           shell: bash
