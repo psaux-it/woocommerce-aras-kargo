@@ -523,6 +523,11 @@ get_package_list () {
     ['gentoo']="app-arch/gzip"
     ['default']="gzip"
   )
+  
+  declare -A pkg_systemctl=(
+    ['gentoo']="sys-apps/systemd"
+    ['default']="systemd"
+  )
 
   # Get package names from missing dependencies for running distribution
   for dep in "${missing_deps[@]}"
@@ -937,7 +942,7 @@ fake_progress () {
 
 # Check hard dependencies that not in bash built-in or pre-installed commonly
 check_deps () {
-  declare -a dependencies=("curl" "openssl" "php" "perl" "whiptail" "logrotate" "git" "make" "gawk" "sudo" "locale-gen" "column" "gzip")
+  declare -a dependencies=("curl" "openssl" "php" "perl" "whiptail" "logrotate" "git" "make" "gawk" "sudo" "locale-gen" "column" "gzip" "systemctl")
   if ! get_jq; then
     dependencies+=( "jq" )
   fi
