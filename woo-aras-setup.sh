@@ -1190,10 +1190,27 @@ if (( ${#missing_deps[@]} )); then
   # Get column from util-linux if we have bsdmainutils
   util_linux
 
-  # opensuse not doing well with locale-gen
+  ###################################################################################
+  # NOT TRY TO REMOVE ELEMENTS FROM ARRAY THIS WAY
+  # LEAVES EMPTY STRING -- NOT REFLECTING TO ARRAY LENGHT
+  ###################################################################################
+  # if [[ "${distribution}" == @(opensuse-leap|opensuse-tumbleweed|opensuse) ]]; then
+  #   if [[ "${missing_deps[@]}" =~ "locale-gen" ]]; then
+  #     missing_deps=( "${missing_deps[@]/locale-gen}" )
+  #   fi
+  # fi
+  
+  ###################################################################################
+  # YOU CAN WALK IN ARRAY, FIND TARGET ELEMENT AND UNSET IT, BUT
+  # CAUSES INDICES SEQUENCE BROKEN YOU NEED TO RECREATE ARRAY FOR GAPS !
+  ###################################################################################
   if [[ "${distribution}" == @(opensuse-leap|opensuse-tumbleweed|opensuse) ]]; then
     if [[ "${missing_deps[@]}" =~ "locale-gen" ]]; then
-      missing_deps=( "${missing_deps[@]/locale-gen}" )
+      for i in "${!missing_deps[@]}"; do
+        if [[ ${missing_deps[i]} = "locale-gen" ]]; then
+          unset 'missing_deps[i]'
+        fi
+      done
     fi
   fi
 
