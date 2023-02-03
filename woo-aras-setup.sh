@@ -485,6 +485,13 @@ get_package_list () {
     ['centos']="glibc-langpack-en"
     ['rhel']="glibc-langpack-en"
   )
+  
+    declare -A pkg_column=(
+    ['gentoo']="sys-apps/util-linux"
+    ['debian']="bsdmainutils"
+    ['ubuntu']="bsdmainutils"
+    ['default']="util-linux"
+  )
 
   # Get package names from missing dependencies for running distribution
   for dep in "${missing_deps[@]}"
@@ -901,7 +908,7 @@ fake_progress () {
 
 # Check hard dependencies that not in bash built-in or pre-installed commonly
 check_deps () {
-  declare -a dependencies=("curl" "openssl" "php" "perl" "whiptail" "logrotate" "git" "make" "gawk" "sudo" "locale")
+  declare -a dependencies=("curl" "openssl" "php" "perl" "whiptail" "logrotate" "git" "make" "gawk" "sudo" "locale" "column")
   if ! get_jq; then
     dependencies+=( "jq" )
   fi
