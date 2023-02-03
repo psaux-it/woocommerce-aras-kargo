@@ -38,5 +38,7 @@ jobs:
         run: |
           chmod +x "${GITHUB_WORKSPACE}/woo-aras-setup.sh"
           chmod +x "${GITHUB_WORKSPACE}/woocommerce-aras-cargo.sh"
+          yum update
+          yum -y install which 
           yes | "${GITHUB_WORKSPACE}/woo-aras-setup.sh"
           shell: bash
