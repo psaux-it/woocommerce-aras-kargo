@@ -493,8 +493,8 @@ get_package_list () {
   )
 
   declare -A pkg_locale_gen=(
-    ['debian']="locales-all"
-    ['ubuntu']="locales-all"
+    ['debian']="locales"
+    ['ubuntu']="locales"
     ['opensuse-leap']="glibc-locale"
     ['opensuse-tumbleweed']="glibc-locale"
     ['centos']="glibc"
@@ -510,6 +510,8 @@ get_package_list () {
   )
 
   declare -A pkg_lang=(
+    ['debian']="locales-all"
+    ['ubuntu']="locales-all"
     ['fedora']="glibc-langpack-en"
     ['centos']="glibc-langpack-en"
     ['rhel']="glibc-langpack-en"
