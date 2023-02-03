@@ -1185,6 +1185,13 @@ if (( ${#missing_deps[@]} )); then
   # Get column from util-linux if we have bsdmainutils
   util_linux
 
+  # opensuse not doing well with locale-gen
+  if [[ "${distribution}" == @(opensuse-leap|opensuse-tumbleweed|opensuse) ]]; then
+    if [[ "${missing_deps[@]}" =~ "locale-gen" ]]; then
+      missing_deps=( "${missing_deps[@]/locale-gen}" )
+    fi
+  fi
+
   if (( ${#missing_deps[@]} )); then
     fixed_missing=( "${missing_deps[@]//_/-}" )
     fatal "FAIL_STAGE-1 --> CANNOT INSTALL: ${fixed_missing[*]/perl-text-fuzzy/Text::Fuzzy}"
