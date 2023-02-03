@@ -1128,7 +1128,7 @@ if (( ${#missing_deps[@]} )); then
   if ! (( ${#fail[@]} )); then
     replace_suc "PACKAGES INSTALLED "
     if [[ "${missing_deps[@]}" =~ "fuzzy" ]]; then
-        cpanm -Sq Text::Fuzzy &>/dev/null &
+        cpanm -q Text::Fuzzy &>/dev/null &
         my_wait "INSTALLING PERL MODULES" && replace_suc "PERL MODULES INSTALLED " || replace_fail "INSTALLING PERL MODULES FAILED"
     fi
   else
