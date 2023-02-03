@@ -28,7 +28,7 @@ jobs:
     strategy:
       matrix:
         container:
-          - 'centos-stream-9'
+          - 'fedora:latest'
     container: ${{ matrix.container }}
     name: woo-aras-setup.sh on ${{ matrix.container }}
     steps:
