@@ -486,29 +486,30 @@ get_package_list () {
     ['manjaro']="libnewt"
     ['default']="newt"
   )
-  
+
   declare -A pkg_sudo=(
     ['gentoo']="app-admin/sudo"
     ['default']="sudo"
   )
-  
-  declare -A pkg_locale=(
-    ['debian']="locales"
-    ['ubuntu']="locales"
+
+  declare -A pkg_locale_gen=(
+    ['debian']="locales-all"
+    ['ubuntu']="locales-all"
     ['opensuse-leap']="glibc-locale"
     ['opensuse-tumbleweed']="glibc-locale"
+    ['centos']="glibc"
+    ['fedora']="glibc"
+    ['rhel']="glibc"
   )
-  
+
   declare -A pkg_column=(
     ['gentoo']="sys-apps/util-linux"
     ['debian']="bsdmainutils"
     ['ubuntu']="bsdmainutils"
     ['default']="util-linux"
   )
-  
+
   declare -A pkg_lang=(
-    ['debian']="language-pack-en"
-    ['ubuntu']="language-pack-en"
     ['fedora']="glibc-langpack-en"
     ['centos']="glibc-langpack-en"
     ['rhel']="glibc-langpack-en"
@@ -925,7 +926,7 @@ fake_progress () {
 
 # Check hard dependencies that not in bash built-in or pre-installed commonly
 check_deps () {
-  declare -a dependencies=("curl" "openssl" "php" "perl" "whiptail" "logrotate" "git" "make" "gawk" "sudo" "locale" "column")
+  declare -a dependencies=("curl" "openssl" "php" "perl" "whiptail" "logrotate" "git" "make" "gawk" "sudo" "locale-gen" "column")
   if ! get_jq; then
     dependencies+=( "jq" )
   fi
