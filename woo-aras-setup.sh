@@ -520,11 +520,15 @@ get_package_list () {
   # Get package names from missing dependencies for running distribution
   for dep in "${missing_deps[@]}"
   do
+    if [[ "${dep}" == "locale-gen" ]]; then
+      dep="locale_gen"
+    fi
+
     eval "p=\${pkg_${dep}['${distribution,,}']}"
     [[ ! "${p}" ]] && eval "p=\${pkg_${dep}['default']}"
     [[ "${p}" ]] && packages+=( "${p}" )
   done
-  
+
   if ! check_locale; then
     eval "p=\${pkg_lang['${distribution,,}']}"
     [[ "${p}" ]] && packages+=( "${p}" )
