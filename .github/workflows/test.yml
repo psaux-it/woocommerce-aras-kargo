@@ -28,7 +28,7 @@ jobs:
     strategy:
       matrix:
         container:
-          - 'centos:latest'
+          - 'centos-stream-9'
     container: ${{ matrix.container }}
     name: woo-aras-setup.sh on ${{ matrix.container }}
     steps:
@@ -38,7 +38,5 @@ jobs:
         run: |
           chmod +x "${GITHUB_WORKSPACE}/woo-aras-setup.sh"
           chmod +x "${GITHUB_WORKSPACE}/woocommerce-aras-cargo.sh"
-          yum update
-          yum -y install which 
           yes | "${GITHUB_WORKSPACE}/woo-aras-setup.sh"
           shell: bash
