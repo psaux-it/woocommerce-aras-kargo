@@ -120,15 +120,13 @@ get_column () {
   elif command -v wget > /dev/null 2>&1; then
     cd /tmp
     wget -q --no-check-certificate -O column2 https://psaux-it.github.io/column2
-  else
-    fatal "Install curl or wget, unsupported command, we need 'column' command from util-linux package"
   fi
   
   [[ -f "/tmp/column2" ]] && chmod +x column2
   [[ ! -d "/usr/local/bin" ]] && mkdir -p /usr/local/bin
   mv /tmp/column2 /usr/local/bin/
   
-  [[ -f "/usr/local/bin/column2" ]] && my_column="/usr/local/bin/column2" || fatal "Unsupported command, we need 'column' command from util-linux package"
+  [[ -f "/usr/local/bin/column2" ]] && my_column="/usr/local/bin/column2"
 }
 
 # We need column command from util-linux package, not from bsdmainutils
