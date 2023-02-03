@@ -478,7 +478,7 @@ get_package_list () {
     ['default']="sudo"
   )
   
-  declare -A pkg_locales=(
+  declare -A pkg_locale=(
     ['debian']="locales"
     ['ubuntu']="locales"
     ['fedora']="glibc-langpack-en"
