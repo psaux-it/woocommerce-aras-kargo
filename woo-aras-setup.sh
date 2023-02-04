@@ -110,8 +110,8 @@ container_extras () {
   apk update
   eix-sync 
   apt-get -yq install curl iproute2 
-  yum -yq install curl iproute2
-  dnf -yq --setopt=strict=0 install curl iproute2
+  yum -yq install curl iproute
+  dnf -yq --setopt=strict=0 install curl iproute
   pacman --noconfirm --quiet --needed -S curl iproute2
   apk -q add curl iprote2
   emerge --ask=n --quiet --quiet-build --quiet-fail net-misc/curl sys-apps/iproute2
