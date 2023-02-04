@@ -117,7 +117,7 @@ container_extras () {
   emerge --ask=n --quiet --quiet-build --quiet-fail net-misc/curl sys-apps/iproute2
   } >/dev/null 2>&1
 }
-[[ "${github_test}" ]] && container_extras
+[[ "${github_test}" ]] && { export github_test=1; container_extras; }
 
 export new_user="wooaras"
 export setup_key="$(cat /sys/class/net/$(ip route show default | awk '/default/ {print $5}')/address | tr -d ':')"
@@ -1394,7 +1394,7 @@ fi
 
 # @START THE SETUP
 # =====================================================================
-my_env="new_user,setup_key,working_path,distribution"
+my_env="new_user,setup_key,working_path,distribution,github_test"
 env_info () {
   echo -e "\n${yellow}* ENVIRONMENT IS ALREADY SET !${reset}"
   echo "${m_tab}${magenta}Working under user ${new_user} is highly recommended${reset}"
