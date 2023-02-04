@@ -536,9 +536,6 @@ get_package_list () {
   declare -A pkg_locale_gen=(
     ['debian']="locales"
     ['ubuntu']="locales"
-    ['centos']="glibc"
-    ['fedora']="glibc"
-    ['rhel']="glibc"
   )
 
   declare -A pkg_column=(
