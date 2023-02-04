@@ -397,6 +397,25 @@ check_locale () {
   return 0
 }
 
+# Container extras for github action workflow
+container_extras () {
+  {
+  apt update
+  pacman -Syy
+  zypper refresh
+  echo n | dnf distro-sync
+  echo n | yum update
+  apk update
+  eix-sync 
+  apt-get -yq install curl iproute2 
+  yum -yq install curl iproute2
+  dnf -yq --setopt=strict=0 install curl iproute2
+  pacman --noconfirm --quiet --needed -S curl iproute2
+  apk -q add curl iprote2
+  emerge --ask=n --quiet --quiet-build --quiet-fail net-misc/curl sys-apps/iproute2
+  } >/dev/null 2>&1
+}
+
 # Package lists for distributions
 get_package_list () {
   declare -A pkg_make=(
@@ -974,6 +993,7 @@ check_deps () {
 }
 
 # +-----+-----+--->
+[[ "${github_test}" && { fake_progress "PREPEARING CONTAINER"; container_extras; replace_suc "CONTAINER READY "; }
 check_deps
 check_locale
 autodetect_distribution &&
