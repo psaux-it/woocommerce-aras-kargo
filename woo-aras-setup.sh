@@ -1409,7 +1409,7 @@ env_info () {
 }
 
 # Clean quit for github workflow
-if [[ "${github_2023}" ]]; then
+if [[ "${github_test}" ]]; then
   env_info
   exit 0
 fi
