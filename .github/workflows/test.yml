@@ -38,6 +38,6 @@ jobs:
         run: |
           chmod +x "${GITHUB_WORKSPACE}/woo-aras-setup.sh"
           chmod +x "${GITHUB_WORKSPACE}/woocommerce-aras-cargo.sh"
-          export github_2023=1
+          export github_test=1
           yes | "${GITHUB_WORKSPACE}/woo-aras-setup.sh"
           shell: bash
