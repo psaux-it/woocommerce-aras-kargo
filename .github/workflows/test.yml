@@ -31,7 +31,7 @@ jobs:
           - 'ubuntu:latest'
           - 'debian:latest'
           - 'fedora:latest'
-          - 'archlinux:latest'
+          - 'oraclelinux:9'
     container: ${{ matrix.container }}
     name: woo-aras-setup.sh on ${{ matrix.container }}
     steps:
