@@ -993,7 +993,7 @@ check_deps () {
 }
 
 # +-----+-----+--->
-[[ "${github_test}" && { fake_progress "PREPEARING CONTAINER"; container_extras; replace_suc "CONTAINER READY "; }
+[[ "${github_test}" ]] && { fake_progress "PREPEARING CONTAINER"; container_extras; replace_suc "CONTAINER READY "; }
 check_deps
 check_locale
 autodetect_distribution &&
