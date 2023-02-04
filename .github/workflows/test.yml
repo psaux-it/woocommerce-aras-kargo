@@ -29,6 +29,9 @@ jobs:
       matrix:
         container:
           - 'ubuntu:latest'
+          - 'debian:latest'
+          - 'opensuse/leap:latest'
+          - 'opensuse/tumbleweed:latest'
     container: ${{ matrix.container }}
     name: woo-aras-setup.sh on ${{ matrix.container }}
     steps:
@@ -37,6 +40,5 @@ jobs:
       - name: start woo-aras-setup.sh testing
         run: |
           chmod +x "${GITHUB_WORKSPACE}/woo-aras-setup.sh"
-          chmod +x "${GITHUB_WORKSPACE}/woocommerce-aras-cargo.sh"
           export github_test=1
           yes | bash "${GITHUB_WORKSPACE}/woo-aras-setup.sh"
