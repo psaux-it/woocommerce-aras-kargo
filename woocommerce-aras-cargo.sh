@@ -46,6 +46,9 @@
 # Follow detailed installation instructions on github.
 # =====================================================================
 
+# github action workflow called me, BYE!
+[[ "${github_test}" ]] && exit 0
+
 # @MISCELLANEOUS SETTINGS
 # =====================================================================
 export TZ='Europe/Istanbul'
