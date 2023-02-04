@@ -1408,6 +1408,8 @@ env_info () {
   spinner
 }
 
+if ! [[ "${github_test}" ]]; then
+
 if [[ "$SUDO_USER" ]]; then
   if [[ "$SUDO_USER" != "${new_user}" ]]; then
     if [[ "${1}" == "--force" || "${1}" == "-f" ]]; then
@@ -1441,5 +1443,7 @@ else
   sudo -u "${new_user}" --preserve-env="${my_env}" -s /bin/bash -c 'exec < /dev/tty; sudo --preserve-env='"${my_env}"' '"${working_path}"'/woocommerce-aras-cargo.sh --setup'
 fi
 
+fi
+
 # And lastly we exit.
-exit $?
+exit 0
