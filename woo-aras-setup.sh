@@ -1408,12 +1408,6 @@ env_info () {
   spinner
 }
 
-# Clean quit for github workflow
-if [[ "${github_test}" ]]; then
-  env_info
-  exit 0
-fi
-
 if [[ "$SUDO_USER" ]]; then
   if [[ "$SUDO_USER" != "${new_user}" ]]; then
     if [[ "${1}" == "--force" || "${1}" == "-f" ]]; then
