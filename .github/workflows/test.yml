@@ -29,6 +29,7 @@ jobs:
       matrix:
         container:
           - 'ubuntu:latest'
+          - 'debian:latest'
     container: ${{ matrix.container }}
     name: woo-aras-setup.sh on ${{ matrix.container }}
     steps:
