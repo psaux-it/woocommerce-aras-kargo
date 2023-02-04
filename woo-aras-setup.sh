@@ -1394,7 +1394,7 @@ fi
 
 # @START THE SETUP
 # =====================================================================
-my_env="new_user,setup_key,working_path,distribution,github_test"
+my_env="new_user,setup_key,working_path,distribution"
 env_info () {
   echo -e "\n${yellow}* ENVIRONMENT IS ALREADY SET !${reset}"
   echo "${m_tab}${magenta}Working under user ${new_user} is highly recommended${reset}"
@@ -1408,8 +1408,10 @@ env_info () {
   spinner
 }
 
-if ! [[ "${github_test}" ]]; then
+# Test done?
+[[ "${github_test}" ]] && { env_info; exit $?; }
 
+# Let's continue setup
 if [[ "$SUDO_USER" ]]; then
   if [[ "$SUDO_USER" != "${new_user}" ]]; then
     if [[ "${1}" == "--force" || "${1}" == "-f" ]]; then
@@ -1443,8 +1445,5 @@ else
   sudo -u "${new_user}" --preserve-env="${my_env}" -s /bin/bash -c 'exec < /dev/tty; sudo --preserve-env='"${my_env}"' '"${working_path}"'/woocommerce-aras-cargo.sh --setup'
 fi
 
-fi
-
-
 # And lastly we exit.
-# exit 0
+exit $?
