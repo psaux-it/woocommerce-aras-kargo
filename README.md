@@ -1,3 +1,5 @@
+### STATUS
+[![woo-aras-setup.sh CI](https://github.com/psaux-it/woocommerce-aras-kargo/actions/workflows/test.yml/badge.svg)](https://github.com/psaux-it/woocommerce-aras-kargo/actions/workflows/test.yml)
 # WooCommerce - Aras Cargo Integration
 ## Pluginless linux server side bash scripting solution
 <img align="left" width="100" height="100" src="https://www.cyberciti.biz/media/new/category/old/terminal.png">
