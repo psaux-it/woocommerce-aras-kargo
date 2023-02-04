@@ -1260,7 +1260,8 @@ if (( ${#missing_deps[@]} )); then
   # YOU CAN WALK IN ARRAY, FIND TARGET ELEMENT AND UNSET IT, BUT
   # CAUSES INDICES SEQUENCE BROKEN YOU NEED TO RECREATE ARRAY FOR GAPS !
   ###################################################################################
-  if [[ "${distribution}" == @(opensuse-leap|opensuse-tumbleweed|opensuse) ]]; then
+  # locale-gen breaks these distros
+  if [[ "${distribution}" == @(opensuse-leap|opensuse-tumbleweed|opensuse|fedora) ]]; then
     if [[ "${missing_deps[@]}" =~ "locale-gen" ]]; then
       for i in "${!missing_deps[@]}"; do
         if [[ ${missing_deps[i]} = "locale-gen" ]]; then
