@@ -35,7 +35,7 @@ jobs:
     name: woo-aras-setup.sh on ${{ matrix.container }}
     steps:
       - name: Check out the repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: start woo-aras-setup.sh testing
         run: |
           chmod +x "${GITHUB_WORKSPACE}/woo-aras-setup.sh"
