@@ -1443,5 +1443,5 @@ else
   sudo -u "${new_user}" --preserve-env="${my_env}" -s /bin/bash -c 'exec < /dev/tty; sudo --preserve-env='"${my_env}"' '"${working_path}"'/woocommerce-aras-cargo.sh --setup'
 fi
 
-# And lastly we exit.
+# And lastly we exit..
 exit $?
