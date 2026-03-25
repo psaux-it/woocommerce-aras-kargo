@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Copyright (C) 2021 Hasan CALISIR <hasan.calisir@psauxit.com>
+# Copyright (C) 2021 Hasan CALISIR <hasan.calisir@psauxit.com> 
 # Distributed under the GNU General Public License, version 2.0.
 #
 # This program is free software: you can redistribute it and/or modify
