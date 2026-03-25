@@ -8,14 +8,13 @@
 
 ## What is the actual solution here exactly?
 
-The aim of this pluginless bash scripting solution is effortlessly integrate WooCommerce and ARAS cargo with help of [free AST plugin](https://wordpress.org/plugins/woo-advanced-shipment-tracking/). Note that this is not a deep integrate solution. Instead of syncing your order with Aras end just listens ARAS for newly created cargo tracking numbers and match them with application (WooCommerce) side customer info.
-This solution best suits to small-mid size e-commerce business. Keep in mind that If you have a large volume e-commerce business you need deep integration solutions.
+The aim of this pluginless bash scripting solution is effortlessly integrate WooCommerce and ARAS cargo with help of [free AST plugin](https://wordpress.org/plugins/woo-advanced-shipment-tracking/). Listens ARAS for newly created cargo tracking numbers and match them with application (WooCommerce) side customer info. This solution best suits to small-mid size e-commerce business.
 
 <img width="3616" height="2176" alt="Image" src="https://github.com/user-attachments/assets/89f161f9-2435-486c-8bc7-5294e854bea1" />
 
 > This automation updates woocomerce order status 'processing' to 
 > 'completed/shipped', when the matching cargo tracking code is 
-> generated on the ARAS Kargo end. Attachs cargo information 
+> generated on the ARAS cargo end. Attachs cargo information 
 > (tracking number, track link etc.) to order completed/shipped e-mail with the
 > help of AST plugin and notify customer. If you implemented
 > two-way fulfillment workflow, script goes one layer up and updates order status 'shipped'
